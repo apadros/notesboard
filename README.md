@@ -1,1 +1,1 @@
-# notesboard
+See license for permissions.

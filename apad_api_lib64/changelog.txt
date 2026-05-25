@@ -1,0 +1,201 @@
+v0.4.3
+	[Background]
+		- Updates to various batch files
+		
+	[File]
+		- Added reading functions ParseLine(), LineIsValid(), GetLineDataElement() and FreeLine() and helper macro LineReadLoopHeader()
+		- Added creation and writing functions CreateFile() and WriteToFile() + overload
+		- Added function GetFileExtension()
+		- FileExists() now has to be called before calling LoadFile(), check is no longer done internally
+
+	[Memory]
+		- Added macro PushStruct()
+		
+	[String]
+		- Added functions IsWord(), IsNumber() overload and PushString()
+		- Removed the need to check for string == Null for Concatenate() calls, uninitialised strings will be ignored
+
+	[Time]
+		- Added support for "today" and day offsets as allowed date strings or part thereof (e.g. date+5)
+		- Renamed IsDate() to IsDateAndValid()
+		- Added function GetTimeNow()
+		
+	[Win32]
+		- Added function Win32DeleteFile()
+		- Win32FileExists() now has to be called before calling Win32LoadFile(), check is no longer done internally
+
+v0.4.2
+	[Background]
+		- Removed APAD_INTERNAL compilation macro, testing is now done through a debug version of the library
+		- Releases will now consist of 2 libraries; once for debug builds which will print stack backtracing within assertions and another, optimised, version for release builds.
+			To make use of stack backtracing, need to compile the target program without optimisations and with debug info (/Od and /Zi respectively with the Microsoft C++ compiler)
+		- Minor bug fixes and improvements
+		- Update to build_dll_release.bat to generate both versions of the library
+		
+	[Error]
+		- Added API-only internal assertions can either exit program execution or just jump out of the API immediately after an assertions is triggered. 
+			This behaviour can be set through various function calls in apad_error.h
+		- Improved printing format of user-side assertions
+		- Added stack backtrace printing functionality for debug builds
+		- Removed the concept of a global error string, error reporting must now take place immediately instead of being delayed
+		- Replaced the concept of a global error with that of an assertion hit. 
+			AssertionWasHit() can now be used to check this in case assertions' behaviour is set so that exit is not called immediately.
+		- Assertions, both internal and external, now report failure immediately instead of storing the error for later as indicated above.
+			This behaviour can be changed with various function calls within apad_error.h
+		- Added RegisterExitFunction() for custom user code to execute upon program exit
+
+v0.4.1
+	[Background]
+		- Packed all libraries into 1 for convenience since they all link with several others
+		- Replaced the imported_function and exported_function macros with dll_import and dll_export respectively
+		- Minor bug fixes
+		- Minor updates and tidying up of some header files
+		- Updated build_all_dlls.bat to build all files into a single library
+		- Removed build_dll.bat as they are all now combined into 1
+		
+	[File]
+		- Fixed apad_file.h function pointers
+		- Removed apad_time.cpp
+	
+	[GUI]
+		- Added initial code and files for GUI-based Apps. This code is still WIP and so is usage is currently not recommended.
+			- OpenGL initialisation and exit
+			- Basic program loop with a target FPS of 60
+		- Added GUI-based assertions as message boxes
+		
+	[Memory]
+		- Updated the API to make more use of the CSL
+		
+	[String]
+		- Redesigned the API into a more c-style code base, removed string struct and inherent functionality
+		- Removed PushString()
+		- Added functions FreeString() & StringsIsEqualToAny()
+		- Modifed StringToInt() to take the string length as a second parameter
+		- Removal of the const modifier from some functions returns
+	
+	[Time]
+		- Added time markers and timing functionality
+		- Fixed bug within DateToString()
+	
+v0.4.0
+	- Error
+		- Added InvalidCodePath macro
+		- Replaced APAD_DEBUG macro with APAD_DEBUGGER_ASSERTIONS for clarity
+		- Improved readibilty of assertion messages
+		- Added support for automatic printing of failed assertions on the command line; to be decided by user code. 
+			This feature in on by default.
+	
+	- File
+		- Fixed bug where functions pointers weren't being defined properly
+	
+	- Log
+		- Renamed all apad_logging* files to apad_log*
+	
+	- Memory
+		- Fixed bug within PushMemory() where, in case the stack needed to be reallocated, original memory wasn't being copied properly
+		- Renamed PushMemory() and PushData() to Push()
+		- Added ResetStack()
+		
+	- String
+		- Added IsWhitespace()
+		- Added ConvertStringToLowerCase()
+		- Added struct::operator+(ui16 i)
+		- Added struct::operator!=(const char*)
+		- Added struct::operator!=(string)
+		- Minor correction to struct::operator+(char)
+		
+	- Time
+		- Added officially supported time formats
+		- Added IsDate() 
+		- Added StringToDate()
+
+v0.3.1
+	- Array
+		- Added AddToArray() and ClearArray()
+		
+	- Memory
+		- Removed funcionality of max stack capacity
+		- Added PushInstance()
+	
+	- String
+		- Replaced use of Win32 API memory functions with normal memory API memory block
+		- Renamed short_string struct to string and implemented dynamic memory functionality
+			- Dynamic string memory will be allocated at its first use and will be deallocated when program exits
+		- Added ConcatenateStrings()
+		- Added overloaded operators ==, +, and +=. All of them can be used with either a const char* of a string instance
+			- Allow assignment and concatenation with chars, char pointers, char arrays and string literals
+
+v0.3.0
+	- Array
+		- Added GetArrayLength()
+		
+	- Error
+		- Added AssertRetType() and updated all required code previously using AssertRet()
+
+	- Logging
+		- Added OpenLogFile(), Log() and CloseLogFile()
+		
+	- Maths
+		- Added Min(), Max() and Magnitude()
+		
+	- String
+		- Added functionalities short_string ss = const char*, ss (already defined) = const char* and const char* = ss (aldeady defined). char* can be used instead of const char*.
+		- Added functions IsLetter(), IsNumber(), CopyString(), StringToInt(), ExtractSubstring()
+		- Added a max length variable for short_string
+		- Added [] operator to short_string
+			
+	- Time
+		- Added date struct
+		- Added GetDate(), DateToString()
+		
+v0.2.0
+	Background
+		- Added version numbers to individual libs & dlls
+		- Split lib & dll files into separate version folders
+		- Removed the need for macro linkage change when including .h files into their respective .cpp files
+		- Added APAD_DLL macro to avoid having to recompile dlls when testing
+		
+	Array API
+		- Added first iteration
+		
+  Error API
+		- Added AssertRet() for use in functions where returning is preferable to exiting the process if an error is found
+		- Renamed files from debug_error.* to error.*
+		
+	File API
+		- Added basic functions FileExists(), LoadFile(), FreeFile(), IsValid(file), SaveFile()
+		
+	Memory API
+		- Added stack allocation, pushing and deallocation
+		- Added support for custom setting of maximum individual stack size for the client code (SetMaxStackCapacity())
+		- Added stack validity checking to IsValid(memory_block)
+		
+	String API
+		- Added assertions
+		- Added ToString() for all available types
+		- Added PushString()
+		- Added StringsAreEqual()
+		- Added FindSubstring()
+		- Added ContainsAnySubstring()
+		
+	Win32 API
+		- Added functions Win32FileExists(), Win32LoadFile() and Win32SaveFile()
+		- Renamed all functions to have Win32 first for homogeneity
+	
+v0.1.1
+	- Renamed build.bat to build_dll.bat and updated its contents
+	- Replaced contents of debug Assert() with __debugbreak()
+	- Removed all typedefs from memory.h and their use in memory.cpp
+
+v0.1.0
+	- Base types
+	- Intrinsic macros
+	- Debug assertions for internal use only and initial version of release assertions
+	- Basic error setting, getting and clearing
+	- Basic memory types and operations using custom win32 code
+	  - Clearing, allocation, copying, deallocation, validation, setting as invalid
+		- Casting and reading macros
+	- String
+		- GetStringLength()
+	- Win32
+		- Added ConsoleAppEntryPoint(), AllocateWin32Memory(), FreeWin32Memory()
