@@ -1,0 +1,22 @@
+- Key
+	- @WIP
+	- @PRIORITY
+	
+Background
+	- Mac OS compatibility
+	
+Functionality
+	- Creation of new content from vertical toolbar
+	- Dragging and dropping data (images, text columns, etc)
+	- Setting the gl clear color as option -> board background
+	
+Buttons
+	- Image / bitmap
+	- Text
+	- Click event
+	- Animation of some kind
+
+Vertical toolbar
+	- Buttons
+		- Image above, text below
+	- Taking up entirety of vertical space, aligned to the left
