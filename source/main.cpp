@@ -7,6 +7,8 @@ GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", instance);
 	
 	while(true) {
+		
+		
 		Win32BeginGUIUpdateLoop();
 		
 		// glBegin(GL_TRIANGLES);
@@ -16,7 +18,7 @@ GUIAppEntryPoint(instance) {
 		// glVertex2f(700, 500);
 		// glEnd();
 		
-		WriteText("BOLA", 500, 500, 20);
+		WriteText("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 500, 500, 20);
 		
 		Win32EndGUIUpdateLoop();
 	}
