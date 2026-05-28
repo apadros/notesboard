@@ -5,11 +5,11 @@
 #include "apad_intrinsics.h"
 #include "apad_memory.h"
 
-// The first argument corresponds to the program name
-#define ConsoleAppEntryPoint(_argumentsID, _argumentCountID) int main(int _argumentCountID, char** _argumentsID)
+#define ConsoleAppEntryPoint(_argumentsID, _argumentCountID) /* The first argument corresponds to the program name */ \
+				  int main(int _argumentCountID, char** _argumentsID)
 
-// Need to compile without optimizations and generate debug info for this to be useful
-dll_import void Win32PrintStackBackTrace();
+dll_import void Win32OutputDebugString(const char* string);
+dll_import void Win32PrintStackBackTrace(); // Need to compile without optimizations and generate debug info for this to be useful
 
 // ******************** Memory ********************  //
 
