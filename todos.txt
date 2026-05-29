@@ -9,11 +9,11 @@ Functionality
 	- Creation of new content from vertical toolbar
 	- Dragging and dropping data (images, text columns, etc)
 	- Setting the gl clear color as option -> board background
+	- Creation of notes / labels
 	
 Buttons
 	- Image / bitmap
 	- Text
-	- Click event
 	- Animation of some kind
 
 Vertical toolbar

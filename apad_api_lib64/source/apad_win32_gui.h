@@ -31,10 +31,16 @@ typedef point size;
 dll_import void Win32InitGUI(const char* windowTitle /* Can be set to Null */, HINSTANCE instance);
 	
 struct win32_events {
-	bool mouseLeftClick;
+	bool mouseLeftClickDown;
+	bool mouseLeftClickUp;
 	bool mouseLeftDown;
-	bool mouseRightClick;
+	
+	bool mouseRightClickDown;
+	bool mouseRightClickUp;
 	bool mouseRightDown;
+	
+	bool mouseMoved;
+	
 	ui16 mouseX;
 	ui16 mouseY;
 };
