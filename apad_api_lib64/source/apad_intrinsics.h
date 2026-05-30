@@ -54,9 +54,9 @@
 
 // Bit fields. 
 // Dot not test for true or false, instead use > 0 or == 0
-#define BitIsSet(_bit, _field) ((ui32)(_field) & (ui32)(_bit))
-#define ClearBit(_bit, _field) (_field = decltype(_field)((ui32)(_field) & (~(ui32)(_bit))))
-#define SetBit(_bit, _field) (_field = decltype(_field)((ui32)(_field) | (ui32)(_bit)))
+#define BitIsSet(_bitIndex, _field) (((_field) & (1 << (_bitIndex))) > 0)
+#define ClearBit(_bitIndex, _field) (_field = decltype(_field)((_field) & (~(1 << _bitIndex))))
+#define SetBit(_bitIndex, _field) (_field = decltype(_field)((_field) | (1 << _bitIndex)))
 
 // Linking
 #define dll_import __declspec( dllimport )

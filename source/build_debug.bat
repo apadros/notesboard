@@ -3,10 +3,10 @@
 if not exist build ( mkdir build )
 cd build
 
-del apad_api* /q
-copy ..\..\apad_api_lib64\bin\*debug.* .
+del *.dll /q
+copy ..\..\apad_api_lib64\bin\*.dll .
 
-cl /nologo /w /I..\..\apad_api_lib64\source /Fe: bolapad /Od /Zi /std:c++17 ..\*.cpp *debug.lib opengl32.lib
+cl /nologo /w /I..\..\apad_api_lib64\source /Fe: bolapad /Od /Zi /std:c++17 ..\*.cpp /link ..\..\apad_api_lib64\bin\*.lib opengl32.lib user32.lib
 
 del *.ilk
 del *.obj

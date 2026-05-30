@@ -43,6 +43,8 @@ struct win32_events {
 	
 	ui16 mouseX;
 	ui16 mouseY;
+	
+	char keyPressed;
 };
 	
 // These need to be encased in a while(true) loop
@@ -56,5 +58,16 @@ dll_import void DisplayLastWin32Error();
 dll_export size Win32GetProgramWindowClientSize();
 
 dll_export point Win32GetMousePosWithinClient(); // Return point will be capped to the dimensions of the client area
+
+struct win32_keyboard_state {
+	bool capsLock;
+	bool leftShift;
+	bool rightShift;
+	bool leftAlt;
+	bool rightAlt;
+	bool leftCtrl;
+	bool rightCtrl;
+};
+dll_export win32_keyboard_state Win32GetKeyboardState();
 
 #endif
