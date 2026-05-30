@@ -30,36 +30,19 @@ typedef point size;
 
 dll_import void Win32InitGUI(const char* windowTitle /* Can be set to Null */, HINSTANCE instance);
 	
-struct win32_events {
+struct win32_state {
 	bool mouseLeftClickDown;
 	bool mouseLeftClickUp;
-	bool mouseLeftDown;
 	
 	bool mouseRightClickDown;
 	bool mouseRightClickUp;
-	bool mouseRightDown;
 	
 	bool mouseMoved;
+	ui16 mouseX; // Wlll only be updated during mouse move and click events
+	ui16 mouseY; // Wlll only be updated during mouse move and click events
 	
-	ui16 mouseX;
-	ui16 mouseY;
+	char keyPressed; // Will be Null if none
 	
-	char keyPressed;
-};
-	
-// These need to be encased in a while(true) loop
-dll_import win32_events Win32BeginGUIUpdateLoop();
-dll_import void   		  Win32EndGUIUpdateLoop();
-
-dll_import void DisplayLastWin32Error();
-
-// ******************** Others ******************** //
-
-dll_export size Win32GetProgramWindowClientSize();
-
-dll_export point Win32GetMousePosWithinClient(); // Return point will be capped to the dimensions of the client area
-
-struct win32_keyboard_state {
 	bool capsLock;
 	bool leftShift;
 	bool rightShift;
@@ -68,6 +51,17 @@ struct win32_keyboard_state {
 	bool leftCtrl;
 	bool rightCtrl;
 };
-dll_export win32_keyboard_state Win32GetKeyboardState();
+	
+// These need to be encased in a while(true) loop
+dll_import win32_state Win32BeginGUIUpdateLoop();
+dll_import void   		 Win32EndGUIUpdateLoop();
+
+dll_import void DisplayLastWin32Error();
+
+// ******************** Others ******************** //
+
+dll_export size Win32GetProgramWindowClientSize();
+
+dll_export point Win32GetMousePosWithinClient(); // Return point will be capped to the dimensions of the client area
 
 #endif
