@@ -6,7 +6,7 @@ Background
 	- Mac OS compatibility
 	
 Functionality
-	- Creation of new content from vertical toolbar @WIP - Need to debug creation and dragging / dropping of notes
+	- Writing within notes @WIP
 	- Dragging and dropping data (images, text columns, etc)
 	- Setting the gl clear color as option -> board background
 	- Creation of notes / labels

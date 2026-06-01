@@ -13,19 +13,16 @@ struct note {
 	char*     text;
 };
 
-struct {	
+struct {
+	// Temporary write box
 	struct {
-		ui16 left;
-		ui16 bottom;
-		ui16 width;
-		ui16 height; // Set to mouse height + 20%
-		char text[2] = { '\0', '\0'};
-		bool writingText;
+		rectangle    background; // Height set to mouse height + 20%
+		memory_stack memory;
 	} writeBox;
-	
+
 	struct {
 		rectangle background;
-		
+
 		struct {
 			rectangle 	background;
 			const char* text;
@@ -33,12 +30,15 @@ struct {
 		} 						buttons[3];
 		ui16          textHeight;
 	} toolbar;
-	
+
 	struct {
 		memory_stack memory;
 		note* 			 selected;
+		bool         moved; // To check whether to allow text writing
+		memory_stack textMemory; // To push text being written onto. Once done, allocated onto specific note.
+		note*        beingWritten;
 	} notes;
-	
+
 	struct {
 		ui16 x;
 		ui16 y;
@@ -48,7 +48,35 @@ struct {
 	} mouse;
 } state;
 
+// @TODO - Is this still useful?
+#define BeginNotesLoop() { \
+	ForAll(state.notes.memory.size / sizeof(note))
+#define EndNotesLoop() }
+
 #define UnpackDimensions(_struct) (_struct).left, (_struct).bottom, (_struct).width, (_struct).height
+
+void BeginWriting(ui16 left, ui16 bottom) {
+	Assert(left != 0 && bottom != 0);
+	Assert(IsValid(state.writeBox.memory) == false);
+	state.writeBox.background.left = left;
+	state.writeBox.background.bottom = bottom;
+	state.writeBox.background.height = GetSystemMetrics(SM_CYCURSOR); // Pixel height. @TODO - Does this take DPI into account?
+	Assert(state.writeBox.background.height != 0);
+	state.writeBox.memory = AllocateStack();
+}
+
+char* EndWriting() {
+	Assert(IsValid(state.writeBox.memory) == true);
+	PushString(Null, true, state.writeBox.memory);
+	char* ret = AllocateString((char*)state.writeBox.memory.memory, Null);
+	FreeStack(state.writeBox.memory);
+	ClearStruct(state.writeBox.background);
+	return ret;
+}
+
+bool TextIsBeingWritten() {
+	return IsValid(state.writeBox.memory);
+}
 
 f32 UI8ColourToF32(ui8 u) {
 	return (f32)u / 255;
@@ -77,9 +105,7 @@ void DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g
 
 GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", instance);
-	
-	auto textStack = AllocateStack();
-	
+
 	// Init toolbar
 	{
 		auto* tb = &state.toolbar;
@@ -87,7 +113,7 @@ GUIAppEntryPoint(instance) {
 		tb->background.bottom = 0;
 		tb->background.width = 150;
 		tb->background.height = Win32GetProgramWindowClientSize().height;
-		
+
 		// Init buttons, starting at the top
 		ui16 size = (f32)tb->background.width * 2 / 3;
 		ui16 spaceBetween = (tb->background.width - size) / 2;
@@ -104,13 +130,13 @@ GUIAppEntryPoint(instance) {
 		tb->buttons[1].text = AllocateString("Button 2", Null);
 		tb->buttons[2].text = AllocateString("Button 3", Null);
 	}
-	
+
 	state.notes.memory = AllocateStack();
-	
+
 	while(true) {
 		auto osState = Win32BeginGUIUpdateLoop();
 		auto canvas = Win32GetProgramWindowClientSize();
-		
+
 		// Update mouse state
 		state.mouse.lastX = state.mouse.x;
 		state.mouse.lastY = state.mouse.y;
@@ -128,52 +154,87 @@ GUIAppEntryPoint(instance) {
 			state.mouse.x = osState.mouseX;
 			state.mouse.y = osState.mouseY;
 		}
-		
-		// Check for left clicking on the first toolbar button
-		if(state.notes.selected == Null && osState.mouseLeftClickDown == true && Overlap(osState.mouseX, osState.mouseY, UnpackDimensions(state.toolbar.buttons[0].background)) == true) {
+
+		// Selection of a note
+		if(state.notes.selected == Null && osState.mouseLeftClickDown == true && state.notes.memory.size > 0) {
+			ui8 count = state.notes.memory.size / sizeof(note);
+			ForAll(count) {
+				auto* n = (note*)state.notes.memory.memory + it;
+				if(Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(n->background)) == true) {
+					state.notes.selected = n;
+					break;
+				}
+			}
+		}
+
+		// Toolbar notes button
+		if(state.notes.selected == Null && osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolbar.buttons[0].background)) == true) {
 			// Create new note
 			auto* n = (note*)Push(sizeof(note), state.notes.memory);
 			n->background.left = 0;
 			n->background.height = 50;
 			n->background.bottom = osState.mouseY - n->background.height / 2;
-			n->background.width = 100;
+			n->background.width = 150;
 			n->title = Null;
 			n->text = Null;
 			state.notes.selected = n;
 		}
-		
-		// @TODO - Check overlap with created notes
-		
-		// A note is currently selected
-		if(state.notes.selected != Null) { 
-			 if(osState.mouseLeftClickUp == true) // Drop
-			  state.notes.selected = Null;
-			 else if(osState.mouseMoved == true) { // Move
-				si16 newLeft = state.notes.selected->background.left + (state.mouse.x - state.mouse.lastX);
-				Cap(newLeft, 0, canvas.width - state.notes.selected->background.width);
-				
-				si16 newBottom = state.notes.selected->background.bottom + (state.mouse.y - state.mouse.lastY);
-				Cap(newBottom, 0, canvas.height - state.notes.selected->background.height);
-				
-				state.notes.selected->background.left = newLeft;
-				state.notes.selected->background.bottom = newBottom;
-			 }
+
+		// Move a note
+		if(state.notes.selected != Null && state.mouse.leftDown == true && osState.mouseMoved == true) {
+			si16 newLeft = state.notes.selected->background.left + (state.mouse.x - state.mouse.lastX);
+			Cap(newLeft, 0, canvas.width - state.notes.selected->background.width);
+
+			si16 newBottom = state.notes.selected->background.bottom + (state.mouse.y - state.mouse.lastY);
+			Cap(newBottom, 0, canvas.height - state.notes.selected->background.height);
+
+			state.notes.selected->background.left = newLeft;
+			state.notes.selected->background.bottom = newBottom;
+
+			state.notes.moved = true;
+		}
+
+		// Open a text box within a note
+		if(state.notes.selected != Null && state.notes.moved == false && osState.mouseLeftClickUp == true) {
+			state.notes.beingWritten = state.notes.selected;
+			BeginWriting(state.notes.beingWritten->background.left, state.notes.beingWritten->background.bottom);
 		}
 		
+		// Update text writing
+		if(TextIsBeingWritten() == true) {
+			auto* wb = &state.writeBox;
+			if(osState.keyPressed != Null) {
+				wb->memory.size -= 1; // Removed \0
+				PushString(&osState.keyPressed, true, wb->memory); 
+			}
+			else { // @TODO - Check for ESC being pressed or left mouse clikc out of the box
+			}
+			
+			// @TODO - Click out to come out of text mode
+		}
+		
+		// @TODO - When coming out of text writing, store string in relative note
+
+		// Drop a note
+		if(state.notes.selected != Null && state.notes.moved == true && osState.mouseLeftClickUp == true)
+			state.notes.selected = Null;
+
+		// @TODO - Check overlap with created notes
+
 		// Draw the background
 		DrawRectangle(0, 0, canvas.width, canvas.height, 230, 230, 230);
-		
+
 		// Draw the toolbar
 		{
 			auto* tb = &state.toolbar;
 			DrawRectangle(UnpackDimensions(state.toolbar.background), 255, 255, 255); // Background
-			
+
 			ForAll(3) { // Buttons
 				auto* b = tb->buttons + it;
 				DrawRectangle(UnpackDimensions(b->background), 255, 0, 0);
 				WriteText(b->text, b->background.left, b->textBottom, tb->textHeight);
 			}
-			
+
 			// Draw separator
 			glLineWidth(3);
 			glColor3f(0, 0, 0);
@@ -182,10 +243,10 @@ GUIAppEntryPoint(instance) {
 			glVertex2s(tb->background.width, tb->background.height);
 			glEnd();
 		}
-		
+
 		// Draw notes
 		if(state.notes.memory.size > 0) {
-			ui8 count = state.notes.memory.size % sizeof(note);
+			ui8 count = state.notes.memory.size / sizeof(note);
 			ForAll(count) {
 				auto* n = (note*)state.notes.memory.memory + it;
 				DrawRectangle(UnpackDimensions(n->background), 0, 255, 0);
@@ -193,30 +254,11 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
-		
-		#if 0
-		if(osState.mouseLeftClickDown == true) {
-			if(textStack.size > 0)
-				ResetStack(textStack);
-			state.writeBox.height = GetSystemMetrics(SM_CYCURSOR); // Pixel height. @TODO - Does this take DPI into account?
-			Assert(state.writeBox.height != 0);
-			state.writeBox.left = osState.mouseX;
-			state.writeBox.bottom = osState.mouseY - state.writeBox.height / 2;
-			state.writeBox.width = 50; // @TODO - Placeholder, update
-			state.writeBox.writingText = true;
-		}
-		
-		if(state.writeBox.writingText == true && osState.keyPressed != Null) {
-			if(textStack.size > 0)
-				textStack.size -= sizeof(char); // Remove \0
-			char text[] = { osState.keyPressed, '\0' };
-			PushString(text, true, textStack);
-		}
-		#endif
-		
-		if(textStack.size > 0)
-			WriteText((const char*)textStack.memory, state.writeBox.left, state.writeBox.bottom, state.writeBox.height);
-		
+
+		// @TODO - Draw the blinking cursor
+		if(TextIsBeingWritten() == true && state.writeBox.memory.size > 0)
+			WriteText((const char*)state.writeBox.memory.memory, state.writeBox.background.left, state.writeBox.background.bottom, state.writeBox.background.height);
+
 		//WriteText("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 500, 500, 20);
 
 		Win32EndGUIUpdateLoop();
