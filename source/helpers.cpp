@@ -2,7 +2,9 @@
 #include <gl\gl.h>
 #include "apad_error.h"
 #include "apad_intrinsics.h"
+#include "apad_maths.h"
 #include "apad_string.h"
+#include "helpers.h"
 
 program_local void WriteTextLineHor(ui16 x, ui16 y, ui8 height) {
 	glVertex2f(x, y);
@@ -14,8 +16,86 @@ program_local void WriteTextLineVert(ui16 x, ui16 y, ui8 height) {
 	glVertex2f(x, y + height);
 }
 
-program_external ui16 WriteText(const char* string, ui16 x, ui16 y, ui8 height) {
+program_external point GetNoteTextStart(note* n) {
+	Assert(n != Null);
+	point p = {};
+	p.x = n->background.left + NoteTextBorder;
+	p.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight;
+	return p;
+}
+
+program_external void BeginTempWriting(ui16 left, ui16 bottom) {
+	Assert(left != 0 && bottom != 0);
+	Assert(IsValid(state.writeBox.memory) == false);
+	state.writeBox.left = left;
+	state.writeBox.bottom = bottom;
+	// state.writeBox.background.height = GetSystemMetrics(SM_CYCURSOR); // Pixel height. @TODO - Does this take DPI into account?
+	// Assert(state.writeBox.background.height != 0);
+	state.writeBox.memory = AllocateStack();
+}
+
+program_external bool TempTextHasBeenWritten() {
+	return IsValid(state.writeBox.memory) == true && state.writeBox.memory.size > 0;
+}
+
+program_external void AddTempWriting(char c) {
+	if(TempTextHasBeenWritten() == true)
+		state.writeBox.memory.size -= 1; // Remove \0
+	char string[] = { c, '\0' }; // The '\0' won't be counted in PushString()
+	PushString(string, true, state.writeBox.memory);
+}
+
+program_external char* EndTempWriting() {
+	Assert(IsValid(state.writeBox.memory) == true);
+
+	char* ret = Null;
+	if(state.writeBox.memory.size > 0) {
+		PushString(Null, true, state.writeBox.memory);
+		ret = AllocateString((char*)state.writeBox.memory.memory, Null);
+	}
+
+	FreeStack(state.writeBox.memory);
+	state.writeBox.left = 0;
+	state.writeBox.bottom = 0;
+
+	return ret;
+}
+
+program_external bool TempTextIsBeingWritten() {
+	return IsValid(state.writeBox.memory);
+}
+
+program_external void EndNoteWriting() {
+	Assert(state.notes.beingWritten != Null);
+	state.notes.beingWritten->text = EndTempWriting();
+	state.notes.beingWritten = Null;
+}
+
+program_external f32 UI8ColourToF32(ui8 u) {
+	return (f32)u / 255;
+}
+
+#include <windows.h>
+#include <gl\gl.h>
+program_external void DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b) {
+	f32 rf = UI8ColourToF32(r);
+	f32 gf = UI8ColourToF32(g);
+	f32 bf = UI8ColourToF32(b);
+	glBegin(GL_QUADS);
+	glColor3f(rf, gf, bf);
+	glVertex2f(left, bottom);
+	glVertex2f(left + width, bottom);
+	glVertex2f(left + width, bottom + height);
+	glVertex2f(left, bottom + height);
+	glEnd();
+}
+
+program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height) {
 	Assert(string != Null);
+	
+	text_box ret = {};
+	ret.edges.left = x;
+	ret.edges.bottom = y;
 	
 	auto length = GetStringLength(string);
 	ui16 nextX = x;
@@ -29,6 +109,7 @@ program_external ui16 WriteText(const char* string, ui16 x, ui16 y, ui8 height) 
 			case(' '): break;
 			case('\n'): {
 				nextY -= height * 1.5f; 
+				ret.edges.bottom = nextY;
 				nextX = x; 
 			} break;
 			
@@ -252,11 +333,18 @@ program_external ui16 WriteText(const char* string, ui16 x, ui16 y, ui8 height) 
 			
 			default: break;
 		}
+		
+		ret.edges.width = Max(ret.edges.width, nextX + height - ret.edges.left);
 			
 		if(c != '\n')
 			nextX += height * 1.5f;
 	}
 	glEnd();
 	
-	return nextX - height * 0.5f;
+	ret.edges.height = y + height - ret.edges.bottom;
+	ret.cursorLeft = nextX;
+	Assert(ret.edges.width != 0);
+	Assert(ret.edges.height != 0);
+	
+	return ret;
 }

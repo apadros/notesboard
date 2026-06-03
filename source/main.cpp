@@ -1,3 +1,5 @@
+#include <windows.h>
+#include <gl\gl.h>
 #include "apad_base_types.h"
 #include "apad_error.h"
 #include "apad_maths.h"
@@ -5,133 +7,7 @@
 #include "apad_string.h"
 #include "apad_time.h"
 #include "apad_win32_gui.h"
-#include "gui.h"
-
-const ui16 NoteTextHeight = 15;
-const f32  QuickClickTime = 0.2; // Seconds
-
-struct note {
-	rectangle background;
-	char*     title;
-	char*     text;
-};
-
-struct {
-	// Temporary write box
-	struct {
-		ui16         left;
-		ui16         bottom;
-		memory_stack memory;
-	} writeBox;
-
-	struct {
-		rectangle background;
-
-		struct {
-			rectangle 	background;
-			const char* text;
-			ui16        textBottom;
-		} 						buttons[3];
-		ui16          textHeight;
-	} toolbar;
-
-	struct {
-		memory_stack memory;
-		note* 			 selectedByMouse;
-		bool         moved; // To check whether to allow text writing
-		memory_stack textMemory; // To push text being written onto. Once done, allocated onto specific note.
-		note*        beingWritten;
-	} notes;
-
-	struct {
-		ui16 				x;
-		ui16 				y;
-		ui16 				lastX;
-		ui16 				lastY;
-		bool 				leftDown;
-		time_marker leftDownTime;
-		bool        leftQuickClick;
-	} mouse;
-} state;
-
-#define BeginNotesLoop(_varID) { \
-	ForAll(state.notes.memory.size / sizeof(note)) { \
-		auto* _varID = (note*)state.notes.memory.memory + it;
-#define EndNotesLoop() } }
-
-#define UnpackDimensions(_struct) (_struct).left, (_struct).bottom, (_struct).width, (_struct).height
-
-void BeginTempWriting(ui16 left, ui16 bottom) {
-	Assert(left != 0 && bottom != 0);
-	Assert(IsValid(state.writeBox.memory) == false);
-	state.writeBox.left = left;
-	state.writeBox.bottom = bottom;
-	// state.writeBox.background.height = GetSystemMetrics(SM_CYCURSOR); // Pixel height. @TODO - Does this take DPI into account?
-	// Assert(state.writeBox.background.height != 0);
-	state.writeBox.memory = AllocateStack();
-}
-
-bool TempTextHasBeenWritten() {
-	return IsValid(state.writeBox.memory) == true && state.writeBox.memory.size > 0;
-}
-
-void AddTempWriting(char c) {
-	if(TempTextHasBeenWritten() == true)
-		state.writeBox.memory.size -= 1; // Remove \0
-	char string[] = { c, '\0' }; // The '\0' won't be counted in PushString()
-	PushString(string, true, state.writeBox.memory);
-}
-
-char* EndTempWriting() {
-	Assert(IsValid(state.writeBox.memory) == true);
-
-	char* ret = Null;
-	if(state.writeBox.memory.size > 0) {
-		PushString(Null, true, state.writeBox.memory);
-		ret = AllocateString((char*)state.writeBox.memory.memory, Null);
-	}
-
-	FreeStack(state.writeBox.memory);
-	state.writeBox.left = 0;
-	state.writeBox.bottom = 0;
-
-	return ret;
-}
-
-void EndNoteWriting() {
-	Assert(state.notes.beingWritten != Null);
-	state.notes.beingWritten->text = EndTempWriting();
-	state.notes.beingWritten = Null;
-}
-
-bool TempTextIsBeingWritten() {
-	return IsValid(state.writeBox.memory);
-}
-
-f32 UI8ColourToF32(ui8 u) {
-	return (f32)u / 255;
-}
-
-// @TODO - Export to APAD API
-bool Overlap(ui16 x0, ui16 y0, ui16 left1, ui16 bottom1, ui16 width1, ui16 height1) {
-	return x0 >= left1 && x0 <= left1 + width1 &&
-				 y0 >= bottom1 && y0 <= bottom1 + height1;
-}
-
-#include <windows.h>
-#include <gl\gl.h>
-void DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b) {
-	f32 rf = UI8ColourToF32(r);
-	f32 gf = UI8ColourToF32(g);
-	f32 bf = UI8ColourToF32(b);
-	glBegin(GL_QUADS);
-	glColor3f(rf, gf, bf);
-	glVertex2f(left, bottom);
-	glVertex2f(left + width, bottom);
-	glVertex2f(left + width, bottom + height);
-	glVertex2f(left, bottom + height);
-	glEnd();
-}
+#include "helpers.h"
 
 GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", instance);
@@ -215,7 +91,7 @@ GUIAppEntryPoint(instance) {
 
 			if(n != Null) {
 				state.notes.beingWritten = n;
-				BeginTempWriting(state.notes.beingWritten->background.left + NoteTextHeight, state.notes.beingWritten->background.bottom + NoteTextHeight);
+				BeginTempWriting(GetNoteTextStart(state.notes.beingWritten).x, GetNoteTextStart(state.notes.beingWritten).y);
 				if(n->text != Null) {
 					PushString(n->text, true, state.writeBox.memory);
 					n->text = Null; // @TODO - Memory leak
@@ -232,7 +108,7 @@ GUIAppEntryPoint(instance) {
 			n->background.left = 0;
 			n->background.height = NoteTextHeight * 3;
 			n->background.bottom = osState.mouseY - n->background.height / 2;
-			n->background.width = 150;
+			n->background.width = NoteMinWidth;
 			n->title = Null;
 			n->text = Null;
 			state.notes.selectedByMouse = n;
@@ -343,23 +219,35 @@ GUIAppEntryPoint(instance) {
 		// Draw text within state.writeBox
 		if(TempTextIsBeingWritten() == true) {
 			ui16 cursorLeft = state.writeBox.left;
-			if(TempTextHasBeenWritten() == true)
-				cursorLeft = WriteText((const char*)state.writeBox.memory.memory, state.writeBox.left, state.writeBox.bottom, NoteTextHeight);
+			ui16 cursorBottom = state.writeBox.bottom;
+			if(TempTextHasBeenWritten() == true) {
+				auto box = WriteText((const char*)state.writeBox.memory.memory, state.writeBox.left, state.writeBox.bottom, NoteTextHeight);
+				cursorLeft = box.cursorLeft;
+				cursorBottom = box.edges.bottom;
+				
+				if(state.notes.beingWritten != Null) {
+					auto* n = state.notes.beingWritten;
+					auto edges = box.edges;
+					n->background.width = Max(NoteMinWidth, edges.width + NoteTextBorder * 2);
+					ui16 top = n->background.bottom + n->background.height;
+					n->background.height = edges.height + NoteTextBorder * 2;
+					n->background.bottom = top - n->background.height;
+				}
+			}
 
 			// Cursor
 			glLineWidth(2);
 			glColor3f(0, 0, 0);
 			glBegin(GL_LINES);
-			glVertex2f(cursorLeft, state.writeBox.bottom);
-			glVertex2f(cursorLeft, state.writeBox.bottom + NoteTextHeight);
+			glVertex2f(cursorLeft, cursorBottom);
+			glVertex2f(cursorLeft, cursorBottom + NoteTextHeight);
 			glEnd();
 		}
 
-		// Draw text within all notes
+		// Draw text within all notes and update their size
 		BeginNotesLoop(n) {
 			if(n->text != Null)
-				WriteText(n->text, n->background.left + NoteTextHeight, n->background.bottom + NoteTextHeight, NoteTextHeight);
-
+				WriteText(n->text, GetNoteTextStart(n).x, GetNoteTextStart(n).y, NoteTextHeight);
 		}
 		EndNotesLoop();
 

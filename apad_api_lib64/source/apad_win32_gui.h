@@ -3,26 +3,7 @@
 
 #include <windows.h>
 #include "apad_intrinsics.h"
-
-struct rectangle {
-	f32 left;
-	f32 bottom;
-	f32 width;
-	f32 height;
-};
-
-struct point {
-	union {
-		ui16 x;
-		ui16 width;
-	};
-	
-	union {
-		ui16 y;
-		ui16 height;
-	};
-};
-typedef point size;
+#include "apad_maths.h"
 
 // ******************** Core ******************** //
 
