@@ -6,17 +6,11 @@ Background
 	- Mac OS compatibility
 	
 Functionality
-	- Writing within notes @WIP
-	- Dragging and dropping data (images, text columns, etc)
 	- Setting the gl clear color as option -> board background
-	- Creation of notes / labels
+	- Arrows to connect notes
+	- Creation of an image as a note
+	- Notes with bullet points
 	
-Buttons
-	- Image / bitmap
-	- Text
-	- Animation of some kind
-
 Vertical toolbar
 	- Buttons
-		- Image above, text below
-	- Taking up entirety of vertical space, aligned to the left
+		- Usage of images

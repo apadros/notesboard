@@ -24,51 +24,52 @@ program_external point GetNoteTextStart(note* n) {
 	return p;
 }
 
-program_external void BeginTempWriting(ui16 left, ui16 bottom) {
-	Assert(left != 0 && bottom != 0);
-	Assert(IsValid(state.writeBox.memory) == false);
-	state.writeBox.left = left;
-	state.writeBox.bottom = bottom;
-	// state.writeBox.background.height = GetSystemMetrics(SM_CYCURSOR); // Pixel height. @TODO - Does this take DPI into account?
-	// Assert(state.writeBox.background.height != 0);
-	state.writeBox.memory = AllocateStack();
+program_external bool NoteHasText(note* n) {
+	Assert(n != Null);
+	return IsValid(n->textMemory) == true && n->textMemory.size > 0;
 }
 
-program_external bool TempTextHasBeenWritten() {
-	return IsValid(state.writeBox.memory) == true && state.writeBox.memory.size > 0;
+// NoteHasText() has to be called beforehand to avoid checking twice
+program_external char* GetNoteText(note* n) {
+	Assert(n != Null);
+	return (char*)n->textMemory.memory;
 }
 
-program_external void AddTempWriting(char c) {
-	if(TempTextHasBeenWritten() == true)
-		state.writeBox.memory.size -= 1; // Remove \0
+program_external void BeginNoteWriting(note* n) {
+	Assert(n != Null);
+	Assert(state.notes.beingWritten == Null);
+	
+	if((IsValid(n->textMemory) == false)
+		n->textMemory = AllocateStack();
+	
+	state.notes.beingWritten = n;
+}
+
+program_external void AddNoteText(char c, note* n) {
+	Assert(n != Null);
+	if(NoteHasText(n) == true)
+		n->textMemory.size -= 1; // Remove \0
 	char string[] = { c, '\0' }; // The '\0' won't be counted in PushString()
-	PushString(string, true, state.writeBox.memory);
+	PushString(string, true, n->testMemory);
 }
 
-program_external char* EndTempWriting() {
+program_external char* EndNoteWriting() {
 	Assert(IsValid(state.writeBox.memory) == true);
+	Assert(state.notes.beingWritten != Null);
 
 	char* ret = Null;
-	if(state.writeBox.memory.size > 0) {
-		PushString(Null, true, state.writeBox.memory);
-		ret = AllocateString((char*)state.writeBox.memory.memory, Null);
+	if(n->textMemory.memory.size > 0) {
+		PushString(Null, true, n->textMemory.memory);
+		ret = AllocateString((char*)n->textMemory.memory.memory, Null);
 	}
 
-	FreeStack(state.writeBox.memory);
-	state.writeBox.left = 0;
-	state.writeBox.bottom = 0;
-
+	FreeStack(n->textMemory.memory);
+	
 	return ret;
 }
 
-program_external bool TempTextIsBeingWritten() {
-	return IsValid(state.writeBox.memory);
-}
-
-program_external void EndNoteWriting() {
-	Assert(state.notes.beingWritten != Null);
-	state.notes.beingWritten->text = EndTempWriting();
-	state.notes.beingWritten = Null;
+program_external bool NoteIsBeingWritten() {
+	return state.notes.beingWritten != Null;
 }
 
 program_external f32 UI8ColourToF32(ui8 u) {

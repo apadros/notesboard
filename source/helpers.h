@@ -4,6 +4,7 @@
 #include "apad_base_types.h"
 #include "apad_intrinsics.h."
 #include "apad_maths.h"
+#include "apad_memory.h"
 #include "apad_time.h"
 
 const ui16 NoteMinWidth = 150;
@@ -12,19 +13,13 @@ const ui16 NoteTextBorder = NoteTextHeight;
 const f32  QuickClickTime = 0.2; // Seconds
 
 struct note {
-	rectangle background;
-	char*     title;
-	char*     text;
+	rectangle 	 background;
+	char*     	 title;
+	memory_stack textMemory;
+	bool         hasBulletPoints;
 };
 
 program_unique struct {
-	// Temporary write box
-	struct {
-		ui16         left;
-		ui16         bottom;
-		memory_stack memory;
-	} writeBox;
-
 	struct {
 		rectangle background;
 
@@ -61,20 +56,19 @@ struct text_box {
 };
 text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height);
 
-// Temp text writing
-void  AddTempWriting(char c);
-void  BeginTempWriting(ui16 left, ui16 bottom);
-char* EndTempWriting();
-bool  TempTextIsBeingWritten();
-bool  TempTextHasBeenWritten();
-
 // Notes
 #define BeginNotesLoop(_varID) { \
 					ForAll(state.notes.memory.size / sizeof(note)) { \
 						auto* _varID = (note*)state.notes.memory.memory + it;
 #define EndNotesLoop() } }
+
+void    AddNoteText(char c);
+void 		BeginNoteWriting(note* n);
+char* 	GetNoteText(note* n);
 point   GetNoteTextStart(note* n);
 void 		EndNoteWriting();
+bool 		NoteIsBeingWritten();
+bool 	  NoteHasText(note* n);
 
 // Misc
 void 		DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b);

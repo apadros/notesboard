@@ -78,28 +78,38 @@ GUIAppEntryPoint(instance) {
 			EndNotesLoop();
 		}
 
-		// Open a text box within a note or cancel text writing mode
+		// Begin writing on a note
 		if(state.mouse.leftQuickClick == true) {
-			note* n = Null;
-			BeginNotesLoop(t) {
+			BeginNotesLoop(n) {
 				if(Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(t->background)) == true) {
-					n = t;
+					BeginNoteWriting(n);
 					break;
 				}
 			}
 			EndNotesLoop();
-
-			if(n != Null) {
-				state.notes.beingWritten = n;
-				BeginTempWriting(GetNoteTextStart(state.notes.beingWritten).x, GetNoteTextStart(state.notes.beingWritten).y);
-				if(n->text != Null) {
-					PushString(n->text, true, state.writeBox.memory);
-					n->text = Null; // @TODO - Memory leak
-				}
-			}
 		}
-		else if(osState.mouseLeftClickDown == true && TempTextIsBeingWritten() == true)
+		else if(NoteIsBeingWritten() == true && (osState.mouseLeftClickDown == true || osState.escapePressed == true))
 			EndNoteWriting();
+		
+		// @WIP - Incorporate
+		// Update text writing
+		if(TempTextIsBeingWritten() == true) {
+			auto* wb = &state.writeBox;
+			if(osState.keyPressed != Null)
+				AddTempWriting(osState.keyPressed);
+			else if(osState.backspacePressed == true && TempTextHasBeenWritten() == true){
+				if(wb->memory.size > 2) {
+					((char*)wb->memory.memory)[wb->memory.size - 2] = '\0';
+					wb->memory.size -= 1;
+				}
+				else
+					wb->memory.size = 0;
+			}
+			else if(osState.enterPressed == true) // Jump to next line
+				AddTempWriting('\n');
+
+			// @TODO - Click out to come out of text mode
+		}
 
 		// Toolbar notes button
 		if(state.notes.selectedByMouse == Null && osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolbar.buttons[0].background)) == true) {
@@ -126,27 +136,6 @@ GUIAppEntryPoint(instance) {
 			state.notes.selectedByMouse->background.bottom = newBottom;
 
 			state.notes.moved = true;
-		}
-
-		// Update text writing
-		if(TempTextIsBeingWritten() == true) {
-			auto* wb = &state.writeBox;
-			if(osState.keyPressed != Null)
-				AddTempWriting(osState.keyPressed);
-			else if(osState.backspacePressed == true && TempTextHasBeenWritten() == true){
-				if(wb->memory.size > 2) {
-					((char*)wb->memory.memory)[wb->memory.size - 2] = '\0';
-					wb->memory.size -= 1;
-				}
-				else
-					wb->memory.size = 0;
-			}
-			else if(osState.escapePressed == true)
-				EndNoteWriting();
-			else if(osState.enterPressed == true) // Jump to next line
-				AddTempWriting('\n');
-
-			// @TODO - Click out to come out of text mode
 		}
 
 		// @TODO - When coming out of text writing, store string in relative note
