@@ -7,7 +7,7 @@
 #include "apad_win32_gui.h"
 #include "gui.h"
 
-const ui16 NoteTextHeight = 30;
+const ui16 NoteTextHeight = 15;
 const f32  QuickClickTime = 0.2; // Seconds
 
 struct note {
@@ -54,14 +54,14 @@ struct {
 	} mouse;
 } state;
 
-// @TODO - Is this still useful?
-#define BeginNotesLoop() { \
-	ForAll(state.notes.memory.size / sizeof(note))
-#define EndNotesLoop() }
+#define BeginNotesLoop(_varID) { \
+	ForAll(state.notes.memory.size / sizeof(note)) { \
+		auto* _varID = (note*)state.notes.memory.memory + it;
+#define EndNotesLoop() } }
 
 #define UnpackDimensions(_struct) (_struct).left, (_struct).bottom, (_struct).width, (_struct).height
 
-void BeginWriting(ui16 left, ui16 bottom) {
+void BeginTempWriting(ui16 left, ui16 bottom) {
 	Assert(left != 0 && bottom != 0);
 	Assert(IsValid(state.writeBox.memory) == false);
 	state.writeBox.left = left;
@@ -71,23 +71,40 @@ void BeginWriting(ui16 left, ui16 bottom) {
 	state.writeBox.memory = AllocateStack();
 }
 
-char* EndWriting() {
+bool TempTextHasBeenWritten() {
+	return IsValid(state.writeBox.memory) == true && state.writeBox.memory.size > 0;
+}
+
+void AddTempWriting(char c) {
+	if(TempTextHasBeenWritten() == true)
+		state.writeBox.memory.size -= 1; // Remove \0
+	char string[] = { c, '\0' }; // The '\0' won't be counted in PushString()
+	PushString(string, true, state.writeBox.memory);
+}
+
+char* EndTempWriting() {
 	Assert(IsValid(state.writeBox.memory) == true);
-	
+
 	char* ret = Null;
 	if(state.writeBox.memory.size > 0) {
 		PushString(Null, true, state.writeBox.memory);
 		ret = AllocateString((char*)state.writeBox.memory.memory, Null);
 	}
-	
+
 	FreeStack(state.writeBox.memory);
 	state.writeBox.left = 0;
 	state.writeBox.bottom = 0;
-	
+
 	return ret;
 }
 
-bool TextIsBeingWritten() {
+void EndNoteWriting() {
+	Assert(state.notes.beingWritten != Null);
+	state.notes.beingWritten->text = EndTempWriting();
+	state.notes.beingWritten = Null;
+}
+
+bool TempTextIsBeingWritten() {
 	return IsValid(state.writeBox.memory);
 }
 
@@ -168,16 +185,15 @@ GUIAppEntryPoint(instance) {
 			state.mouse.leftDown = false;
 			state.mouse.x = osState.mouseX;
 			state.mouse.y = osState.mouseY;
-			
+
 			Assert(state.mouse.leftDownTime > 0);
 			if(GetTimeElapsedMilli(state.mouse.leftDownTime, GetTimeMarker()) / 1000 <= QuickClickTime)
 				state.mouse.leftQuickClick = true;
 		}
-		
+
 		// Selection of a note
 		if(state.notes.selectedByMouse == Null && osState.mouseLeftClickDown == true && state.notes.memory.size > 0) {
-			BeginNotesLoop() {
-				auto* n = (note*)state.notes.memory.memory + it;
+			BeginNotesLoop(n) {
 				if(Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(n->background)) == true) {
 					state.notes.selectedByMouse = n;
 					break;
@@ -185,26 +201,29 @@ GUIAppEntryPoint(instance) {
 			}
 			EndNotesLoop();
 		}
-		
+
 		// Open a text box within a note or cancel text writing mode
 		if(state.mouse.leftQuickClick == true) {
 			note* n = Null;
-			BeginNotesLoop() {
-				auto* t = (note*)state.notes.memory.memory + it;
+			BeginNotesLoop(t) {
 				if(Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(t->background)) == true) {
 					n = t;
 					break;
 				}
 			}
 			EndNotesLoop();
-			
+
 			if(n != Null) {
 				state.notes.beingWritten = n;
-				BeginWriting(state.notes.beingWritten->background.left + NoteTextHeight, state.notes.beingWritten->background.bottom + NoteTextHeight);
+				BeginTempWriting(state.notes.beingWritten->background.left + NoteTextHeight, state.notes.beingWritten->background.bottom + NoteTextHeight);
+				if(n->text != Null) {
+					PushString(n->text, true, state.writeBox.memory);
+					n->text = Null; // @TODO - Memory leak
+				}
 			}
 		}
-		else if(osState.mouseLeftClickDown == true && TextIsBeingWritten() == true)
-			EndWriting();
+		else if(osState.mouseLeftClickDown == true && TempTextIsBeingWritten() == true)
+			EndNoteWriting();
 
 		// Toolbar notes button
 		if(state.notes.selectedByMouse == Null && osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolbar.buttons[0].background)) == true) {
@@ -232,21 +251,28 @@ GUIAppEntryPoint(instance) {
 
 			state.notes.moved = true;
 		}
-		
+
 		// Update text writing
-		if(TextIsBeingWritten() == true) {
+		if(TempTextIsBeingWritten() == true) {
 			auto* wb = &state.writeBox;
-			if(osState.keyPressed != Null) {
-				if(wb->memory.size > 0)
-					wb->memory.size -= 1; // Remove \0
-				PushString(&osState.keyPressed, true, wb->memory); 
+			if(osState.keyPressed != Null)
+				AddTempWriting(osState.keyPressed);
+			else if(osState.backspacePressed == true && TempTextHasBeenWritten() == true){
+				if(wb->memory.size > 2) {
+					((char*)wb->memory.memory)[wb->memory.size - 2] = '\0';
+					wb->memory.size -= 1;
+				}
+				else
+					wb->memory.size = 0;
 			}
-			else { // @TODO - Check for ESC being pressed or left mouse clikc out of the box
-			}
-			
+			else if(osState.escapePressed == true)
+				EndNoteWriting();
+			else if(osState.enterPressed == true) // Jump to next line
+				AddTempWriting('\n');
+
 			// @TODO - Click out to come out of text mode
 		}
-		
+
 		// @TODO - When coming out of text writing, store string in relative note
 
 		// Drop a note
@@ -286,50 +312,56 @@ GUIAppEntryPoint(instance) {
 				DrawRectangle(UnpackDimensions(n->background), 255, 255, 255);
 			}
 		}
-		
+
 		// Draw border on a note selected with the mouse or that is being written to
 		if(state.notes.selectedByMouse != Null || state.notes.beingWritten != Null) {
 			auto* n = state.notes.selectedByMouse;
 			if(n == Null)
 				n = state.notes.beingWritten;
 			Assert(n != Null);
-			
+
 			glBegin(GL_LINES);
 			glColor3f(0, 0, 0);
-			
+
 			glVertex2f(n->background.left, n->background.bottom);
 			glVertex2f(n->background.left, n->background.bottom + n->background.height);
-			
+
 			glVertex2f(n->background.left, n->background.bottom + n->background.height);
 			glVertex2f(n->background.left + n->background.width, n->background.bottom + n->background.height);
-			
+
 			glVertex2f(n->background.left + n->background.width, n->background.bottom + n->background.height);
 			glVertex2f(n->background.left + n->background.width, n->background.bottom);
-			
+
 			glVertex2f(n->background.left + n->background.width, n->background.bottom);
 			glVertex2f(n->background.left, n->background.bottom);
 			glEnd();
 		}
-			
+
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
-		// @TODO - Draw the blinking cursor
 		// Draw text within state.writeBox
-		if(TextIsBeingWritten() == true) {
-			if(state.writeBox.memory.size > 0)
-				WriteText((const char*)state.writeBox.memory.memory, state.writeBox.left, state.writeBox.bottom, NoteTextHeight);
-			
+		if(TempTextIsBeingWritten() == true) {
+			ui16 cursorLeft = state.writeBox.left;
+			if(TempTextHasBeenWritten() == true)
+				cursorLeft = WriteText((const char*)state.writeBox.memory.memory, state.writeBox.left, state.writeBox.bottom, NoteTextHeight);
+
 			// Cursor
-			ui16 left = state.writeBox.left + state.writeBox.memory.size / sizeof(char) * NoteTextHeight;
+			glLineWidth(2);
 			glColor3f(0, 0, 0);
 			glBegin(GL_LINES);
-			glVertex2f(left, state.writeBox.bottom);
-			glVertex2f(left, state.writeBox.bottom + NoteTextHeight);
+			glVertex2f(cursorLeft, state.writeBox.bottom);
+			glVertex2f(cursorLeft, state.writeBox.bottom + NoteTextHeight);
 			glEnd();
 		}
 
-		//WriteText("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 500, 500, 20);
+		// Draw text within all notes
+		BeginNotesLoop(n) {
+			if(n->text != Null)
+				WriteText(n->text, n->background.left + NoteTextHeight, n->background.bottom + NoteTextHeight, NoteTextHeight);
+
+		}
+		EndNotesLoop();
 
 		Win32EndGUIUpdateLoop();
 	}

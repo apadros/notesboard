@@ -14,7 +14,7 @@ program_local void WriteTextLineVert(ui16 x, ui16 y, ui8 height) {
 	glVertex2f(x, y + height);
 }
 
-program_external void WriteText(const char* string, ui16 x, ui16 y, ui8 height) {
+program_external ui16 WriteText(const char* string, ui16 x, ui16 y, ui8 height) {
 	Assert(string != Null);
 	
 	auto length = GetStringLength(string);
@@ -26,6 +26,12 @@ program_external void WriteText(const char* string, ui16 x, ui16 y, ui8 height) 
 	ForAll(length) {
 		char c = string[it];
 		switch(c) {
+			case(' '): break;
+			case('\n'): {
+				nextY -= height * 1.5f; 
+				nextX = x; 
+			} break;
+			
 			case('a'):
 			case('A'): {
 				WriteTextLineVert(nextX, nextY, height);
@@ -247,7 +253,10 @@ program_external void WriteText(const char* string, ui16 x, ui16 y, ui8 height) 
 			default: break;
 		}
 			
-		nextX += height * 1.5f;
+		if(c != '\n')
+			nextX += height * 1.5f;
 	}
 	glEnd();
+	
+	return nextX - height * 0.5f;
 }

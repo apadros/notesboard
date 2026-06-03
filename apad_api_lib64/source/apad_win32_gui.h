@@ -42,6 +42,14 @@ struct win32_state {
 	ui16 mouseY; // Wlll only be updated during mouse move and click events
 	
 	char keyPressed; // Will be Null if none
+	bool backspacePressed;
+	bool escapePressed;
+	bool enterPressed;
+	bool tabPressed;
+	bool leftPressed;
+	bool rightPressed;
+	bool downPressed;
+	bool upPressed;
 	
 	bool capsLock;
 	bool leftShift;
