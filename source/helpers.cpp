@@ -101,11 +101,24 @@ program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 heig
 		char c = string[it];
 		switch(c) {
 			case(' '): break;
+			
 			case('\n'): {
 				nextY -= height * 1.5f; 
 				ret.edges.bottom = nextY;
 				nextX = x; 
 			} break;
+			
+			case('\b'): {
+				WriteTextLineVert(nextX + height / 2, nextY + height / 4, height / 2);
+				WriteTextLineHor(nextX + height / 4, nextY + height / 2, height / 2);
+			} break;
+			
+			#if 0
+			case('\t'): {
+				if(it > 0 && string[it - 1] == '\b')
+					string[it - 1] = ' ';
+			} break;
+			#endif
 			
 			case('a'):
 			case('A'): {

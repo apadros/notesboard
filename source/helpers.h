@@ -16,7 +16,7 @@ struct note {
 	rectangle 	 background;
 	char*     	 title;
 	memory_stack textMemory;
-	bool         hasBulletPoints;
+	bool         writingBulletPoints;
 };
 
 program_unique struct {

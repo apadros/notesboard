@@ -89,7 +89,7 @@ GUIAppEntryPoint(instance) {
 			EndNotesLoop();
 		}
 		else if(NoteIsBeingWritten() == true) { // Update  / end writing
-			if(osState.mouseLeftClickDown == true || osState.escapePressed == true)
+			if((osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolbar.buttons[1].background)) == false) || osState.escapePressed == true)
 				EndNoteWriting();
 			else {
 				auto* n = GetNoteBeingWritten();
@@ -103,8 +103,19 @@ GUIAppEntryPoint(instance) {
 					else
 						n->textMemory.size = 0;
 				}
-				else if(osState.enterPressed == true) // Jump to next line
+				else if(osState.enterPressed == true) { // Jump to next line
 					AddNoteText('\n', n);
+					if(n->writingBulletPoints == true)
+						AddNoteText('\b', n);
+				}
+				else if(NoteHasText(n) == true && osState.tabPressed == true) {
+					char* text = GetNoteText(n);
+					auto  length = GetStringLength(text);
+					if(text[length - 1] == '\b') {
+						text[length - 1] = ' ';
+						n->writingBulletPoints = false;
+					}
+				}
 			}
 		}
 
@@ -118,8 +129,16 @@ GUIAppEntryPoint(instance) {
 			n->background.width = NoteMinWidth;
 			n->title = Null;
 			n->textMemory = AllocateStack();
-			n->hasBulletPoints = false;
 			state.notes.selectedByMouse = n;
+		}
+		else if(state.notes.selectedByMouse == Null && osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolbar.buttons[1].background)) == true && NoteIsBeingWritten() == true) {
+			auto* n = GetNoteBeingWritten();
+			char* text = GetNoteText(n);
+			auto  length = GetStringLength(text);
+			if(NoteHasText(n) == false || text[length - 1] != '\b') {
+				AddNoteText('\b', GetNoteBeingWritten());
+				n->writingBulletPoints = true;
+			}
 		}
 
 		// Move a note
@@ -210,6 +229,7 @@ GUIAppEntryPoint(instance) {
 			ui16 	cursorLeft = textOrigin.x;
 			ui16 	cursorBottom = textOrigin.y;
 			if(NoteHasText(n) == true) {
+				
 				auto box = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight);
 				cursorLeft = box.cursorLeft;
 				cursorBottom = box.edges.bottom;
