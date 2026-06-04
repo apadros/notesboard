@@ -6,6 +6,7 @@ Background
 	- Mac OS compatibility
 	
 Functionality
+	- Deletion of notes
 	- Setting the gl clear color as option -> board background
 	- Arrows to connect notes
 	- Creation of an image as a note

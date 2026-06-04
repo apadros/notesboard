@@ -24,48 +24,41 @@ program_external point GetNoteTextStart(note* n) {
 	return p;
 }
 
-program_external bool NoteHasText(note* n) {
-	Assert(n != Null);
-	return IsValid(n->textMemory) == true && n->textMemory.size > 0;
+program_external note* GetNoteBeingWritten() {
+	return state.notes.beingWritten;
 }
 
-// NoteHasText() has to be called beforehand to avoid checking twice
+program_external bool NoteHasText(note* n) {
+	Assert(n != Null);
+	Assert(IsValid(n->textMemory) == true);
+	return n->textMemory.size > 0;
+}
+
 program_external char* GetNoteText(note* n) {
 	Assert(n != Null);
+	Assert(IsValid(n->textMemory) == true);
 	return (char*)n->textMemory.memory;
 }
 
 program_external void BeginNoteWriting(note* n) {
 	Assert(n != Null);
-	Assert(state.notes.beingWritten == Null);
-	
-	if((IsValid(n->textMemory) == false)
-		n->textMemory = AllocateStack();
-	
+	Assert(IsValid(n->textMemory) == true);
+	Assert(NoteIsBeingWritten() == false);
 	state.notes.beingWritten = n;
 }
 
 program_external void AddNoteText(char c, note* n) {
 	Assert(n != Null);
+	Assert(IsValid(n->textMemory) == true);
 	if(NoteHasText(n) == true)
 		n->textMemory.size -= 1; // Remove \0
-	char string[] = { c, '\0' }; // The '\0' won't be counted in PushString()
-	PushString(string, true, n->testMemory);
+	char string[] = { c, '\0' };
+	PushString(string, true, n->textMemory); // addEOS true since the '\0' in string[] won't be pushed
 }
 
-program_external char* EndNoteWriting() {
-	Assert(IsValid(state.writeBox.memory) == true);
-	Assert(state.notes.beingWritten != Null);
-
-	char* ret = Null;
-	if(n->textMemory.memory.size > 0) {
-		PushString(Null, true, n->textMemory.memory);
-		ret = AllocateString((char*)n->textMemory.memory.memory, Null);
-	}
-
-	FreeStack(n->textMemory.memory);
-	
-	return ret;
+program_external void EndNoteWriting() {
+	Assert(NoteIsBeingWritten() == true);
+	state.notes.beingWritten = Null;
 }
 
 program_external bool NoteIsBeingWritten() {

@@ -62,9 +62,10 @@ text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height);
 						auto* _varID = (note*)state.notes.memory.memory + it;
 #define EndNotesLoop() } }
 
-void    AddNoteText(char c);
+void    AddNoteText(char c, note* n);
 void 		BeginNoteWriting(note* n);
-char* 	GetNoteText(note* n);
+note* 	GetNoteBeingWritten(); // Can be Null
+char* 	GetNoteText(note* n); // Can be Null
 point   GetNoteTextStart(note* n);
 void 		EndNoteWriting();
 bool 		NoteIsBeingWritten();

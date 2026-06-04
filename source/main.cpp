@@ -78,37 +78,34 @@ GUIAppEntryPoint(instance) {
 			EndNotesLoop();
 		}
 
-		// Begin writing on a note
-		if(state.mouse.leftQuickClick == true) {
+		// Notes
+		if(NoteIsBeingWritten() == false && state.mouse.leftQuickClick == true) { // Begin writing
 			BeginNotesLoop(n) {
-				if(Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(t->background)) == true) {
+				if(Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(n->background)) == true) {
 					BeginNoteWriting(n);
 					break;
 				}
 			}
 			EndNotesLoop();
 		}
-		else if(NoteIsBeingWritten() == true && (osState.mouseLeftClickDown == true || osState.escapePressed == true))
-			EndNoteWriting();
-		
-		// @WIP - Incorporate
-		// Update text writing
-		if(TempTextIsBeingWritten() == true) {
-			auto* wb = &state.writeBox;
-			if(osState.keyPressed != Null)
-				AddTempWriting(osState.keyPressed);
-			else if(osState.backspacePressed == true && TempTextHasBeenWritten() == true){
-				if(wb->memory.size > 2) {
-					((char*)wb->memory.memory)[wb->memory.size - 2] = '\0';
-					wb->memory.size -= 1;
+		else if(NoteIsBeingWritten() == true) { // Update  / end writing
+			if(osState.mouseLeftClickDown == true || osState.escapePressed == true)
+				EndNoteWriting();
+			else {
+				auto* n = GetNoteBeingWritten();
+				if(osState.keyPressed != Null)
+					AddNoteText(osState.keyPressed, n);
+				else if(osState.backspacePressed == true && NoteHasText(n) == true){
+					if(n->textMemory.size > 2) {
+						((char*)n->textMemory.memory)[n->textMemory.size - 2] = '\0';
+						n->textMemory.size -= 1;
+					}
+					else
+						n->textMemory.size = 0;
 				}
-				else
-					wb->memory.size = 0;
+				else if(osState.enterPressed == true) // Jump to next line
+					AddNoteText('\n', n);
 			}
-			else if(osState.enterPressed == true) // Jump to next line
-				AddTempWriting('\n');
-
-			// @TODO - Click out to come out of text mode
 		}
 
 		// Toolbar notes button
@@ -120,7 +117,8 @@ GUIAppEntryPoint(instance) {
 			n->background.bottom = osState.mouseY - n->background.height / 2;
 			n->background.width = NoteMinWidth;
 			n->title = Null;
-			n->text = Null;
+			n->textMemory = AllocateStack();
+			n->hasBulletPoints = false;
 			state.notes.selectedByMouse = n;
 		}
 
@@ -206,22 +204,21 @@ GUIAppEntryPoint(instance) {
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
 		// Draw text within state.writeBox
-		if(TempTextIsBeingWritten() == true) {
-			ui16 cursorLeft = state.writeBox.left;
-			ui16 cursorBottom = state.writeBox.bottom;
-			if(TempTextHasBeenWritten() == true) {
-				auto box = WriteText((const char*)state.writeBox.memory.memory, state.writeBox.left, state.writeBox.bottom, NoteTextHeight);
+		if(NoteIsBeingWritten() == true) {
+			auto* n = GetNoteBeingWritten();
+			auto  textOrigin = GetNoteTextStart(n);
+			ui16 	cursorLeft = textOrigin.x;
+			ui16 	cursorBottom = textOrigin.y;
+			if(NoteHasText(n) == true) {
+				auto box = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight);
 				cursorLeft = box.cursorLeft;
 				cursorBottom = box.edges.bottom;
 				
-				if(state.notes.beingWritten != Null) {
-					auto* n = state.notes.beingWritten;
-					auto edges = box.edges;
-					n->background.width = Max(NoteMinWidth, edges.width + NoteTextBorder * 2);
-					ui16 top = n->background.bottom + n->background.height;
-					n->background.height = edges.height + NoteTextBorder * 2;
-					n->background.bottom = top - n->background.height;
-				}
+				// Resize note
+				n->background.width = Max(NoteMinWidth, box.edges.width + NoteTextBorder * 2);
+				ui16 top = n->background.bottom + n->background.height;
+				n->background.height = box.edges.height + NoteTextBorder * 2;
+				n->background.bottom = top - n->background.height;
 			}
 
 			// Cursor
@@ -235,8 +232,8 @@ GUIAppEntryPoint(instance) {
 
 		// Draw text within all notes and update their size
 		BeginNotesLoop(n) {
-			if(n->text != Null)
-				WriteText(n->text, GetNoteTextStart(n).x, GetNoteTextStart(n).y, NoteTextHeight);
+			if(NoteHasText(n) == true)
+				WriteText((const char*)n->textMemory.memory, GetNoteTextStart(n).x, GetNoteTextStart(n).y, NoteTextHeight);
 		}
 		EndNotesLoop();
 
