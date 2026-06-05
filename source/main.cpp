@@ -77,13 +77,9 @@ GUIAppEntryPoint(instance) {
 		
 		// Selection of the title bar
 		if(osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.titleBar.background)) == true) {
-			if(NoteIsBeingWritten() == true)
-				EndNoteWriting();
-			
 			auto* tb = &state.titleBar;
-			tb->beingUpdated = true;
-			state.cursor.height = TitleBarTextHeight;
-			state.cursor.draw = true;
+			state.textUpdate.textMemory = &(tb->textMemory);
+			state.textUpdate.cursorHeight = TitleBarTextHeight;
 		}
 
 		// Selection of a note
@@ -96,61 +92,62 @@ GUIAppEntryPoint(instance) {
 			}
 			EndNotesLoop();
 		}
+		
+		// Update text somewhere
+		if(TextIsBeingWritten() == true) {
+			auto* tu = &state.textUpdate;
+			
+			if(osState.keyPressed != Null) // Push text
+				AddText(osState.keyPressed);
+			else if(osState.backspacePressed == true && tu->textMemory->size > 1){
+				if(tu->textMemory->size > 2) {
+					((char*)tu->textMemory->memory)[tu->textMemory->size - 2] = '\0';
+					tu->textMemory->size -= 1;
+				}
+				else
+					tu->textMemory->size = 0;
+			}
+			else if(osState.enterPressed == true) { // Jump to next line
+				// Scan back to see if the current line contains a bullet point
+				bool  bulletPoint = false;
+				char* text = (char*)tu->textMemory->memory;
+				auto  length = GetStringLength(text);
+				FromTo(length, 0) {
+					char c = text[it];
+					if(c == '\b') {
+						bulletPoint = true;
+						break;
+					}
+					else if(c == '\n')
+						break;
+				}
+				
+				AddText('\n');
+				
+				if(bulletPoint == true)
+					AddText('\b');
+			}
+			else if(tu->textMemory->size > 2 && osState.tabPressed == true) { // Remove bullet point if tab is pressed after it
+				char* text = (char*)tu->textMemory->memory;
+				auto  length = GetStringLength(text);
+				if(text[length - 1] == '\b')
+					text[length - 1] = ' ';
+			}
+			else if(osState.escapePressed == true) // End writing
+				tu->textMemory = Null;
+		}
 
 		// Notes
-		if(NoteIsBeingWritten() == false && state.mouse.leftQuickClick == true) { // Begin writing
+		if(TextIsBeingWritten() == false && state.mouse.leftQuickClick == true) { // Begin writing
 			BeginNotesLoop(n) {
 				if(Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(n->background)) == true) {
-					BeginNoteWriting(n);
+					BeginWriting(&(n->textMemory), NoteTextHeight);
 					break;
 				}
 			}
 			EndNotesLoop();
 		}
-		else if(NoteIsBeingWritten() == true) { // Update / end writing
-			if((osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolbar.buttons[1].background)) == false) || osState.escapePressed == true)
-				EndNoteWriting();
-			else {
-				auto* n = GetNoteBeingWritten();
-				if(osState.keyPressed != Null)
-					AddNoteText(osState.keyPressed, n);
-				else if(osState.backspacePressed == true && NoteHasText(n) == true){
-					if(n->textMemory.size > 2) {
-						((char*)n->textMemory.memory)[n->textMemory.size - 2] = '\0';
-						n->textMemory.size -= 1;
-					}
-					else
-						n->textMemory.size = 0;
-				}
-				else if(osState.enterPressed == true) { // Jump to next line
-					// Scan back to see if the current line contains a bullet point
-					bool  bulletPoint = false;
-					char* text = GetNoteText(n);
-					auto  length = GetStringLength(text);
-					FromTo(length, 0) {
-						char c = text[it];
-						if(c == '\b') {
-							bulletPoint = true;
-							break;
-						}
-						else if(c == '\n')
-							break;
-					}
-					
-					AddNoteText('\n', n);
-					
-					if(bulletPoint == true)
-						AddNoteText('\b', n);
-				}
-				else if(NoteHasText(n) == true && osState.tabPressed == true) { // Remove bullet point if tab is pressed after it
-					char* text = GetNoteText(n);
-					auto  length = GetStringLength(text);
-					if(text[length - 1] == '\b')
-						text[length - 1] = ' ';
-				}
-			}
-		}
-
+		
 		// Toolbar notes button
 		if(state.notes.selectedByMouse == Null && osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolbar.buttons[0].background)) == true) {
 			// Create new note
@@ -163,12 +160,12 @@ GUIAppEntryPoint(instance) {
 			n->textMemory = AllocateStack();
 			state.notes.selectedByMouse = n;
 		}
-		else if(state.notes.selectedByMouse == Null && osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolbar.buttons[1].background)) == true && NoteIsBeingWritten() == true) {
-			auto* n = GetNoteBeingWritten();
-			char* text = GetNoteText(n);
+		else if(state.notes.selectedByMouse == Null && osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolbar.buttons[1].background)) == true && TextIsBeingWritten() == true) {
+			Assert(state.textUpdate.textMemory != Null);
+			char* text = (char*)state.textUpdate.textMemory->memory;
 			auto  length = GetStringLength(text);
-			if(NoteHasText(n) == false || text[length - 1] != '\b')
-				AddNoteText('\b', GetNoteBeingWritten());
+			if(state.textUpdate.textMemory->size == 0 || state.textUpdate.textMemory->size > 1 && text[length - 1] != '\b')
+				AddText('\b');
 		}
 
 		// Move a note
@@ -226,27 +223,37 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// Draw border on a note selected with the mouse or that is being written to
-		if(state.notes.selectedByMouse != Null || state.notes.beingWritten != Null) {
-			auto* n = state.notes.selectedByMouse;
-			if(n == Null)
-				n = state.notes.beingWritten;
-			Assert(n != Null);
-
-			glBegin(GL_LINES);
-			glColor3f(0, 0, 0);
-
-			glVertex2f(n->background.left, n->background.bottom);
-			glVertex2f(n->background.left, n->background.bottom + n->background.height);
-
-			glVertex2f(n->background.left, n->background.bottom + n->background.height);
-			glVertex2f(n->background.left + n->background.width, n->background.bottom + n->background.height);
-
-			glVertex2f(n->background.left + n->background.width, n->background.bottom + n->background.height);
-			glVertex2f(n->background.left + n->background.width, n->background.bottom);
-
-			glVertex2f(n->background.left + n->background.width, n->background.bottom);
-			glVertex2f(n->background.left, n->background.bottom);
-			glEnd();
+		if(state.notes.selectedByMouse != Null || TextIsBeingWritten() == true) {
+			note* n = Null;
+			if(state.notes.selectedByMouse != Null)
+				n = state.notes.selectedByMouse;
+			else {
+				BeginNotesLoop(t) {
+					if(state.textUpdate.textMemory == &(t->textMemory)) {
+						n = t;
+						break;
+					}
+				}
+				EndNotesLoop();
+			}
+			
+			if(n != Null) {
+				glBegin(GL_LINES);
+				glColor3f(0, 0, 0);
+	
+				glVertex2f(n->background.left, n->background.bottom);
+				glVertex2f(n->background.left, n->background.bottom + n->background.height);
+	
+				glVertex2f(n->background.left, n->background.bottom + n->background.height);
+				glVertex2f(n->background.left + n->background.width, n->background.bottom + n->background.height);
+	
+				glVertex2f(n->background.left + n->background.width, n->background.bottom + n->background.height);
+				glVertex2f(n->background.left + n->background.width, n->background.bottom);
+	
+				glVertex2f(n->background.left + n->background.width, n->background.bottom);
+				glVertex2f(n->background.left, n->background.bottom);
+				glEnd();
+			}
 		}
 		
 		// Draw title bar
@@ -255,7 +262,7 @@ GUIAppEntryPoint(instance) {
 			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
 			if(tb->textMemory.size > 0) {
 				auto box = WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
-				if(tb->beingUpdated == true)
+				if(state.textUpdate.textMemory == &(tb->textMemory))
 					SetCursorPos(box.cursorLeft, box.edges.bottom);
 			}
 			
@@ -270,41 +277,39 @@ GUIAppEntryPoint(instance) {
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
-		// Draw notes text
-		if(NoteIsBeingWritten() == true) {
-			auto* n = GetNoteBeingWritten();
-			auto  textOrigin = GetNoteTextStart(n);
-			ui16 	cursorLeft = textOrigin.x;
-			ui16 	cursorBottom = textOrigin.y;
-			if(NoteHasText(n) == true) {
-				auto box = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
-				cursorLeft = box.cursorLeft;
-				cursorBottom = box.edges.bottom;
-				
-				// Resize note
-				n->background.width = GetMax(NoteMinWidth, box.edges.width + NoteTextBorder * 2);
-				ui16 top = n->background.bottom + n->background.height;
-				n->background.height = box.edges.height + NoteTextBorder * 2;
-				n->background.bottom = top - n->background.height;
+		// Draw notes text, update note background rectangle, update cursor
+		BeginNotesLoop(n) {
+			text_box textBox = {};
+			point    textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
+			point    cursorPos = textOrigin;
+			if(n->textMemory.size > 0) { // Note has text
+				ui16 cursorLeft = textOrigin.x;
+				ui16 cursorBottom = textOrigin.y;
+				textBox = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
+				cursorPos.x = textBox.cursorLeft;
+				cursorPos.y = textBox.edges.bottom;
 			}
 			
-			SetCursorPos(cursorLeft, cursorBottom);
-		}
-
-		// Draw text within all notes and update their size
-		BeginNotesLoop(n) {
-			if(NoteHasText(n) == true)
-				WriteText((const char*)n->textMemory.memory, GetNoteTextStart(n).x, GetNoteTextStart(n).y, NoteTextHeight, false);
+			// Update cursor
+			if(TextIsBeingWritten() == true && &(n->textMemory) == state.textUpdate.textMemory)
+				SetCursorPos(cursorPos.x, cursorPos.y);
+			
+			// Resize note
+			n->background.width = GetMax(NoteMinWidth, textBox.edges.width + NoteTextBorder * 2);
+			ui16 top = n->background.bottom + n->background.height;
+			n->background.height = GetMax(NoteMinHeight, textBox.edges.height + NoteTextBorder * 2);
+			n->background.bottom = top - n->background.height;
+			
 		}
 		EndNotesLoop();
 		
 		// Draw cursor if needed
-		if(state.cursor.draw == true) {
+		if(state.textUpdate.textMemory != Null) {
 			glLineWidth(2);
 			glColor3f(0, 0, 0);
 			glBegin(GL_LINES);
-			glVertex2f(state.cursor.x, state.cursor.y);
-			glVertex2f(state.cursor.x, state.cursor.y + state.cursor.height);
+			glVertex2f(state.textUpdate.cursorX, state.textUpdate.cursorY);
+			glVertex2f(state.textUpdate.cursorX, state.textUpdate.cursorY + state.textUpdate.cursorHeight);
 			glEnd();
 		}
 

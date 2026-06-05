@@ -3,6 +3,7 @@
 #include "apad_error.h"
 #include "apad_intrinsics.h"
 #include "apad_maths.h"
+#include "apad_memory.h"
 #include "apad_string.h"
 #include "helpers.h"
 
@@ -16,61 +17,32 @@ program_local void WriteTextLineVert(ui16 x, ui16 y, ui8 height) {
 	glVertex2f(x, y + height);
 }
 
-program_external point GetNoteTextStart(note* n) {
-	Assert(n != Null);
-	point p = {};
-	p.x = n->background.left + NoteTextBorder;
-	p.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight;
-	return p;
-}
-
-program_external note* GetNoteBeingWritten() {
-	return state.notes.beingWritten;
-}
-
-program_external bool NoteHasText(note* n) {
-	Assert(n != Null);
-	Assert(IsValid(n->textMemory) == true);
-	return n->textMemory.size > 0;
-}
-
-program_external char* GetNoteText(note* n) {
-	Assert(n != Null);
-	Assert(IsValid(n->textMemory) == true);
-	return (char*)n->textMemory.memory;
-}
-
-program_external void BeginNoteWriting(note* n) {
-	Assert(n != Null);
-	Assert(IsValid(n->textMemory) == true);
-	Assert(NoteIsBeingWritten() == false);
-	state.notes.beingWritten = n;
-	state.cursor.draw = true;
-	state.cursor.height = NoteTextHeight;
-}
-
 program_external void SetCursorPos(ui16 x, ui16 y) {
-	state.cursor.x = x;
-	state.cursor.y = y;
+	state.textUpdate.cursorX = x;
+	state.textUpdate.cursorY = y;
 }
 
-program_external void AddNoteText(char c, note* n) {
-	Assert(n != Null);
-	Assert(IsValid(n->textMemory) == true);
-	if(NoteHasText(n) == true)
-		n->textMemory.size -= 1; // Remove \0
+program_external void BeginWriting(memory_stack* textMemory, ui16 cursorHeight) {
+	state.textUpdate.textMemory = textMemory;
+	state.textUpdate.cursorHeight = cursorHeight;
+}
+
+program_external void EndWriting() {
+	state.textUpdate.textMemory = Null;
+}
+
+program_external void AddText(char c) {
+	auto* tu = &state.textUpdate;
+	Assert(tu->textMemory != Null);
+	Assert(IsValid(*(tu->textMemory)) == true);
+	if(tu->textMemory->size >= 2)
+		tu->textMemory->size -= 1; // Remove \0
 	char string[] = { c, '\0' };
-	PushString(string, true, n->textMemory); // addEOS true since the '\0' in string[] won't be pushed
+	PushString(string, true, *(tu->textMemory)); // addEOS true since the '\0' in string[] won't be pushed
 }
 
-program_external void EndNoteWriting() {
-	Assert(NoteIsBeingWritten() == true);
-	state.notes.beingWritten = Null;
-	state.cursor.draw = false;
-}
-
-program_external bool NoteIsBeingWritten() {
-	return state.notes.beingWritten != Null;
+program_external bool TextIsBeingWritten() {
+	return state.textUpdate.textMemory != Null;
 }
 
 program_external f32 UI8ColourToF32(ui8 u) {
