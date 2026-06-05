@@ -107,25 +107,29 @@ GUIAppEntryPoint(instance) {
 				else
 					tu->textMemory->size = 0;
 			}
-			else if(osState.enterPressed == true) { // Jump to next line
-				// Scan back to see if the current line contains a bullet point
-				bool  bulletPoint = false;
-				char* text = (char*)tu->textMemory->memory;
-				auto  length = GetStringLength(text);
-				FromTo(length, 0) {
-					char c = text[it];
-					if(c == '\b') {
-						bulletPoint = true;
-						break;
+			else if(osState.enterPressed == true) { // Jump to next line + exceptions
+				if(tu->textMemory == &(state.titleBar.textMemory)) // If we're writing on the title bar
+					EndWriting();
+				else {
+					// Scan back to see if the current line contains a bullet point
+					bool  bulletPoint = false;
+					char* text = (char*)tu->textMemory->memory;
+					auto  length = GetStringLength(text);
+					FromTo(length, 0) {
+						char c = text[it];
+						if(c == '\b') {
+							bulletPoint = true;
+							break;
+						}
+						else if(c == '\n')
+							break;
 					}
-					else if(c == '\n')
-						break;
+				
+					AddText('\n');
+				
+					if(bulletPoint == true)
+						AddText('\b');
 				}
-				
-				AddText('\n');
-				
-				if(bulletPoint == true)
-					AddText('\b');
 			}
 			else if(tu->textMemory->size > 2 && osState.tabPressed == true) { // Remove bullet point if tab is pressed after it
 				char* text = (char*)tu->textMemory->memory;
@@ -134,7 +138,7 @@ GUIAppEntryPoint(instance) {
 					text[length - 1] = ' ';
 			}
 			else if(osState.escapePressed == true) // End writing
-				tu->textMemory = Null;
+				EndWriting();
 		}
 
 		// Notes

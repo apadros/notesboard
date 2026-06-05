@@ -27,6 +27,7 @@ struct win32_state {
 	bool escapePressed;
 	bool enterPressed;
 	bool tabPressed;
+	bool deletePressed;
 	bool leftPressed;
 	bool rightPressed;
 	bool downPressed;
