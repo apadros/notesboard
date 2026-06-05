@@ -11,30 +11,38 @@
 
 GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", instance);
+	
+	// Init title bar
+	{
+		auto* tb = &state.titleBar;
+		tb->background.width = Win32GetProgramWindowClientSize().width;
+		tb->background.height = TitleBarHeight;
+		tb->background.bottom = Win32GetProgramWindowClientSize().height - tb->background.height;
+		tb->textMemory = AllocateStack();
+		PushString("Title", true, tb->textMemory);
+	}
 
 	// Init toolbar
 	{
 		auto* tb = &state.toolbar;
 		tb->background.left = 0;
 		tb->background.bottom = 0;
-		tb->background.width = 150;
-		tb->background.height = Win32GetProgramWindowClientSize().height;
+		tb->background.width = ToolbarWidth;
+		tb->background.height = Win32GetProgramWindowClientSize().height - state.titleBar.background.height;
 
 		// Init buttons, starting at the top
-		ui16 size = (f32)tb->background.width * 2 / 3;
-		ui16 spaceBetween = (tb->background.width - size) / 2;
-		tb->textHeight = size / 8;
+		tb->textHeight = ToolbarTextHeight;
 		ForAll(3) {
 			auto* b = tb->buttons + it;
-			b->background.width = (f32)tb->background.width * 2 / 3;
+			b->background.width = ToobalIconWidth;
 			b->background.left = tb->background.left + tb->background.width / 2 - b->background.width / 2;
-			b->background.height = b->background.width;
-			b->background.bottom = tb->background.height - (spaceBetween + b->background.height + tb->textHeight) * (it + 1);
-			b->textBottom = b->background.bottom - spaceBetween / 2;
+			b->background.height = ToobalIconWidth;
+			b->background.bottom = tb->background.height - (ToolVerticalSpaceBetweenIcons + b->background.height + tb->textHeight * 2) * (it + 1);
+			b->textBottom = b->background.bottom - ToolbarTextHeight * 2;
 		}
-		tb->buttons[0].text = AllocateString("Button 1", Null);
-		tb->buttons[1].text = AllocateString("Button 2", Null);
-		tb->buttons[2].text = AllocateString("Button 3", Null);
+		tb->buttons[0].text = AllocateString("Note", Null);
+		tb->buttons[1].text = AllocateString("Bullet point", Null);
+		tb->buttons[2].text = AllocateString("Button", Null);
 	}
 
 	state.notes.memory = AllocateStack();
@@ -66,6 +74,17 @@ GUIAppEntryPoint(instance) {
 			if(GetTimeElapsedMilli(state.mouse.leftDownTime, GetTimeMarker()) / 1000 <= QuickClickTime)
 				state.mouse.leftQuickClick = true;
 		}
+		
+		// Selection of the title bar
+		if(osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.titleBar.background)) == true) {
+			if(NoteIsBeingWritten() == true)
+				EndNoteWriting();
+			
+			auto* tb = &state.titleBar;
+			tb->beingUpdated = true;
+			state.cursor.height = TitleBarTextHeight;
+			state.cursor.draw = true;
+		}
 
 		// Selection of a note
 		if(state.notes.selectedByMouse == Null && osState.mouseLeftClickDown == true && state.notes.memory.size > 0) {
@@ -88,7 +107,7 @@ GUIAppEntryPoint(instance) {
 			}
 			EndNotesLoop();
 		}
-		else if(NoteIsBeingWritten() == true) { // Update  / end writing
+		else if(NoteIsBeingWritten() == true) { // Update / end writing
 			if((osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolbar.buttons[1].background)) == false) || osState.escapePressed == true)
 				EndNoteWriting();
 			else {
@@ -185,7 +204,7 @@ GUIAppEntryPoint(instance) {
 			ForAll(3) { // Buttons
 				auto* b = tb->buttons + it;
 				DrawRectangle(UnpackDimensions(b->background), 255, 0, 0);
-				WriteText(b->text, b->background.left, b->textBottom, tb->textHeight);
+				WriteText(b->text, GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
 			}
 
 			// Draw separator
@@ -229,44 +248,65 @@ GUIAppEntryPoint(instance) {
 			glVertex2f(n->background.left, n->background.bottom);
 			glEnd();
 		}
-
+		
+		// Draw title bar
+		{
+			auto* tb = &state.titleBar;
+			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
+			if(tb->textMemory.size > 0) {
+				auto box = WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
+				if(tb->beingUpdated == true)
+					SetCursorPos(box.cursorLeft, box.edges.bottom);
+			}
+			
+			// Draw separator
+			glLineWidth(3);
+			glColor3f(0, 0, 0);
+			glBegin(GL_LINES);
+			glVertex2s(tb->background.left, tb->background.bottom);
+			glVertex2s(tb->background.left + tb->background.width, tb->background.bottom);
+			glEnd();
+		}
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
-		// Draw text within state.writeBox
+		// Draw notes text
 		if(NoteIsBeingWritten() == true) {
 			auto* n = GetNoteBeingWritten();
 			auto  textOrigin = GetNoteTextStart(n);
 			ui16 	cursorLeft = textOrigin.x;
 			ui16 	cursorBottom = textOrigin.y;
 			if(NoteHasText(n) == true) {
-				
-				auto box = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight);
+				auto box = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
 				cursorLeft = box.cursorLeft;
 				cursorBottom = box.edges.bottom;
 				
 				// Resize note
-				n->background.width = Max(NoteMinWidth, box.edges.width + NoteTextBorder * 2);
+				n->background.width = GetMax(NoteMinWidth, box.edges.width + NoteTextBorder * 2);
 				ui16 top = n->background.bottom + n->background.height;
 				n->background.height = box.edges.height + NoteTextBorder * 2;
 				n->background.bottom = top - n->background.height;
 			}
-
-			// Cursor
-			glLineWidth(2);
-			glColor3f(0, 0, 0);
-			glBegin(GL_LINES);
-			glVertex2f(cursorLeft, cursorBottom);
-			glVertex2f(cursorLeft, cursorBottom + NoteTextHeight);
-			glEnd();
+			
+			SetCursorPos(cursorLeft, cursorBottom);
 		}
 
 		// Draw text within all notes and update their size
 		BeginNotesLoop(n) {
 			if(NoteHasText(n) == true)
-				WriteText((const char*)n->textMemory.memory, GetNoteTextStart(n).x, GetNoteTextStart(n).y, NoteTextHeight);
+				WriteText((const char*)n->textMemory.memory, GetNoteTextStart(n).x, GetNoteTextStart(n).y, NoteTextHeight, false);
 		}
 		EndNotesLoop();
+		
+		// Draw cursor if needed
+		if(state.cursor.draw == true) {
+			glLineWidth(2);
+			glColor3f(0, 0, 0);
+			glBegin(GL_LINES);
+			glVertex2f(state.cursor.x, state.cursor.y);
+			glVertex2f(state.cursor.x, state.cursor.y + state.cursor.height);
+			glEnd();
+		}
 
 		Win32EndGUIUpdateLoop();
 	}

@@ -45,6 +45,13 @@ program_external void BeginNoteWriting(note* n) {
 	Assert(IsValid(n->textMemory) == true);
 	Assert(NoteIsBeingWritten() == false);
 	state.notes.beingWritten = n;
+	state.cursor.draw = true;
+	state.cursor.height = NoteTextHeight;
+}
+
+program_external void SetCursorPos(ui16 x, ui16 y) {
+	state.cursor.x = x;
+	state.cursor.y = y;
 }
 
 program_external void AddNoteText(char c, note* n) {
@@ -59,6 +66,7 @@ program_external void AddNoteText(char c, note* n) {
 program_external void EndNoteWriting() {
 	Assert(NoteIsBeingWritten() == true);
 	state.notes.beingWritten = Null;
+	state.cursor.draw = false;
 }
 
 program_external bool NoteIsBeingWritten() {
@@ -84,7 +92,7 @@ program_external void DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 hei
 	glEnd();
 }
 
-program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height) {
+program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height, bool center) {
 	Assert(string != Null);
 	
 	text_box ret = {};
@@ -92,7 +100,23 @@ program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 heig
 	ret.edges.bottom = y;
 	
 	auto length = GetStringLength(string);
-	ui16 nextX = x;
+	si16 xOffset = 0;
+	if(center == true) {
+		ui16 fullWidth = 0;
+		ui16 nextX = 0;
+		ForAll(length) {
+			char c = string[it];
+			if(c == '\n')
+				nextX = 0;
+			else {
+				nextX += height * 1.5f;
+				fullWidth = GetMax(fullWidth, nextX);
+			}
+		}
+		xOffset = fullWidth / 2;
+	}
+	
+	si16 nextX = x - xOffset;
 	ui16 nextY = y;
 	glColor3f(1, 0, 0);
 	glLineWidth(3);
@@ -112,13 +136,6 @@ program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 heig
 				WriteTextLineVert(nextX + height / 2, nextY + height / 4, height / 2);
 				WriteTextLineHor(nextX + height / 4, nextY + height / 2, height / 2);
 			} break;
-			
-			#if 0
-			case('\t'): {
-				if(it > 0 && string[it - 1] == '\b')
-					string[it - 1] = ' ';
-			} break;
-			#endif
 			
 			case('a'):
 			case('A'): {
@@ -341,7 +358,7 @@ program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 heig
 			default: break;
 		}
 		
-		ret.edges.width = Max(ret.edges.width, nextX + height - ret.edges.left);
+		ret.edges.width = GetMax(ret.edges.width, nextX + height - ret.edges.left);
 			
 		if(c != '\n')
 			nextX += height * 1.5f;

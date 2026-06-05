@@ -5,12 +5,21 @@
 Background
 	- Mac OS compatibility
 	
+Notes
+	- Deletion
+	- Bullet points
+		- Enter creates a new one
+		- Tab removes the bullet point and continues previous line / paragraph
+	
 Functionality
-	- Deletion of notes
+	- Unite text and cursor into a single concept - common operations in 1 place @WIP
+		- Maybe store a pointer to the text memory being updated?
+			- e.g. struct { char* text; bool drawCursor; pos... };
+			- Question is how to know where to place the cursor without checking every time WriteText() is called whether this text belongs to what is being edited.
+				- Right now we only have 3 different text 'containers' - title bar, tool bar buttons and notes. Maybe just manually check for now.
 	- Setting the gl clear color as option -> board background
 	- Arrows to connect notes
 	- Creation of an image as a note
-	- Notes with bullet points
 	
 Vertical toolbar
 	- Buttons

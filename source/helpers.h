@@ -7,6 +7,14 @@
 #include "apad_memory.h"
 #include "apad_time.h"
 
+const ui8  TitleBarHeight = 100;
+const ui8  TitleBarTextHeight = TitleBarHeight / 3;
+
+const ui8  ToolbarWidth = 150;
+const ui8  ToobalIconWidth = ToolbarWidth * 0.5f;
+const ui8  ToolbarTextHeight = 10;
+const ui8  ToolVerticalSpaceBetweenIcons = ToolbarTextHeight * 2;
+
 const ui16 NoteMinWidth = 150;
 const ui16 NoteTextHeight = 15;
 const ui16 NoteTextBorder = NoteTextHeight;
@@ -19,6 +27,19 @@ struct note {
 };
 
 program_unique struct {
+	struct {
+		rectangle 	 background;
+		memory_stack textMemory;
+		bool         beingUpdated;
+	} titleBar;
+	
+	struct {
+		ui16 x;
+		ui16 y;
+		ui16 height;
+		bool draw;
+	} cursor;
+	
 	struct {
 		rectangle background;
 
@@ -53,7 +74,7 @@ struct text_box {
 	rectangle edges;
 	ui16      cursorLeft;
 };
-text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height);
+text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height, bool center);
 
 // Notes
 #define BeginNotesLoop(_varID) { \
@@ -62,16 +83,17 @@ text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height);
 #define EndNotesLoop() } }
 
 void    AddNoteText(char c, note* n);
-void 		BeginNoteWriting(note* n);
+void 		BeginNoteWriting(note* n); // Will update cursor
 note* 	GetNoteBeingWritten(); // Can be Null
 char* 	GetNoteText(note* n); // Can be Null
 point   GetNoteTextStart(note* n);
-void 		EndNoteWriting();
+void 		EndNoteWriting(); // Will update cursor
 bool 		NoteIsBeingWritten();
 bool 	  NoteHasText(note* n);
 
 // Misc
 void 		DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b);
+void 		SetCursorPos(ui16 x, ui16 y);
 f32 		UI8ColourToF32(ui8 u);
 #define UnpackDimensions(_struct) (_struct).left, (_struct).bottom, (_struct).width, (_struct).height
 
