@@ -104,17 +104,30 @@ GUIAppEntryPoint(instance) {
 						n->textMemory.size = 0;
 				}
 				else if(osState.enterPressed == true) { // Jump to next line
-					AddNoteText('\n', n);
-					if(n->writingBulletPoints == true)
-						AddNoteText('\b', n);
-				}
-				else if(NoteHasText(n) == true && osState.tabPressed == true) {
+					// Scan back to see if the current line contains a bullet point
+					bool  bulletPoint = false;
 					char* text = GetNoteText(n);
 					auto  length = GetStringLength(text);
-					if(text[length - 1] == '\b') {
-						text[length - 1] = ' ';
-						n->writingBulletPoints = false;
+					FromTo(length, 0) {
+						char c = text[it];
+						if(c == '\b') {
+							bulletPoint = true;
+							break;
+						}
+						else if(c == '\n')
+							break;
 					}
+					
+					AddNoteText('\n', n);
+					
+					if(bulletPoint == true)
+						AddNoteText('\b', n);
+				}
+				else if(NoteHasText(n) == true && osState.tabPressed == true) { // Remove bullet point if tab is pressed after it
+					char* text = GetNoteText(n);
+					auto  length = GetStringLength(text);
+					if(text[length - 1] == '\b')
+						text[length - 1] = ' ';
 				}
 			}
 		}
@@ -135,10 +148,8 @@ GUIAppEntryPoint(instance) {
 			auto* n = GetNoteBeingWritten();
 			char* text = GetNoteText(n);
 			auto  length = GetStringLength(text);
-			if(NoteHasText(n) == false || text[length - 1] != '\b') {
+			if(NoteHasText(n) == false || text[length - 1] != '\b')
 				AddNoteText('\b', GetNoteBeingWritten());
-				n->writingBulletPoints = true;
-			}
 		}
 
 		// Move a note
