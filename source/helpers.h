@@ -19,7 +19,6 @@ const ui16 NoteMinWidth = 150;
 const ui16 NoteTextHeight = 15;
 const ui16 NoteTextBorder = NoteTextHeight;
 const ui16 NoteMinHeight = NoteTextHeight + NoteTextBorder * 2;
-const f32  QuickClickTime = 0.2; // Seconds
 
 struct note {
 	rectangle 	 background;
@@ -35,6 +34,7 @@ program_unique struct {
 	
 	struct {
 		memory_stack* textMemory;
+		rectangle*    containerBackground;
 		ui16 					cursorX;
 		ui16 					cursorY;
 		ui16 					cursorHeight;
@@ -49,12 +49,13 @@ program_unique struct {
 			ui16        textBottom;
 		} 						buttons[3];
 		ui16          textHeight;
-	} toolbar;
+	} toolBar;
 
 	struct {
 		memory_stack memory;
-		note* 			 selectedByMouse;
-		bool         moved; // To check whether to allow text writing
+		note* 			 selected;
+		bool         moving;
+		bool 				 justCreated;
 	} notes;
 
 	struct {
@@ -63,8 +64,6 @@ program_unique struct {
 		ui16 				lastX;
 		ui16 				lastY;
 		bool 				leftDown;
-		time_marker leftDownTime;
-		bool        leftQuickClick;
 	} mouse;
 } state;
 
@@ -73,7 +72,7 @@ struct text_box {
 	ui16      cursorLeft;
 };
 void 		 AddText(char c);
-void 		 BeginWriting(memory_stack* textMemory, ui16 cursorHeight);
+void 		 BeginWriting(memory_stack* textMemory, rectangle* containerBackground, ui16 cursorHeight);
 bool 		 TextIsBeingWritten();
 void 		 EndWriting();
 text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height, bool center);

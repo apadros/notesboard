@@ -22,8 +22,12 @@ program_external void SetCursorPos(ui16 x, ui16 y) {
 	state.textUpdate.cursorY = y;
 }
 
-program_external void BeginWriting(memory_stack* textMemory, ui16 cursorHeight) {
+program_external void BeginWriting(memory_stack* textMemory, rectangle* containerBackground, ui16 cursorHeight) {
+	Assert(textMemory != Null);
+	Assert(containerBackground != Null);
+	Assert(cursorHeight != Null);
 	state.textUpdate.textMemory = textMemory;
+	state.textUpdate.containerBackground = containerBackground;
 	state.textUpdate.cursorHeight = cursorHeight;
 }
 
