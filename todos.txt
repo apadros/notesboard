@@ -7,7 +7,7 @@ Background
 	- Mac OS compatibility
 	
 Functionality
-	- Deletion of notes - del and backspace keys @WIP
+	- Prevent mouse from moving when attempting to drag a note outside the canvas
 	- Allow placing the cursor manually in a text section with the mouse
 		- Will required interpretation of char positions within drawn text - need function to estimate that
 			- After this can update the cursor position in 1 place based of the text contents of the current string being edited

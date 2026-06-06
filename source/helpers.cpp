@@ -31,6 +31,11 @@ program_external void BeginWriting(memory_stack* textMemory, rectangle* containe
 	state.textUpdate.cursorHeight = cursorHeight;
 }
 
+program_external bool NoteMemoryIsInUse(note* n) {
+	Assert(n != Null);
+	return n->background.width != 0 && n->background.height != 0;
+}
+
 program_external void EndWriting() {
 	state.textUpdate.textMemory = Null;
 }

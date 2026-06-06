@@ -52,7 +52,7 @@ program_unique struct {
 	} toolBar;
 
 	struct {
-		memory_stack memory;
+		memory_block memory;
 		note* 			 selected;
 		bool         moving;
 		bool 				 justCreated;
@@ -78,10 +78,12 @@ void 		 EndWriting();
 text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height, bool center);
 
 // Notes
-#define BeginNotesLoop(_varID) { \
-					ForAll(state.notes.memory.size / sizeof(note)) { \
-						auto* _varID = (note*)state.notes.memory.memory + it;
-#define EndNotesLoop() } }
+#define BeginNotesMemoryLoop(_varID) { ForAll(state.notes.memory.size / sizeof(note)) { \
+																		     note* _varID = (note*)state.notes.memory.memory + it;
+#define EndNotesMemoryLoop() 				 } }
+#define BeginNotesLoop(_varID) BeginNotesMemoryLoop(_varID)
+#define EndNotesLoop() 				 EndNotesMemoryLoop()
+bool    NoteMemoryIsInUse(note* n);
 
 // Misc
 void 		DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b);

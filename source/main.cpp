@@ -44,7 +44,7 @@ GUIAppEntryPoint(instance) {
 		tb->buttons[2].text = AllocateString("Button", Null);
 	}
 
-	state.notes.memory = AllocateStack();
+	state.notes.memory = AllocateMemory(sizeof(note) * 10);
 
 	while(true) {
 		auto osState = Win32BeginGUIUpdateLoop();
@@ -77,7 +77,27 @@ GUIAppEntryPoint(instance) {
 		
 		// Toolbar
 		if(osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolBar.buttons[0].background)) == true && state.notes.justCreated == false) { // Create new note
-			auto* n = (note*)Push(sizeof(note), state.notes.memory);
+			note* n = Null;
+			
+			// Search for a free slot
+			BeginNotesMemoryLoop(t) {
+				if(NoteMemoryIsInUse(t) == false) {
+					n = t;
+					break;
+				}
+			}
+			EndNotesMemoryLoop();
+			
+			// If not found, allocate more memory
+			if(n == Null) {
+				auto newBlock = AllocateMemory(state.notes.memory.size * 2);
+				CopyMemory(state.notes.memory.memory, state.notes.memory.size, newBlock.memory);
+				FreeMemory(state.notes.memory);
+				state.notes.memory = newBlock;
+				n = (note*)((ui8*)state.notes.memory.memory + state.notes.memory.size / 2);
+			}
+			
+			Assert(n != Null);
 			n->background.left = 0;
 			n->background.height = NoteTextHeight * 3;
 			n->background.bottom = osState.mouseY - n->background.height / 2;
@@ -96,11 +116,11 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// Notes
-		if(state.notes.memory.size > 0) {
+		{
 			if(osState.mouseLeftClickDown == true) { // Select and / or drag and deselection
 				bool overlap = false;
 				BeginNotesLoop(n) {
-					if(Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(n->background)) == true) {
+					if(NoteMemoryIsInUse(n) == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(n->background)) == true) {
 						state.notes.selected = n;
 						state.notes.moving = true;
 						if(TextIsBeingWritten() == true) // If text was already being written elsewhere
@@ -158,6 +178,9 @@ GUIAppEntryPoint(instance) {
 			
 			// Delete note
 			if(state.notes.selected != Null && TextIsBeingWritten() == false && (osState.deletePressed == true || osState.backspacePressed == true)) {
+				FreeStack(state.notes.selected->textMemory);
+				ClearMemory(state.notes.selected, sizeof(note));
+				state.notes.selected = Null;
 			}
 		}
 		
@@ -235,13 +258,11 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// Draw notes
-		if(state.notes.memory.size > 0) {
-			ui8 count = state.notes.memory.size / sizeof(note);
-			ForAll(count) {
-				auto* n = (note*)state.notes.memory.memory + it;
+		BeginNotesMemoryLoop(n) {
+			if(NoteMemoryIsInUse(n) == true)
 				DrawRectangle(UnpackDimensions(n->background), 255, 255, 255);
-			}
 		}
+		EndNotesMemoryLoop();
 
 		// Draw border on a selected note
 		if(state.notes.selected != Null) {
@@ -286,27 +307,28 @@ GUIAppEntryPoint(instance) {
 
 		// Draw notes text, update note background rectangle, update cursor
 		BeginNotesLoop(n) {
-			text_box textBox = {};
-			point    textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
-			point    cursorPos = textOrigin;
-			if(n->textMemory.size > 0) { // Note has text
-				ui16 cursorLeft = textOrigin.x;
-				ui16 cursorBottom = textOrigin.y;
-				textBox = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
-				cursorPos.x = textBox.cursorLeft;
-				cursorPos.y = textBox.edges.bottom;
+			if(NoteMemoryIsInUse(n) == true) {
+				text_box textBox = {};
+				point    textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
+				point    cursorPos = textOrigin;
+				if(n->textMemory.size > 0) { // Note has text
+					ui16 cursorLeft = textOrigin.x;
+					ui16 cursorBottom = textOrigin.y;
+					textBox = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
+					cursorPos.x = textBox.cursorLeft;
+					cursorPos.y = textBox.edges.bottom;
+				}
+				
+				// Update cursor
+				if(TextIsBeingWritten() == true && &(n->textMemory) == state.textUpdate.textMemory)
+					SetCursorPos(cursorPos.x, cursorPos.y);
+				
+				// Resize note
+				n->background.width = GetMax(NoteMinWidth, textBox.edges.width + NoteTextBorder * 2);
+				ui16 top = n->background.bottom + n->background.height;
+				n->background.height = GetMax(NoteMinHeight, textBox.edges.height + NoteTextBorder * 2);
+				n->background.bottom = top - n->background.height;
 			}
-			
-			// Update cursor
-			if(TextIsBeingWritten() == true && &(n->textMemory) == state.textUpdate.textMemory)
-				SetCursorPos(cursorPos.x, cursorPos.y);
-			
-			// Resize note
-			n->background.width = GetMax(NoteMinWidth, textBox.edges.width + NoteTextBorder * 2);
-			ui16 top = n->background.bottom + n->background.height;
-			n->background.height = GetMax(NoteMinHeight, textBox.edges.height + NoteTextBorder * 2);
-			n->background.bottom = top - n->background.height;
-			
 		}
 		EndNotesLoop();
 		
