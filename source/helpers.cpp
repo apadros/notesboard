@@ -4,6 +4,7 @@
 #include "apad_intrinsics.h"
 #include "apad_maths.h"
 #include "apad_memory.h"
+#include "apad_opengl.h"
 #include "apad_string.h"
 #include "helpers.h"
 
@@ -58,6 +59,16 @@ program_external f32 UI8ColourToF32(ui8 u) {
 	return (f32)u / 255;
 }
 
+// @TODO @WIP
+program_external point ConvertToProjectionSpace(f32 x, f32 y) {
+	point p = {};
+	p.x = x * state.zoom;
+	p.y = y * state.zoom;
+	p.x -= state.translationX * state.zoom;
+	p.y -= state.translationY * state.zoom;
+	return p;
+}
+
 #include <windows.h>
 #include <gl\gl.h>
 program_external void DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b) {
@@ -71,6 +82,7 @@ program_external void DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 hei
 	glVertex2f(left + width, bottom + height);
 	glVertex2f(left, bottom + height);
 	glEnd();
+	AssertOpenGL();
 }
 
 program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height, bool center) {
@@ -345,6 +357,7 @@ program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 heig
 			nextX += height * 1.5f;
 	}
 	glEnd();
+	AssertOpenGL();
 	
 	ret.edges.height = y + height - ret.edges.bottom;
 	ret.cursorLeft = nextX;

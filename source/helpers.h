@@ -65,6 +65,10 @@ program_unique struct {
 		ui16 				lastY;
 		bool 				leftDown;
 	} mouse;
+	
+	f32 zoom = 1.0f; // 1.0f is 'standard', applied before translations
+	f32 translationX;
+	f32 translationY;
 } state;
 
 struct text_box {

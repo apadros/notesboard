@@ -4,6 +4,7 @@
 #include "apad_error.h"
 #include "apad_maths.h"
 #include "apad_memory.h"
+#include "apad_opengl.h"
 #include "apad_string.h"
 #include "apad_win32_gui.h"
 #include "helpers.h"
@@ -232,11 +233,24 @@ GUIAppEntryPoint(instance) {
 				EndWriting();
 		}
 		
-		// @TODO - When coming out of text writing, store string in relative note
-
+		// Reset the project matrix before drawing the title and tool bars and the canvas background
+		{
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			AssertOpenGL();
+			
+			auto size = Win32GetProgramWindowClientSize();
+			Assert(size.width > 0 && size.height > 0);
+			glOrtho(0, size.width, 0, size.height, -1, 1);
+			AssertOpenGL();
+		}
+		
 		// Draw the background
 		DrawRectangle(0, 0, canvas.width, canvas.height, 230, 230, 230);
-
+		
+		
 		// Draw the toolbar
 		{
 			auto* tb = &state.toolBar;
@@ -255,8 +269,61 @@ GUIAppEntryPoint(instance) {
 			glVertex2s(tb->background.width, 0);
 			glVertex2s(tb->background.width, tb->background.height);
 			glEnd();
+			AssertOpenGL();
 		}
-
+		
+		// Draw title bar
+		{
+			auto* tb = &state.titleBar;
+			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
+			if(tb->textMemory.size > 0) {
+				auto box = WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
+				if(state.textUpdate.textMemory == &tb->textMemory)
+					SetCursorPos(box.cursorLeft, box.edges.bottom);
+			}
+			
+			// Draw separator
+			glLineWidth(3);
+			glColor3f(0, 0, 0);
+			glBegin(GL_LINES);
+			glVertex2s(tb->background.left, tb->background.bottom);
+			glVertex2s(tb->background.left + tb->background.width, tb->background.bottom);
+			glEnd();
+			AssertOpenGL();
+		}
+		
+		// Update zoom before drawing the canvas contents
+		if(osState.mouseWheelRotation != 0.0f) {
+			state.zoom += osState.mouseWheelRotation / 10;
+			if(state.zoom <= 0.0f)
+				state.zoom = 0.1f;
+					
+			// Ensure zoom avoids the -1.0f < x < 1.0f range
+			#if 0
+			if(state.zoom > -1.0f && state.zoom < 1.0f) {
+				if(osState.mouseWheelRotation > 0)
+					state.zoom += 2.0f;
+				else
+					state.zoom  -= 2.0f;
+			}
+			#endif
+		}
+		
+		// @TODO
+		// Update the projection matrix based on current zoom level
+		{
+			glMatrixMode(GL_PROJECTION);
+			glScalef(state.zoom, state.zoom, 1.0f);
+			AssertOpenGL();
+			
+			// @TODO - Center about mouse position
+			if(osState.mouseWheelRotation != 0.0f) {
+				f32 translationX = state.mouse.x - state.mouse.x * state.zoom;
+				f32 translationY = state.mouse.y - state.mouse.y * state.zoom;
+				glTranslatef(translationX, translationY, 0);
+			}
+		}
+		
 		// Draw notes
 		BeginNotesMemoryLoop(n) {
 			if(NoteMemoryIsInUse(n) == true)
@@ -282,25 +349,7 @@ GUIAppEntryPoint(instance) {
 			glVertex2f(n->background.left + n->background.width, n->background.bottom);
 			glVertex2f(n->background.left, n->background.bottom);
 			glEnd();
-		}
-		
-		// Draw title bar
-		{
-			auto* tb = &state.titleBar;
-			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
-			if(tb->textMemory.size > 0) {
-				auto box = WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
-				if(state.textUpdate.textMemory == &tb->textMemory)
-					SetCursorPos(box.cursorLeft, box.edges.bottom);
-			}
-			
-			// Draw separator
-			glLineWidth(3);
-			glColor3f(0, 0, 0);
-			glBegin(GL_LINES);
-			glVertex2s(tb->background.left, tb->background.bottom);
-			glVertex2s(tb->background.left + tb->background.width, tb->background.bottom);
-			glEnd();
+			AssertOpenGL();
 		}
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
@@ -340,6 +389,7 @@ GUIAppEntryPoint(instance) {
 			glVertex2f(state.textUpdate.cursorX, state.textUpdate.cursorY);
 			glVertex2f(state.textUpdate.cursorX, state.textUpdate.cursorY + state.textUpdate.cursorHeight);
 			glEnd();
+			AssertOpenGL();
 		}
 
 		Win32EndGUIUpdateLoop();

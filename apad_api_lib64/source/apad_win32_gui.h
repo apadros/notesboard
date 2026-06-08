@@ -23,6 +23,10 @@ struct win32_state {
 	ui16 mouseX; // Wlll only be updated during mouse move and click events
 	ui16 mouseY; // Wlll only be updated during mouse move and click events
 	
+	f32 mouseWheelRotation; // Where +/-1.0f represents a standard wheel notched rotation, positive for wheel rotating away from user.
+													// Will return other values for freely-rotating mouse wheels
+													// Value will update when mouse is within confines of program window, including title bar
+	
 	char keyPressed; // Will be Null if none
 	bool backspacePressed;
 	bool escapePressed;
