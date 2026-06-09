@@ -59,13 +59,10 @@ program_external f32 UI8ColourToF32(ui8 u) {
 	return (f32)u / 255;
 }
 
-// @TODO @WIP
 program_external point ConvertToProjectionSpace(f32 x, f32 y) {
 	point p = {};
-	p.x = x * state.zoom;
-	p.y = y * state.zoom;
-	p.x -= state.translationX * state.zoom;
-	p.y -= state.translationY * state.zoom;
+	p.x = (x - state.projection.translationX) * state.projection.scale;
+	p.y = (y - state.projection.translationY) * state.projection.scale;
 	return p;
 }
 

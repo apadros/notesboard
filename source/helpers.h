@@ -28,6 +28,12 @@ struct note {
 
 program_unique struct {
 	struct {
+		si16 translationX; // In viewport space
+		si16 translationY; // In viewport space
+		f32  scale = 1.0f;
+	} projection;
+	
+	struct {
 		rectangle 	 background;
 		memory_stack textMemory;
 	} titleBar;
@@ -61,14 +67,12 @@ program_unique struct {
 	struct {
 		ui16 				x;
 		ui16 				y;
-		ui16 				lastX;
-		ui16 				lastY;
+		si16 				translationX;
+		si16 				translationY;
 		bool 				leftDown;
+		bool 			  rightDown;
 	} mouse;
 	
-	f32 zoom = 1.0f; // 1.0f is 'standard', applied before translations
-	f32 translationX;
-	f32 translationY;
 } state;
 
 struct text_box {
@@ -90,6 +94,7 @@ text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height, bool center);
 bool    NoteMemoryIsInUse(note* n);
 
 // Misc
+point 	ConvertToProjectionSpace(f32 x, f32 y);
 void 		DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b);
 void 		SetCursorPos(ui16 x, ui16 y);
 f32 		UI8ColourToF32(ui8 u);

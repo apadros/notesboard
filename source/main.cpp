@@ -52,22 +52,22 @@ GUIAppEntryPoint(instance) {
 		auto canvas = Win32GetProgramWindowClientSize();
 
 		// Update mouse state
-		state.mouse.lastX = state.mouse.x;
-		state.mouse.lastY = state.mouse.y;
-		if(osState.mouseMoved == true) {
+		state.mouse.translationX = 0;
+		state.mouse.translationY = 0;
+		if(osState.mouseX != 0 && osState.mouseY != 0) {
+			state.mouse.translationX = osState.mouseX - state.mouse.x;
+			state.mouse.translationY = osState.mouseY - state.mouse.y;
 			state.mouse.x = osState.mouseX;
 			state.mouse.y = osState.mouseY;
 		}
-		if(osState.mouseLeftClickDown == true) {
+		if(osState.mouseLeftClickDown == true)
 			state.mouse.leftDown = true;
-			state.mouse.x = osState.mouseX;
-			state.mouse.y = osState.mouseY;
-		}
-		else if(osState.mouseLeftClickUp == true) {
+		else if(osState.mouseLeftClickUp == true)
 			state.mouse.leftDown = false;
-			state.mouse.x = osState.mouseX;
-			state.mouse.y = osState.mouseY;
-		}
+		if(osState.mouseRightClickDown == true)
+			state.mouse.rightDown = true;
+		else if(osState.mouseRightClickUp == true)
+			state.mouse.rightDown = false;
 		
 		// Selection of the title bar
 		if(osState.mouseLeftDoubleClick == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.titleBar.background)) == true) {
@@ -137,10 +137,10 @@ GUIAppEntryPoint(instance) {
 			}
 			
 			// Move
-			if(state.notes.moving == true && osState.mouseMoved == true) {
+			if(state.notes.moving == true) {
 				Assert(state.notes.selected != Null);
 				
-				si16 newLeft = state.notes.selected->background.left + (state.mouse.x - state.mouse.lastX);
+				si16 newLeft = state.notes.selected->background.left + state.mouse.translationX;
 				if(state.notes.justCreated == true) {
 					Cap(newLeft, 0, canvas.width - state.notes.selected->background.width);
 				}
@@ -148,7 +148,7 @@ GUIAppEntryPoint(instance) {
 					Cap(newLeft, state.toolBar.background.left + state.toolBar.background.width, canvas.width - state.notes.selected->background.width);
 				}
 	
-				si16 newBottom = state.notes.selected->background.bottom + (state.mouse.y - state.mouse.lastY);
+				si16 newBottom = state.notes.selected->background.bottom + state.mouse.translationY;
 				Cap(newBottom, 0, state.titleBar.background.bottom - state.notes.selected->background.height);
 				
 				// When moving a new note outside of the toolbar, ensure it can't be moved back in
@@ -233,14 +233,12 @@ GUIAppEntryPoint(instance) {
 				EndWriting();
 		}
 		
-		// Reset the project matrix before drawing the title and tool bars and the canvas background
-		{
-			glMatrixMode(GL_MODELVIEW);
-			glLoadIdentity();
+		// Reset the projection matrix
+		{	
 			glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
 			AssertOpenGL();
-			
+		
 			auto size = Win32GetProgramWindowClientSize();
 			Assert(size.width > 0 && size.height > 0);
 			glOrtho(0, size.width, 0, size.height, -1, 1);
@@ -249,7 +247,6 @@ GUIAppEntryPoint(instance) {
 		
 		// Draw the background
 		DrawRectangle(0, 0, canvas.width, canvas.height, 230, 230, 230);
-		
 		
 		// Draw the toolbar
 		{
@@ -292,36 +289,33 @@ GUIAppEntryPoint(instance) {
 			AssertOpenGL();
 		}
 		
-		// Update zoom before drawing the canvas contents
+		// Update scaling
 		if(osState.mouseWheelRotation != 0.0f) {
-			state.zoom += osState.mouseWheelRotation / 10;
-			if(state.zoom <= 0.0f)
-				state.zoom = 0.1f;
-					
-			// Ensure zoom avoids the -1.0f < x < 1.0f range
-			#if 0
-			if(state.zoom > -1.0f && state.zoom < 1.0f) {
-				if(osState.mouseWheelRotation > 0)
-					state.zoom += 2.0f;
-				else
-					state.zoom  -= 2.0f;
-			}
-			#endif
+			// point mousePosPre = ConvertToProjectionSpace(state.mouse.x, state.mouse.y);
+			state.projection.scale += osState.mouseWheelRotation / 10;
+			if(state.projection.scale <= 0.0f)
+				state.projection.scale = 0.1f;
+			// point mousePosPost = ConvertToProjectionSpace(state.mouse.x, state.mouse.y);
+			// state.projection.translationX += mousePosPost.x - mousePosPre.x;
+			// state.projection.translationY += mousePosPost.y - mousePosPre.y;
+			// state.projection.translationX += (state.mouse.x - state.mouse.x * percDelta) * state.projection.scale * percDelta / 2;
+			// state.projection.translationY += (state.mouse.y - state.mouse.y * percDelta) * state.projection.scale * percDelta / 2;
+		}
+		if(state.projection.scale != 1.0f) {
+			glMatrixMode(GL_PROJECTION);
+			glScalef(state.projection.scale, state.projection.scale, 1.0f);
+			AssertOpenGL();
 		}
 		
-		// @TODO
-		// Update the projection matrix based on current zoom level
-		{
+		// Update translations
+		if(state.mouse.rightDown == true && (state.mouse.translationX != 0 || state.mouse.translationY != 0)) {
+			state.projection.translationX += state.mouse.translationX;
+			state.projection.translationY += state.mouse.translationY;
+		}
+		if(state.projection.translationX != 0 || state.projection.translationY != 0) {	
 			glMatrixMode(GL_PROJECTION);
-			glScalef(state.zoom, state.zoom, 1.0f);
+			glTranslatef(state.projection.translationX / state.projection.scale, state.projection.translationY / state.projection.scale, Null);
 			AssertOpenGL();
-			
-			// @TODO - Center about mouse position
-			if(osState.mouseWheelRotation != 0.0f) {
-				f32 translationX = state.mouse.x - state.mouse.x * state.zoom;
-				f32 translationY = state.mouse.y - state.mouse.y * state.zoom;
-				glTranslatef(translationX, translationY, 0);
-			}
 		}
 		
 		// Draw notes
