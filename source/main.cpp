@@ -119,9 +119,11 @@ GUIAppEntryPoint(instance) {
 		// Notes
 		{
 			if(osState.mouseLeftClickDown == true) { // Select and / or drag and deselection
+				point mousePosProjection = ConvertPointToProjectionSpace(state.mouse.x, state.mouse.y);
+				
 				bool overlap = false;
 				BeginNotesLoop(n) {
-					if(NoteMemoryIsInUse(n) == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(n->background)) == true) {
+					if(NoteMemoryIsInUse(n) == true && Overlap(mousePosProjection.x, mousePosProjection.y, UnpackDimensions(n->background)) == true) {
 						state.notes.selected = n;
 						state.notes.moving = true;
 						if(TextIsBeingWritten() == true) // If text was already being written elsewhere
@@ -140,16 +142,21 @@ GUIAppEntryPoint(instance) {
 			if(state.notes.moving == true) {
 				Assert(state.notes.selected != Null);
 				
-				si16 newLeft = state.notes.selected->background.left + state.mouse.translationX;
+				si16 newLeft = state.notes.selected->background.left + state.mouse.translationX * state.projection.scale;
 				if(state.notes.justCreated == true) {
 					Cap(newLeft, 0, canvas.width - state.notes.selected->background.width);
 				}
+				#if 0
 				else {
 					Cap(newLeft, state.toolBar.background.left + state.toolBar.background.width, canvas.width - state.notes.selected->background.width);
 				}
+				#endif
 	
 				si16 newBottom = state.notes.selected->background.bottom + state.mouse.translationY;
-				Cap(newBottom, 0, state.titleBar.background.bottom - state.notes.selected->background.height);
+				
+				// @WIP
+				
+				// Cap(newBottom, 0, state.titleBar.background.bottom - state.notes.selected->background.height);
 				
 				// When moving a new note outside of the toolbar, ensure it can't be moved back in
 				if(state.notes.justCreated == true && newLeft >= state.toolBar.background.left + state.toolBar.background.width)

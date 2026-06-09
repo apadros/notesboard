@@ -94,7 +94,7 @@ text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height, bool center);
 bool    NoteMemoryIsInUse(note* n);
 
 // Misc
-point 	ConvertToProjectionSpace(f32 x, f32 y);
+point 	ConvertPointToProjectionSpace(f32 x, f32 y);
 void 		DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b);
 void 		SetCursorPos(ui16 x, ui16 y);
 f32 		UI8ColourToF32(ui8 u);
