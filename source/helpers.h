@@ -21,20 +21,20 @@ const ui16 NoteTextBorder = NoteTextHeight;
 const ui16 NoteMinHeight = NoteTextHeight + NoteTextBorder * 2;
 
 struct note {
-	rectangle 	 background;
+	rectangle 	 background; // In canvas space
 	char*     	 title;
 	memory_stack textMemory;
 };
 
 program_unique struct {
 	struct {
-		si16 translationX; // In viewport space
-		si16 translationY; // In viewport space
+		si16 translationX; // Applied post scaling, therefore must be scaled
+		si16 translationY; // Applied post scaling, therefore must be scaled
 		f32  scale = 1.0f;
-	} projection;
+	} canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
 	
 	struct {
-		rectangle 	 background;
+		rectangle 	 background; // In viewport space
 		memory_stack textMemory;
 	} titleBar;
 	
@@ -47,7 +47,7 @@ program_unique struct {
 	} 							textUpdate;
 	
 	struct {
-		rectangle background;
+		rectangle background; // In viewport space
 
 		struct {
 			rectangle 	background;
@@ -64,7 +64,7 @@ program_unique struct {
 		bool 				 justCreated;
 	} notes;
 
-	struct {
+	struct { // All vectors in viewport space
 		ui16 				x;
 		ui16 				y;
 		si16 				translationX;
@@ -94,7 +94,7 @@ text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height, bool center);
 bool    NoteMemoryIsInUse(note* n);
 
 // Misc
-point 	ConvertPointToProjectionSpace(f32 x, f32 y);
+point 	ConvertToCanvasSpace(f32 x, f32 y);
 void 		DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b);
 void 		SetCursorPos(ui16 x, ui16 y);
 f32 		UI8ColourToF32(ui8 u);

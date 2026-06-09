@@ -59,10 +59,10 @@ program_external f32 UI8ColourToF32(ui8 u) {
 	return (f32)u / 255;
 }
 
-program_external point ConvertPointToProjectionSpace(f32 x, f32 y) {
+program_external point ConvertToCanvasSpace(f32 x, f32 y) {
 	point p = {};
-	p.x = (x - state.projection.translationX) / state.projection.scale;
-	p.y = (y - state.projection.translationY) / state.projection.scale;
+	p.x = (x - state.canvas.translationX) / state.canvas.scale;
+	p.y = (y - state.canvas.translationY) / state.canvas.scale;
 	return p;
 }
 

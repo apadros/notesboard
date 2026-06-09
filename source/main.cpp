@@ -99,10 +99,11 @@ GUIAppEntryPoint(instance) {
 			}
 			
 			Assert(n != Null);
-			n->background.left = 0;
-			n->background.height = NoteTextHeight * 3;
-			n->background.bottom = osState.mouseY - n->background.height / 2;
-			n->background.width = NoteMinWidth;
+			n->background.height = NoteTextHeight * 3 * state.canvas.scale;
+			n->background.width = NoteMinWidth * state.canvas.scale;
+			auto pos = ConvertToCanvasSpace(0, osState.mouseY - n->background.height / 2);
+			n->background.left = pos.x;
+			n->background.bottom = pos.y;			
 			n->title = Null;
 			n->textMemory = AllocateStack();
 			state.notes.selected = n;
@@ -119,11 +120,11 @@ GUIAppEntryPoint(instance) {
 		// Notes
 		{
 			if(osState.mouseLeftClickDown == true) { // Select and / or drag and deselection
-				point mousePosProjection = ConvertPointToProjectionSpace(state.mouse.x, state.mouse.y);
+				point mousePosCanvas = ConvertToCanvasSpace(state.mouse.x, state.mouse.y);
 				
 				bool overlap = false;
 				BeginNotesLoop(n) {
-					if(NoteMemoryIsInUse(n) == true && Overlap(mousePosProjection.x, mousePosProjection.y, UnpackDimensions(n->background)) == true) {
+					if(NoteMemoryIsInUse(n) == true && Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(n->background)) == true) {
 						state.notes.selected = n;
 						state.notes.moving = true;
 						if(TextIsBeingWritten() == true) // If text was already being written elsewhere
@@ -142,28 +143,18 @@ GUIAppEntryPoint(instance) {
 			if(state.notes.moving == true) {
 				Assert(state.notes.selected != Null);
 				
-				si16 newLeft = state.notes.selected->background.left + state.mouse.translationX * state.projection.scale;
-				if(state.notes.justCreated == true) {
-					Cap(newLeft, 0, canvas.width - state.notes.selected->background.width);
-				}
-				#if 0
-				else {
-					Cap(newLeft, state.toolBar.background.left + state.toolBar.background.width, canvas.width - state.notes.selected->background.width);
-				}
-				#endif
-	
-				si16 newBottom = state.notes.selected->background.bottom + state.mouse.translationY;
-				
-				// @WIP
-				
-				// Cap(newBottom, 0, state.titleBar.background.bottom - state.notes.selected->background.height);
+				point newPosCanvas = { state.notes.selected->background.left + state.mouse.translationX * state.canvas.scale, 
+															 state.notes.selected->background.bottom + state.mouse.translationY * state.canvas.scale };
 				
 				// When moving a new note outside of the toolbar, ensure it can't be moved back in
-				if(state.notes.justCreated == true && newLeft >= state.toolBar.background.left + state.toolBar.background.width)
-					state.notes.justCreated = false;
-	
-				state.notes.selected->background.left = newLeft;
-				state.notes.selected->background.bottom = newBottom;
+				if(state.notes.justCreated == true) {
+					f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
+					if(newPosCanvas.x >= toolbarEdgeCanvas)
+						state.notes.justCreated = false;
+				}
+				
+				state.notes.selected->background.left = newPosCanvas.x;
+				state.notes.selected->background.bottom = newPosCanvas.y;
 			}
 			
 			// Stop moving and drop
@@ -172,9 +163,10 @@ GUIAppEntryPoint(instance) {
 				
 				// If the note was just created, drop it outside of the toolbar
 				Assert(state.notes.selected != Null);
-				if(state.notes.selected->background.left < state.toolBar.background.left + state.toolBar.background.width) {
+				f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
+				if(state.notes.selected->background.left < toolbarEdgeCanvas) {
 					Assert(state.notes.justCreated == true);
-					state.notes.selected->background.left = state.toolBar.background.left + state.toolBar.background.width;
+					state.notes.selected->background.left = toolbarEdgeCanvas;
 				}
 				
 				state.notes.justCreated = false;
@@ -298,30 +290,30 @@ GUIAppEntryPoint(instance) {
 		
 		// Update scaling
 		if(osState.mouseWheelRotation != 0.0f) {
-			// point mousePosPre = ConvertToProjectionSpace(state.mouse.x, state.mouse.y);
-			state.projection.scale += osState.mouseWheelRotation / 10;
-			if(state.projection.scale <= 0.0f)
-				state.projection.scale = 0.1f;
-			// point mousePosPost = ConvertToProjectionSpace(state.mouse.x, state.mouse.y);
-			// state.projection.translationX += mousePosPost.x - mousePosPre.x;
-			// state.projection.translationY += mousePosPost.y - mousePosPre.y;
-			// state.projection.translationX += (state.mouse.x - state.mouse.x * percDelta) * state.projection.scale * percDelta / 2;
-			// state.projection.translationY += (state.mouse.y - state.mouse.y * percDelta) * state.projection.scale * percDelta / 2;
+			// point mousePosPre = ConvertToCanvasSpace(state.mouse.x, state.mouse.y);
+			state.canvas.scale += osState.mouseWheelRotation / 10;
+			if(state.canvas.scale <= 0.0f)
+				state.canvas.scale = 0.1f;
+			// point mousePosPost = ConvertToCanvasSpace(state.mouse.x, state.mouse.y);
+			// state.canvas.translationX += mousePosPost.x - mousePosPre.x;
+			// state.canvas.translationY += mousePosPost.y - mousePosPre.y;
+			// state.canvas.translationX += (state.mouse.x - state.mouse.x * percDelta) * state.canvas.scale * percDelta / 2;
+			// state.canvas.translationY += (state.mouse.y - state.mouse.y * percDelta) * state.canvas.scale * percDelta / 2;
 		}
-		if(state.projection.scale != 1.0f) {
+		if(state.canvas.scale != 1.0f) {
 			glMatrixMode(GL_PROJECTION);
-			glScalef(state.projection.scale, state.projection.scale, 1.0f);
+			glScalef(state.canvas.scale, state.canvas.scale, 1.0f);
 			AssertOpenGL();
 		}
 		
 		// Update translations
 		if(state.mouse.rightDown == true && (state.mouse.translationX != 0 || state.mouse.translationY != 0)) {
-			state.projection.translationX += state.mouse.translationX;
-			state.projection.translationY += state.mouse.translationY;
+			state.canvas.translationX += state.mouse.translationX;
+			state.canvas.translationY += state.mouse.translationY;
 		}
-		if(state.projection.translationX != 0 || state.projection.translationY != 0) {	
+		if(state.canvas.translationX != 0 || state.canvas.translationY != 0) {	
 			glMatrixMode(GL_PROJECTION);
-			glTranslatef(state.projection.translationX / state.projection.scale, state.projection.translationY / state.projection.scale, Null);
+			glTranslatef(state.canvas.translationX / state.canvas.scale, state.canvas.translationY / state.canvas.scale, Null);
 			AssertOpenGL();
 		}
 		
