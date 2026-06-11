@@ -41,9 +41,9 @@ program_unique struct {
 	struct {
 		memory_stack* textMemory;
 		rectangle*    containerBackground;
-		ui16 					cursorX;
-		ui16 					cursorY;
-		ui16 					cursorHeight;
+		f32 					cursorX;
+		f32 					cursorY;
+		f32 					cursorHeight;
 	} 							textUpdate;
 	
 	struct {
@@ -77,13 +77,13 @@ program_unique struct {
 
 struct text_box {
 	rectangle edges;
-	ui16      cursorLeft;
+	f32       cursorLeft;
 };
 void 		 AddText(char c);
 void 		 BeginWriting(memory_stack* textMemory, rectangle* containerBackground, ui16 cursorHeight);
 bool 		 TextIsBeingWritten();
 void 		 EndWriting();
-text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height, bool center);
+text_box WriteText(const char* string, f32 x, f32 y, f32 height, bool center);
 
 // Notes
 #define BeginNotesMemoryLoop(_varID) { ForAll(state.notes.memory.size / sizeof(note)) { \
@@ -95,9 +95,15 @@ bool    NoteMemoryIsInUse(note* n);
 
 // Misc
 point 	ConvertToCanvasSpace(f32 x, f32 y);
-void 		DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b);
-void 		SetCursorPos(ui16 x, ui16 y);
+void 		SetCursorPos(f32 x, f32 y);
 f32 		UI8ColourToF32(ui8 u);
 #define UnpackDimensions(_struct) (_struct).left, (_struct).bottom, (_struct).width, (_struct).height
+
+// Rendering
+void DrawBorder(rectangle& r);
+void DrawRectangle(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
+void ResetProjectionMatrix();
+void SetCanvasProjetionMatrix();
+
 
 #endif

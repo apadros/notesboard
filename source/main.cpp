@@ -50,6 +50,12 @@ GUIAppEntryPoint(instance) {
 	while(true) {
 		auto osState = Win32BeginGUIUpdateLoop();
 		auto canvas = Win32GetProgramWindowClientSize();
+		
+		// Reset the projection matrix and draw the canvas background
+		{	
+			ResetProjectionMatrix();
+			DrawRectangle(0, 0, canvas.width, canvas.height, 230, 230, 230);
+		}
 
 		// Update mouse state
 		state.mouse.translationX = 0;
@@ -143,8 +149,9 @@ GUIAppEntryPoint(instance) {
 			if(state.notes.moving == true) {
 				Assert(state.notes.selected != Null);
 				
-				point newPosCanvas = { state.notes.selected->background.left + state.mouse.translationX * state.canvas.scale, 
-															 state.notes.selected->background.bottom + state.mouse.translationY * state.canvas.scale };
+				// Mouse moves in viewport space
+				point newPosCanvas = { state.notes.selected->background.left + (f32)state.mouse.translationX / state.canvas.scale, 
+															 state.notes.selected->background.bottom + (f32)state.mouse.translationY / state.canvas.scale };
 				
 				// When moving a new note outside of the toolbar, ensure it can't be moved back in
 				if(state.notes.justCreated == true) {
@@ -164,17 +171,18 @@ GUIAppEntryPoint(instance) {
 				// If the note was just created, drop it outside of the toolbar
 				Assert(state.notes.selected != Null);
 				f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
-				if(state.notes.selected->background.left < toolbarEdgeCanvas) {
-					Assert(state.notes.justCreated == true);
+				if(state.notes.selected->background.left < toolbarEdgeCanvas && state.notes.justCreated == true)
 					state.notes.selected->background.left = toolbarEdgeCanvas;
-				}
 				
 				state.notes.justCreated = false;
 			}
 			
 			// Begin writing
-			if(state.notes.selected != Null && osState.mouseLeftDoubleClick == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.notes.selected->background)) == true)
-				BeginWriting(&state.notes.selected->textMemory, &state.notes.selected->background, NoteTextHeight);
+			{
+				auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.x, state.mouse.y);
+				if(state.notes.selected != Null && osState.mouseLeftDoubleClick == true && Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(state.notes.selected->background)) == true)
+					BeginWriting(&state.notes.selected->textMemory, &state.notes.selected->background, NoteTextHeight);
+			}
 			
 			// Delete note
 			if(state.notes.selected != Null && TextIsBeingWritten() == false && (osState.deletePressed == true || osState.backspacePressed == true)) {
@@ -228,64 +236,16 @@ GUIAppEntryPoint(instance) {
 				if(text[length - 1] == '\b')
 					text[length - 1] = ' ';
 			}
-			else if(osState.escapePressed == true || osState.mouseLeftClickDown && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(*tu->containerBackground)) == false) // End writing
+			else if(osState.escapePressed == true) // Esc hit, end writing
 				EndWriting();
-		}
-		
-		// Reset the projection matrix
-		{	
-			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();
-			AssertOpenGL();
-		
-			auto size = Win32GetProgramWindowClientSize();
-			Assert(size.width > 0 && size.height > 0);
-			glOrtho(0, size.width, 0, size.height, -1, 1);
-			AssertOpenGL();
-		}
-		
-		// Draw the background
-		DrawRectangle(0, 0, canvas.width, canvas.height, 230, 230, 230);
-		
-		// Draw the toolbar
-		{
-			auto* tb = &state.toolBar;
-			DrawRectangle(UnpackDimensions(state.toolBar.background), 255, 255, 255); // Background
-
-			ForAll(3) { // Buttons
-				auto* b = tb->buttons + it;
-				DrawRectangle(UnpackDimensions(b->background), 255, 0, 0);
-				WriteText(b->text, GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
+			else if(osState.mouseLeftClickDown == true) { // Left mouse click, check where and decide
+				point mousePos = { state.mouse.x, state.mouse.y };
+				if(tu->containerBackground != &state.titleBar.background) // If it's not the title bar, check for overlap in canvas space
+					mousePos = ConvertToCanvasSpace(state.mouse.x, state.mouse.y);
+				
+				if(Overlap(mousePos.x, mousePos.y, UnpackDimensions(*tu->containerBackground)) == false)
+					EndWriting();
 			}
-
-			// Draw separator
-			glLineWidth(2);
-			glColor3f(0, 0, 0);
-			glBegin(GL_LINES);
-			glVertex2s(tb->background.width, 0);
-			glVertex2s(tb->background.width, tb->background.height);
-			glEnd();
-			AssertOpenGL();
-		}
-		
-		// Draw title bar
-		{
-			auto* tb = &state.titleBar;
-			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
-			if(tb->textMemory.size > 0) {
-				auto box = WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
-				if(state.textUpdate.textMemory == &tb->textMemory)
-					SetCursorPos(box.cursorLeft, box.edges.bottom);
-			}
-			
-			// Draw separator
-			glLineWidth(3);
-			glColor3f(0, 0, 0);
-			glBegin(GL_LINES);
-			glVertex2s(tb->background.left, tb->background.bottom);
-			glVertex2s(tb->background.left + tb->background.width, tb->background.bottom);
-			glEnd();
-			AssertOpenGL();
 		}
 		
 		// Update scaling
@@ -300,50 +260,31 @@ GUIAppEntryPoint(instance) {
 			// state.canvas.translationX += (state.mouse.x - state.mouse.x * percDelta) * state.canvas.scale * percDelta / 2;
 			// state.canvas.translationY += (state.mouse.y - state.mouse.y * percDelta) * state.canvas.scale * percDelta / 2;
 		}
-		if(state.canvas.scale != 1.0f) {
-			glMatrixMode(GL_PROJECTION);
-			glScalef(state.canvas.scale, state.canvas.scale, 1.0f);
-			AssertOpenGL();
-		}
 		
 		// Update translations
 		if(state.mouse.rightDown == true && (state.mouse.translationX != 0 || state.mouse.translationY != 0)) {
 			state.canvas.translationX += state.mouse.translationX;
 			state.canvas.translationY += state.mouse.translationY;
 		}
-		if(state.canvas.translationX != 0 || state.canvas.translationY != 0) {	
-			glMatrixMode(GL_PROJECTION);
-			glTranslatef(state.canvas.translationX / state.canvas.scale, state.canvas.translationY / state.canvas.scale, Null);
-			AssertOpenGL();
-		}
+		
+		SetCanvasProjetionMatrix();
 		
 		// Draw notes
 		BeginNotesMemoryLoop(n) {
-			if(NoteMemoryIsInUse(n) == true)
-				DrawRectangle(UnpackDimensions(n->background), 255, 255, 255);
+			if(NoteMemoryIsInUse(n) == true) {
+				bool draw = true;
+				if(state.notes.selected != Null && state.notes.selected == n && state.notes.justCreated == true) // Recently created notes will be drawn in front of the UI, further down
+					draw = false;
+					
+				if(draw == true)
+					DrawRectangle(UnpackDimensions(n->background), 255, 255, 255);
+			}
 		}
 		EndNotesMemoryLoop();
 
 		// Draw border on a selected note
-		if(state.notes.selected != Null) {
-			auto* n = state.notes.selected;
-			glBegin(GL_LINES);
-			glColor3f(0, 0, 0);
-	
-			glVertex2f(n->background.left, n->background.bottom);
-			glVertex2f(n->background.left, n->background.bottom + n->background.height);
-	
-			glVertex2f(n->background.left, n->background.bottom + n->background.height);
-			glVertex2f(n->background.left + n->background.width, n->background.bottom + n->background.height);
-	
-			glVertex2f(n->background.left + n->background.width, n->background.bottom + n->background.height);
-			glVertex2f(n->background.left + n->background.width, n->background.bottom);
-	
-			glVertex2f(n->background.left + n->background.width, n->background.bottom);
-			glVertex2f(n->background.left, n->background.bottom);
-			glEnd();
-			AssertOpenGL();
-		}
+		if(state.notes.selected != Null)
+			DrawBorder(state.notes.selected->background);
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
@@ -354,8 +295,6 @@ GUIAppEntryPoint(instance) {
 				point    textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
 				point    cursorPos = textOrigin;
 				if(n->textMemory.size > 0) { // Note has text
-					ui16 cursorLeft = textOrigin.x;
-					ui16 cursorBottom = textOrigin.y;
 					textBox = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
 					cursorPos.x = textBox.cursorLeft;
 					cursorPos.y = textBox.edges.bottom;
@@ -374,13 +313,71 @@ GUIAppEntryPoint(instance) {
 		}
 		EndNotesLoop();
 		
+		// Draw the overlying UI
+		{
+			ResetProjectionMatrix();
+			
+			// Toolbar
+			{
+				auto* tb = &state.toolBar;
+				DrawRectangle(UnpackDimensions(state.toolBar.background), 255, 255, 255); // Background
+	
+				ForAll(3) { // Buttons
+					auto* b = tb->buttons + it;
+					DrawRectangle(UnpackDimensions(b->background), 255, 0, 0);
+					WriteText(b->text, GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
+				}
+	
+				// Draw separator
+				glLineWidth(2);
+				glColor3f(0, 0, 0);
+				glBegin(GL_LINES);
+				glVertex2s(tb->background.width, 0);
+				glVertex2s(tb->background.width, tb->background.height);
+				glEnd();
+				AssertOpenGL();
+			}
+		
+			// Title bar
+			{
+				auto* tb = &state.titleBar;
+				DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
+				if(tb->textMemory.size > 0) {
+					auto box = WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
+					if(state.textUpdate.textMemory == &tb->textMemory)
+						SetCursorPos(box.cursorLeft, box.edges.bottom);
+				}
+				
+				// Draw separator
+				glLineWidth(3);
+				glColor3f(0, 0, 0);
+				glBegin(GL_LINES);
+				glVertex2s(tb->background.left, tb->background.bottom);
+				glVertex2s(tb->background.left + tb->background.width, tb->background.bottom);
+				glEnd();
+				AssertOpenGL();
+			}
+			
+			// Exception made for a note that was just created, draw in front of the tool bar
+			if(state.notes.selected != Null && state.notes.justCreated == true) {
+				DrawRectangle(UnpackDimensions(state.notes.selected->background), 255, 255, 255);
+				DrawBorder(state.notes.selected->background);
+			}
+		}
+		
 		// Draw cursor if needed
 		if(state.textUpdate.textMemory != Null) {
+			f32 cursorX = state.textUpdate.cursorX;
+			f32 cursorY = state.textUpdate.cursorY;
+			f32 cursorHeight = state.textUpdate.cursorHeight;
+			if(state.textUpdate.containerBackground != &state.titleBar.background)
+				SetCanvasProjetionMatrix();
+			
 			glLineWidth(2);
 			glColor3f(0, 0, 0);
 			glBegin(GL_LINES);
-			glVertex2f(state.textUpdate.cursorX, state.textUpdate.cursorY);
-			glVertex2f(state.textUpdate.cursorX, state.textUpdate.cursorY + state.textUpdate.cursorHeight);
+			glVertex2f(cursorX, cursorY);
+			glVertex2f(cursorX, cursorY + cursorHeight);
 			glEnd();
 			AssertOpenGL();
 		}

@@ -6,6 +6,7 @@
 #include "apad_memory.h"
 #include "apad_opengl.h"
 #include "apad_string.h"
+#include "apad_win32_gui.h"
 #include "helpers.h"
 
 program_local void WriteTextLineHor(ui16 x, ui16 y, ui8 height) {
@@ -18,7 +19,7 @@ program_local void WriteTextLineVert(ui16 x, ui16 y, ui8 height) {
 	glVertex2f(x, y + height);
 }
 
-program_external void SetCursorPos(ui16 x, ui16 y) {
+program_external void SetCursorPos(f32 x, f32 y) {
 	state.textUpdate.cursorX = x;
 	state.textUpdate.cursorY = y;
 }
@@ -35,6 +36,26 @@ program_external void BeginWriting(memory_stack* textMemory, rectangle* containe
 program_external bool NoteMemoryIsInUse(note* n) {
 	Assert(n != Null);
 	return n->background.width != 0 && n->background.height != 0;
+}
+
+program_external void DrawBorder(rectangle& r) {
+	glLineWidth(3);
+	glBegin(GL_LINES);
+	glColor3f(0, 0, 0);
+	
+	glVertex2f(r.left, r.bottom);
+	glVertex2f(r.left, r.bottom + r.height);
+	
+	glVertex2f(r.left, r.bottom + r.height);
+	glVertex2f(r.left + r.width, r.bottom + r.height);
+	
+	glVertex2f(r.left + r.width, r.bottom + r.height);
+	glVertex2f(r.left + r.width, r.bottom);
+	
+	glVertex2f(r.left + r.width, r.bottom);
+	glVertex2f(r.left, r.bottom);
+	glEnd();
+	AssertOpenGL();	
 }
 
 program_external void EndWriting() {
@@ -66,9 +87,21 @@ program_external point ConvertToCanvasSpace(f32 x, f32 y) {
 	return p;
 }
 
+// @TODO - Export to API?
+program_external void ResetProjectionMatrix() {
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	AssertOpenGL();
+		
+	auto size = Win32GetProgramWindowClientSize();
+	Assert(size.width > 0 && size.height > 0);
+	glOrtho(0, size.width, 0, size.height, -1, 1);
+	AssertOpenGL();		
+}
+
 #include <windows.h>
 #include <gl\gl.h>
-program_external void DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 height, ui8 r, ui8 g, ui8 b) {
+program_external void DrawRectangle(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b) {
 	f32 rf = UI8ColourToF32(r);
 	f32 gf = UI8ColourToF32(g);
 	f32 bf = UI8ColourToF32(b);
@@ -82,7 +115,16 @@ program_external void DrawRectangle(ui16 left, ui16 bottom, ui16 width, ui16 hei
 	AssertOpenGL();
 }
 
-program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 height, bool center) {
+program_external void SetCanvasProjetionMatrix() {
+	ResetProjectionMatrix();
+	if(state.canvas.scale != 1.0f)
+		glScalef(state.canvas.scale, state.canvas.scale, 1.0f);
+	if(state.canvas.translationX != 0 || state.canvas.translationY != 0)
+		glTranslatef(state.canvas.translationX / state.canvas.scale, state.canvas.translationY / state.canvas.scale, Null);
+	AssertOpenGL();		
+}
+
+program_external text_box WriteText(const char* string, f32 x, f32 y, f32 height, bool center) {
 	Assert(string != Null);
 	
 	text_box ret = {};
@@ -90,7 +132,7 @@ program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 heig
 	ret.edges.bottom = y;
 	
 	auto length = GetStringLength(string);
-	si16 xOffset = 0;
+	f32 xOffset = 0;
 	if(center == true) {
 		ui16 fullWidth = 0;
 		ui16 nextX = 0;
@@ -106,8 +148,8 @@ program_external text_box WriteText(const char* string, ui16 x, ui16 y, ui8 heig
 		xOffset = fullWidth / 2;
 	}
 	
-	si16 nextX = x - xOffset;
-	ui16 nextY = y;
+	f32 nextX = x - xOffset;
+	f32 nextY = y;
 	glColor3f(1, 0, 0);
 	glLineWidth(3);
 	glBegin(GL_LINES);

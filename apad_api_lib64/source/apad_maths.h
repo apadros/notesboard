@@ -12,13 +12,13 @@ struct rectangle {
 
 struct point {
 	union {
-		ui16 x;
-		ui16 width;
+		f32 x;
+		f32 width;
 	};
 	
 	union {
-		ui16 y;
-		ui16 height;
+		f32 y;
+		f32 height;
 	};
 };
 typedef point size;
@@ -29,6 +29,6 @@ typedef point size;
 dll_export size GetMiddle(rectangle r);
 #define 				GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))
 #define 				GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
-dll_import bool Overlap(ui16 x0, ui16 y0, ui16 left1, ui16 bottom1, ui16 width1, ui16 height1);
+dll_import bool Overlap(f32 x0, f32 y0, f32 left1, f32 bottom1, f32 width1, f32 height1);
 
 #endif
