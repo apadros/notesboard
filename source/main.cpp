@@ -79,6 +79,7 @@ GUIAppEntryPoint(instance) {
 			state.notes.selected = Null;
 			auto* tb = &state.titleBar;
 			BeginWriting(&tb->textMemory, &tb->background, TitleBarTextHeight);
+			state.textUpdate.cursorIndex = tb->textMemory.size - 1;
 		}
 		
 		// Toolbar
@@ -104,8 +105,8 @@ GUIAppEntryPoint(instance) {
 			}
 			
 			Assert(n != Null);
-			n->background.height = NoteTextHeight * 3 * state.canvas.scale;
-			n->background.width = NoteMinWidth * state.canvas.scale;
+			n->background.height = NoteTextHeight * 3;
+			n->background.width = NoteMinWidth;
 			auto pos = ConvertToCanvasSpace(0, osState.mouseY - n->background.height / 2);
 			n->background.left = pos.x;
 			n->background.bottom = pos.y;			
@@ -195,8 +196,10 @@ GUIAppEntryPoint(instance) {
 		if(TextIsBeingWritten() == true) {
 			auto* tu = &state.textUpdate;
 			
-			if(osState.keyPressed != Null) // Push text
+			if(osState.keyPressed != Null) { // Push text
 				AddText(osState.keyPressed);
+				tu->cursorIndex += 1;
+			}
 			else if(osState.backspacePressed == true && tu->textMemory->size > 1){
 				if(tu->textMemory->size > 2) {
 					((char*)tu->textMemory->memory)[tu->textMemory->size - 2] = '\0';
@@ -204,6 +207,9 @@ GUIAppEntryPoint(instance) {
 				}
 				else
 					tu->textMemory->size = 0;
+				
+				if(tu->cursorIndex >= 1)
+						tu->cursorIndex -= 1;
 			}
 			else if(osState.enterPressed == true) { // Jump to next line + exceptions
 				if(tu->textMemory == &(state.titleBar.textMemory)) // If we're writing on the title bar
@@ -224,16 +230,21 @@ GUIAppEntryPoint(instance) {
 					}
 				
 					AddText('\n');
+					tu->cursorIndex += 1;
 				
-					if(bulletPoint == true)
+					if(bulletPoint == true) {
 						AddText('\b');
+						tu->cursorIndex += 1;
+					}
 				}
 			}
 			else if(tu->textMemory->size > 2 && osState.tabPressed == true) { // Remove bullet point if tab is pressed after it
 				char* text = (char*)tu->textMemory->memory;
 				auto  length = GetStringLength(text);
-				if(text[length - 1] == '\b')
+				if(text[length - 1] == '\b') {
 					text[length - 1] = ' ';
+					tu->cursorIndex -= 1;
+				}
 			}
 			else if(osState.escapePressed == true) // Esc hit, end writing
 				EndWriting();
@@ -241,9 +252,41 @@ GUIAppEntryPoint(instance) {
 				vector mousePos = { state.mouse.pos.x, state.mouse.pos.y };
 				if(tu->containerBackground != &state.titleBar.background) // If it's not the title bar, check for overlap in canvas space
 					mousePos = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
-				
 				if(Overlap(mousePos.x, mousePos.y, UnpackDimensions(*tu->containerBackground)) == false)
 					EndWriting();
+			}
+			else if(osState.leftPressed == true && tu->cursorIndex >= 1)
+				tu->cursorIndex -= 1;
+			else if(osState.rightPressed == true && tu->cursorIndex < GetStringLength((char*)tu->textMemory->memory))
+				tu->cursorIndex += 1;
+			
+			// Update cursor position
+			{
+				char* string = (char*)(tu->textMemory->memory);
+				auto  length = GetStringLength(string);
+				Assert(tu->cursorIndex <= length);
+				f32   x = 0; 
+				f32   y = 0;
+				ForAll(tu->cursorIndex) {
+					if(string[it] == '\n') {
+						y -= tu->cursorHeight * 1.5f;
+						x = 0;
+					}
+					else
+						x += tu->cursorHeight * 1.5f;
+				}
+				x -= tu->cursorHeight * 0.5f; // Place right againt the end of the last glyph
+				
+				if(tu->containerBackground == &state.titleBar.background) {
+					auto fullLength = length * tu->cursorHeight * 1.5f - tu->cursorHeight * 0.5f;
+					x += state.titleBar.background.left + state.titleBar.background.width / 2 - fullLength / 2;
+					y += state.titleBar.background.bottom + state.titleBar.background.height / 2 - TitleBarTextHeight / 2;
+				}
+				else {
+					InvalidCodePath; // @TODO
+				}
+				
+				SetCursorPos(x, y);
 			}
 		}
 		
@@ -280,7 +323,7 @@ GUIAppEntryPoint(instance) {
 		EndNotesMemoryLoop();
 
 		// Draw border on a selected note
-		if(state.notes.selected != Null)
+		if(state.notes.selected != Null && state.notes.justCreated == false)
 			DrawBorder(state.notes.selected->background);
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
@@ -313,59 +356,59 @@ GUIAppEntryPoint(instance) {
 		EndNotesLoop();
 		
 		// Draw the overlying UI
+		ResetProjectionMatrix();
+			
+		// Toolbar
 		{
-			ResetProjectionMatrix();
-			
-			// Toolbar
-			{
-				auto* tb = &state.toolBar;
-				DrawRectangle(UnpackDimensions(state.toolBar.background), 255, 255, 255); // Background
+			auto* tb = &state.toolBar;
+			DrawRectangle(UnpackDimensions(state.toolBar.background), 255, 255, 255); // Background
 	
-				ForAll(3) { // Buttons
-					auto* b = tb->buttons + it;
-					DrawRectangle(UnpackDimensions(b->background), 255, 0, 0);
-					WriteText(b->text, GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
-				}
-	
-				// Draw separator
-				glLineWidth(2);
-				glColor3f(0, 0, 0);
-				glBegin(GL_LINES);
-				glVertex2s(tb->background.width, 0);
-				glVertex2s(tb->background.width, tb->background.height);
-				glEnd();
-				AssertOpenGL();
+			ForAll(3) { // Buttons
+				auto* b = tb->buttons + it;
+				DrawRectangle(UnpackDimensions(b->background), 255, 0, 0);
+				WriteText(b->text, GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
 			}
+	
+			// Draw separator
+			glLineWidth(2);
+			glColor3f(0, 0, 0);
+			glBegin(GL_LINES);
+			glVertex2s(tb->background.width, 0);
+			glVertex2s(tb->background.width, tb->background.height);
+			glEnd();
+			AssertOpenGL();
+		}
 		
-			// Title bar
-			{
-				auto* tb = &state.titleBar;
-				DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
-				if(tb->textMemory.size > 0) {
-					auto box = WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
-					if(state.textUpdate.textMemory == &tb->textMemory)
-						SetCursorPos(box.cursorLeft, box.edges.bottom);
-				}
-				
-				// Draw separator
-				glLineWidth(3);
-				glColor3f(0, 0, 0);
-				glBegin(GL_LINES);
-				glVertex2s(tb->background.left, tb->background.bottom);
-				glVertex2s(tb->background.left + tb->background.width, tb->background.bottom);
-				glEnd();
-				AssertOpenGL();
+		// Title bar
+		{
+			auto* tb = &state.titleBar;
+			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
+			if(tb->textMemory.size > 0) {
+				auto box = WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
+				// if(state.textUpdate.textMemory == &tb->textMemory)
+				// 	SetCursorPos(box.cursorLeft, box.edges.bottom);
 			}
 			
-			// Exception made for a note that was just created, draw in front of the tool bar
-			if(state.notes.selected != Null && state.notes.justCreated == true) {
-				DrawRectangle(UnpackDimensions(state.notes.selected->background), 255, 255, 255);
-				DrawBorder(state.notes.selected->background);
-			}
+			// Draw separator
+			glLineWidth(3);
+			glColor3f(0, 0, 0);
+			glBegin(GL_LINES);
+			glVertex2s(tb->background.left, tb->background.bottom);
+			glVertex2s(tb->background.left + tb->background.width, tb->background.bottom);
+			glEnd();
+			AssertOpenGL();
+		}
+			
+		// If a note was just created, draw in front of the tool bar
+		if(state.notes.selected != Null && state.notes.justCreated == true) {
+			SetCanvasProjetionMatrix();
+			DrawRectangle(UnpackDimensions(state.notes.selected->background), 255, 255, 255);
+			DrawBorder(state.notes.selected->background);
 		}
 		
 		// Draw cursor if needed
 		if(state.textUpdate.textMemory != Null) {
+			ResetProjectionMatrix();
 			f32 cursorX = state.textUpdate.cursorPos.x;
 			f32 cursorY = state.textUpdate.cursorPos.y;
 			f32 cursorHeight = state.textUpdate.cursorHeight;

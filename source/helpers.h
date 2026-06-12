@@ -42,6 +42,7 @@ program_unique struct {
 		rectangle*    containerBackground;
 		vector        cursorPos;
 		f32 					cursorHeight;
+		ui16          cursorIndex; // 0-based
 	} 							textUpdate;
 	
 	struct {
@@ -92,6 +93,7 @@ bool    NoteMemoryIsInUse(note* n);
 // Misc
 vector  ConvertToCanvasSpace(f32 x, f32 y);
 vector  ConvertToCanvasSpace(vector pos);
+vector  ConvertToViewportSpace(vector pos);
 void 		SetCursorPos(f32 x, f32 y);
 f32 		UI8ColourToF32(ui8 u);
 #define UnpackDimensions(_struct) (_struct).left, (_struct).bottom, (_struct).width, (_struct).height

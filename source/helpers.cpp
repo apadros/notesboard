@@ -91,6 +91,13 @@ program_external vector ConvertToCanvasSpace(vector pos) {
 	return ConvertToCanvasSpace(pos.x, pos.y);
 }
 
+program_external vector ConvertToViewportSpace(vector pos) {
+	vector p = {};
+	p.x = pos.x * state.canvas.scale + state.canvas.translation.x;
+	p.y = pos.y * state.canvas.scale + state.canvas.translation.y;
+	return p;
+}
+
 // @TODO - Export to API?
 program_external void ResetProjectionMatrix() {
 	glMatrixMode(GL_PROJECTION);
