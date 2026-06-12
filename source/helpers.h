@@ -28,9 +28,8 @@ struct note {
 
 program_unique struct {
 	struct {
-		si16 translationX; // Applied post scaling, therefore must be scaled
-		si16 translationY; // Applied post scaling, therefore must be scaled
-		f32  scale = 1.0f;
+		vector translation; // In viewport space, applied post scaling, therefore must be scaled
+		f32    scale = 1.0f;
 	} canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
 	
 	struct {
@@ -41,8 +40,7 @@ program_unique struct {
 	struct {
 		memory_stack* textMemory;
 		rectangle*    containerBackground;
-		f32 					cursorX;
-		f32 					cursorY;
+		vector        cursorPos;
 		f32 					cursorHeight;
 	} 							textUpdate;
 	
@@ -65,12 +63,10 @@ program_unique struct {
 	} notes;
 
 	struct { // All vectors in viewport space
-		ui16 				x;
-		ui16 				y;
-		si16 				translationX;
-		si16 				translationY;
-		bool 				leftDown;
-		bool 			  rightDown;
+		vector pos;
+		vector translation;
+		bool 	 leftDown;
+		bool 	 rightDown;
 	} mouse;
 	
 } state;
@@ -94,7 +90,8 @@ text_box WriteText(const char* string, f32 x, f32 y, f32 height, bool center);
 bool    NoteMemoryIsInUse(note* n);
 
 // Misc
-point 	ConvertToCanvasSpace(f32 x, f32 y);
+vector  ConvertToCanvasSpace(f32 x, f32 y);
+vector  ConvertToCanvasSpace(vector pos);
 void 		SetCursorPos(f32 x, f32 y);
 f32 		UI8ColourToF32(ui8 u);
 #define UnpackDimensions(_struct) (_struct).left, (_struct).bottom, (_struct).width, (_struct).height

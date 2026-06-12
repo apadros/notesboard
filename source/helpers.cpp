@@ -20,8 +20,8 @@ program_local void WriteTextLineVert(ui16 x, ui16 y, ui8 height) {
 }
 
 program_external void SetCursorPos(f32 x, f32 y) {
-	state.textUpdate.cursorX = x;
-	state.textUpdate.cursorY = y;
+	state.textUpdate.cursorPos.x = x;
+	state.textUpdate.cursorPos.y = y;
 }
 
 program_external void BeginWriting(memory_stack* textMemory, rectangle* containerBackground, ui16 cursorHeight) {
@@ -80,11 +80,15 @@ program_external f32 UI8ColourToF32(ui8 u) {
 	return (f32)u / 255;
 }
 
-program_external point ConvertToCanvasSpace(f32 x, f32 y) {
-	point p = {};
-	p.x = (x - state.canvas.translationX) / state.canvas.scale;
-	p.y = (y - state.canvas.translationY) / state.canvas.scale;
+program_external vector ConvertToCanvasSpace(f32 x, f32 y) {
+	vector p = {};
+	p.x = (x - state.canvas.translation.x) / state.canvas.scale;
+	p.y = (y - state.canvas.translation.y) / state.canvas.scale;
 	return p;
+}
+
+program_external vector ConvertToCanvasSpace(vector pos) {
+	return ConvertToCanvasSpace(pos.x, pos.y);
 }
 
 // @TODO - Export to API?
@@ -119,8 +123,8 @@ program_external void SetCanvasProjetionMatrix() {
 	ResetProjectionMatrix();
 	if(state.canvas.scale != 1.0f)
 		glScalef(state.canvas.scale, state.canvas.scale, 1.0f);
-	if(state.canvas.translationX != 0 || state.canvas.translationY != 0)
-		glTranslatef(state.canvas.translationX / state.canvas.scale, state.canvas.translationY / state.canvas.scale, Null);
+	if(state.canvas.translation.x != 0 || state.canvas.translation.y != 0)
+		glTranslatef(state.canvas.translation.x / state.canvas.scale, state.canvas.translation.y / state.canvas.scale, Null);
 	AssertOpenGL();		
 }
 

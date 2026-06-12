@@ -8,8 +8,6 @@ Background
 	- Mac OS compatibility
 	
 Functionality
-	- Scaling projection matrix about the mouse pos
-	- Adjusting translation of notes correctly after canvas resize - Currently horizonal movement is correct, but not vertical
 	- Adjust creation of new notes to take scaling and translation of projection matrix into consideration, or just push / pop matrices
 	- Prevent mouse from moving when attempting to drag a note outside the canvas
 	- Allow placing the cursor manually in a text section with the mouse

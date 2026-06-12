@@ -58,13 +58,12 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// Update mouse state
-		state.mouse.translationX = 0;
-		state.mouse.translationY = 0;
+		state.mouse.translation = { 0, 0 };
 		if(osState.mouseX != 0 && osState.mouseY != 0) {
-			state.mouse.translationX = osState.mouseX - state.mouse.x;
-			state.mouse.translationY = osState.mouseY - state.mouse.y;
-			state.mouse.x = osState.mouseX;
-			state.mouse.y = osState.mouseY;
+			state.mouse.translation.x = osState.mouseX - state.mouse.pos.x;
+			state.mouse.translation.y = osState.mouseY - state.mouse.pos.y;
+			state.mouse.pos.x = osState.mouseX;
+			state.mouse.pos.y = osState.mouseY;
 		}
 		if(osState.mouseLeftClickDown == true)
 			state.mouse.leftDown = true;
@@ -76,14 +75,14 @@ GUIAppEntryPoint(instance) {
 			state.mouse.rightDown = false;
 		
 		// Selection of the title bar
-		if(osState.mouseLeftDoubleClick == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.titleBar.background)) == true) {
+		if(osState.mouseLeftDoubleClick == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.titleBar.background)) == true) {
 			state.notes.selected = Null;
 			auto* tb = &state.titleBar;
 			BeginWriting(&tb->textMemory, &tb->background, TitleBarTextHeight);
 		}
 		
 		// Toolbar
-		if(osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolBar.buttons[0].background)) == true && state.notes.justCreated == false) { // Create new note
+		if(osState.mouseLeftClickDown == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[0].background)) == true && state.notes.justCreated == false) { // Create new note
 			note* n = Null;
 			
 			// Search for a free slot
@@ -115,7 +114,7 @@ GUIAppEntryPoint(instance) {
 			state.notes.selected = n;
 			state.notes.justCreated = true;
 		}
-		else if(state.notes.selected != Null && osState.mouseLeftClickDown == true && Overlap(state.mouse.x, state.mouse.y, UnpackDimensions(state.toolBar.buttons[1].background)) == true && TextIsBeingWritten() == true) { // Add a bullet point
+		else if(state.notes.selected != Null && osState.mouseLeftClickDown == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[1].background)) == true && TextIsBeingWritten() == true) { // Add a bullet point
 			Assert(state.textUpdate.textMemory != Null);
 			char* text = (char*)state.textUpdate.textMemory->memory;
 			auto  length = GetStringLength(text);
@@ -126,7 +125,7 @@ GUIAppEntryPoint(instance) {
 		// Notes
 		{
 			if(osState.mouseLeftClickDown == true) { // Select and / or drag and deselection
-				point mousePosCanvas = ConvertToCanvasSpace(state.mouse.x, state.mouse.y);
+				auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
 				
 				bool overlap = false;
 				BeginNotesLoop(n) {
@@ -150,9 +149,9 @@ GUIAppEntryPoint(instance) {
 				Assert(state.notes.selected != Null);
 				
 				// Mouse moves in viewport space
-				point newPosCanvas = { state.notes.selected->background.left + (f32)state.mouse.translationX / state.canvas.scale, 
-															 state.notes.selected->background.bottom + (f32)state.mouse.translationY / state.canvas.scale };
-				
+				vector newPosCanvas = { state.notes.selected->background.left + (f32)state.mouse.translation.x / state.canvas.scale, 
+															  state.notes.selected->background.bottom + (f32)state.mouse.translation.y / state.canvas.scale };
+															 
 				// When moving a new note outside of the toolbar, ensure it can't be moved back in
 				if(state.notes.justCreated == true) {
 					f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
@@ -179,7 +178,7 @@ GUIAppEntryPoint(instance) {
 			
 			// Begin writing
 			{
-				auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.x, state.mouse.y);
+				auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
 				if(state.notes.selected != Null && osState.mouseLeftDoubleClick == true && Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(state.notes.selected->background)) == true)
 					BeginWriting(&state.notes.selected->textMemory, &state.notes.selected->background, NoteTextHeight);
 			}
@@ -239,9 +238,9 @@ GUIAppEntryPoint(instance) {
 			else if(osState.escapePressed == true) // Esc hit, end writing
 				EndWriting();
 			else if(osState.mouseLeftClickDown == true) { // Left mouse click, check where and decide
-				point mousePos = { state.mouse.x, state.mouse.y };
+				vector mousePos = { state.mouse.pos.x, state.mouse.pos.y };
 				if(tu->containerBackground != &state.titleBar.background) // If it's not the title bar, check for overlap in canvas space
-					mousePos = ConvertToCanvasSpace(state.mouse.x, state.mouse.y);
+					mousePos = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
 				
 				if(Overlap(mousePos.x, mousePos.y, UnpackDimensions(*tu->containerBackground)) == false)
 					EndWriting();
@@ -250,21 +249,19 @@ GUIAppEntryPoint(instance) {
 		
 		// Update scaling
 		if(osState.mouseWheelRotation != 0.0f) {
-			// point mousePosPre = ConvertToCanvasSpace(state.mouse.x, state.mouse.y);
+			auto mousePosPre = ConvertToCanvasSpace(state.mouse.pos);
 			state.canvas.scale += osState.mouseWheelRotation / 10;
 			if(state.canvas.scale <= 0.0f)
 				state.canvas.scale = 0.1f;
-			// point mousePosPost = ConvertToCanvasSpace(state.mouse.x, state.mouse.y);
-			// state.canvas.translationX += mousePosPost.x - mousePosPre.x;
-			// state.canvas.translationY += mousePosPost.y - mousePosPre.y;
-			// state.canvas.translationX += (state.mouse.x - state.mouse.x * percDelta) * state.canvas.scale * percDelta / 2;
-			// state.canvas.translationY += (state.mouse.y - state.mouse.y * percDelta) * state.canvas.scale * percDelta / 2;
+			auto   mousePosPost = ConvertToCanvasSpace(state.mouse.pos);
+			vector mouseTranslationCanvas = mousePosPost - mousePosPre;
+			state.canvas.translation += mouseTranslationCanvas * state.canvas.scale;
 		}
 		
 		// Update translations
-		if(state.mouse.rightDown == true && (state.mouse.translationX != 0 || state.mouse.translationY != 0)) {
-			state.canvas.translationX += state.mouse.translationX;
-			state.canvas.translationY += state.mouse.translationY;
+		if(state.mouse.rightDown == true && (state.mouse.translation.x != 0 || state.mouse.translation.y != 0)) {
+			state.canvas.translation.x += state.mouse.translation.x;
+			state.canvas.translation.y += state.mouse.translation.y;
 		}
 		
 		SetCanvasProjetionMatrix();
@@ -292,8 +289,8 @@ GUIAppEntryPoint(instance) {
 		BeginNotesLoop(n) {
 			if(NoteMemoryIsInUse(n) == true) {
 				text_box textBox = {};
-				point    textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
-				point    cursorPos = textOrigin;
+				vector   textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
+				auto     cursorPos = textOrigin;
 				if(n->textMemory.size > 0) { // Note has text
 					textBox = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
 					cursorPos.x = textBox.cursorLeft;
@@ -305,10 +302,12 @@ GUIAppEntryPoint(instance) {
 					SetCursorPos(cursorPos.x, cursorPos.y);
 				
 				// Resize note
-				n->background.width = GetMax(NoteMinWidth, textBox.edges.width + NoteTextBorder * 2);
-				ui16 top = n->background.bottom + n->background.height;
-				n->background.height = GetMax(NoteMinHeight, textBox.edges.height + NoteTextBorder * 2);
-				n->background.bottom = top - n->background.height;
+				if(TextIsBeingWritten() == true && state.textUpdate.containerBackground == &n->background) {
+					n->background.width = GetMax(NoteMinWidth, textBox.edges.width + NoteTextBorder * 2);
+					f32 top = n->background.bottom + n->background.height;
+					n->background.height = GetMax(NoteMinHeight, textBox.edges.height + NoteTextBorder * 2);
+					n->background.bottom = top - n->background.height;
+				}
 			}
 		}
 		EndNotesLoop();
@@ -367,8 +366,8 @@ GUIAppEntryPoint(instance) {
 		
 		// Draw cursor if needed
 		if(state.textUpdate.textMemory != Null) {
-			f32 cursorX = state.textUpdate.cursorX;
-			f32 cursorY = state.textUpdate.cursorY;
+			f32 cursorX = state.textUpdate.cursorPos.x;
+			f32 cursorY = state.textUpdate.cursorPos.y;
 			f32 cursorHeight = state.textUpdate.cursorHeight;
 			if(state.textUpdate.containerBackground != &state.titleBar.background)
 				SetCanvasProjetionMatrix();

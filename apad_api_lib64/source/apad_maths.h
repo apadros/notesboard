@@ -2,6 +2,7 @@
 #define APAD_MATHS_H
 
 #include "apad_base_types.h"
+#include "apad_intrinsics.h"
 
 struct rectangle {
 	f32 left;
@@ -10,7 +11,7 @@ struct rectangle {
 	f32 height;
 };
 
-struct point {
+struct vector {
 	union {
 		f32 x;
 		f32 width;
@@ -20,15 +21,21 @@ struct point {
 		f32 y;
 		f32 height;
 	};
+	
+	dll_import vector operator+(vector& v);
+	dll_import vector operator-(vector& v);
+	dll_import void   operator+=(vector& v);
+	dll_import void   operator-=(vector& v);
+	dll_import vector operator*(f32 f);
+	dll_import vector operator/(f32 f);
 };
-typedef point size;
 
-#define 				Cap(_value, _min, _max) { if((_value) < (_min)) (_value) = (_min); \
-																					else if((_value) > (_max)) (_value) = (_max); }
-#define 				Magnitude(_x) ((_x) < 0 ? -(_x) : (_x))																				
-dll_export size GetMiddle(rectangle r);
-#define 				GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))
-#define 				GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
-dll_import bool Overlap(f32 x0, f32 y0, f32 left1, f32 bottom1, f32 width1, f32 height1);
+#define 				  Cap(_value, _min, _max) { if((_value) < (_min)) (_value) = (_min); \
+								  													else if((_value) > (_max)) (_value) = (_max); }
+#define 				  Magnitude(_x) ((_x) < 0 ? -(_x) : (_x))																				
+dll_export vector GetMiddle(rectangle r);
+#define 				  GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))
+#define 				  GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
+dll_import bool   Overlap(f32 x0, f32 y0, f32 left1, f32 bottom1, f32 width1, f32 height1);
 
 #endif

@@ -55,8 +55,8 @@ dll_import void DisplayLastWin32Error();
 
 // ******************** Others ******************** //
 
-dll_export size Win32GetProgramWindowClientSize();
+dll_export vector Win32GetProgramWindowClientSize();
 
-dll_export point Win32GetMousePosWithinClient(); // Return point will be capped to the dimensions of the client area
+dll_export vector Win32GetMousePosWithinClient(); // Return point will be capped to the dimensions of the client area
 
 #endif
