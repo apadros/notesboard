@@ -43,6 +43,7 @@ dll_import void         SetInvalid(memory_block& block);
 
 dll_import memory_stack AllocateStack(ui32 capacity = Null);
 dll_import void 				FreeStack(memory_stack& stack);
+dll_import void* 				Insert(ui32 size, ui32 offset, memory_stack& stack);
 
 // All of these will allocate a new stack with a minimum of 2x capacity if not enough space is available for the push.
 // As such it is strongly discouraged to store pointers into stack memory and to treat it as a single block.
@@ -53,6 +54,7 @@ dll_import void*			  Push(void* memory, ui32 size, memory_stack& stack);
 #define 								PushStruct(_structType, _stack) \
 													(_structType*)Push(sizeof(_structType), (_stack))
 
+dll_import void  				Remove(ui32 size, ui32 offset, memory_stack& stack); // Will move contents beyond offset + size down to offset
 dll_import void 				ResetStack(memory_stack& stack);
 
 #endif

@@ -31,6 +31,7 @@ program_external void BeginWriting(memory_stack* textMemory, rectangle* containe
 	state.textUpdate.textMemory = textMemory;
 	state.textUpdate.containerBackground = containerBackground;
 	state.textUpdate.cursorHeight = cursorHeight;
+	state.textUpdate.cursorIndex = textMemory->size - 1;
 }
 
 program_external bool NoteMemoryIsInUse(note* n) {
@@ -59,17 +60,16 @@ program_external void DrawBorder(rectangle& r) {
 }
 
 program_external void EndWriting() {
-	state.textUpdate.textMemory = Null;
+	ClearStruct(state.textUpdate);
 }
 
 program_external void AddText(char c) {
 	auto* tu = &state.textUpdate;
 	Assert(tu->textMemory != Null);
 	Assert(IsValid(*(tu->textMemory)) == true);
-	if(tu->textMemory->size >= 2)
-		tu->textMemory->size -= 1; // Remove \0
-	char string[] = { c, '\0' };
-	PushString(string, true, *(tu->textMemory)); // addEOS true since the '\0' in string[] won't be pushed
+	void* mem = Insert(sizeof(c), tu->cursorIndex, *tu->textMemory);
+	*((char*)mem) = c;
+	tu->cursorIndex += 1;
 }
 
 program_external bool TextIsBeingWritten() {

@@ -16,13 +16,8 @@ Functionality
 	- Setting the gl clear color as option -> board background
 	- Arrows to connect notes
 	- Creation of an image as a note
-	- Navigation of a text filed with arrow keys @WIP
-		- Move cursor within a text field @WIP
-			- Notes
-		- Insert text at the position of the cursor
-			- Move everything above in the stack up by 1, potentially allocate new memory
-		- Remove text at the position of the cursor
-			- Move anything above in the stack down by 1, decrease size
+	- Navigation of a notes's text filed with arrow keys
+	- Insertion and removal of text at cursor position within notes
 	
 Vertical toolbar
 	- Usage of images for buttons

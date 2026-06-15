@@ -79,7 +79,6 @@ GUIAppEntryPoint(instance) {
 			state.notes.selected = Null;
 			auto* tb = &state.titleBar;
 			BeginWriting(&tb->textMemory, &tb->background, TitleBarTextHeight);
-			state.textUpdate.cursorIndex = tb->textMemory.size - 1;
 		}
 		
 		// Toolbar
@@ -112,6 +111,7 @@ GUIAppEntryPoint(instance) {
 			n->background.bottom = pos.y;			
 			n->title = Null;
 			n->textMemory = AllocateStack();
+			PushString(Null, true, n->textMemory);
 			state.notes.selected = n;
 			state.notes.justCreated = true;
 		}
@@ -119,7 +119,8 @@ GUIAppEntryPoint(instance) {
 			Assert(state.textUpdate.textMemory != Null);
 			char* text = (char*)state.textUpdate.textMemory->memory;
 			auto  length = GetStringLength(text);
-			if(state.textUpdate.textMemory->size == 0 || state.textUpdate.textMemory->size > 1 && text[length - 1] != '\b')
+			Assert(state.textUpdate.cursorIndex <= length);
+			if(state.textUpdate.cursorIndex == 0 || state.textUpdate.cursorIndex >= 1 && text[state.textUpdate.cursorIndex - 1] != '\b') // If the char at the cursor position is not a bullet point
 				AddText('\b');
 		}
 
@@ -196,20 +197,14 @@ GUIAppEntryPoint(instance) {
 		if(TextIsBeingWritten() == true) {
 			auto* tu = &state.textUpdate;
 			
-			if(osState.keyPressed != Null) { // Push text
+			if(osState.keyPressed != Null) // Push text
 				AddText(osState.keyPressed);
-				tu->cursorIndex += 1;
-			}
-			else if(osState.backspacePressed == true && tu->textMemory->size > 1){
-				if(tu->textMemory->size > 2) {
-					((char*)tu->textMemory->memory)[tu->textMemory->size - 2] = '\0';
-					tu->textMemory->size -= 1;
+			else if(osState.backspacePressed == true){
+				Assert(tu->textMemory->size >= 1);
+				if(tu->cursorIndex > 0) {
+					Remove(sizeof(char), tu->cursorIndex - 1, *tu->textMemory);
+					tu->cursorIndex -= 1;
 				}
-				else
-					tu->textMemory->size = 0;
-				
-				if(tu->cursorIndex >= 1)
-						tu->cursorIndex -= 1;
 			}
 			else if(osState.enterPressed == true) { // Jump to next line + exceptions
 				if(tu->textMemory == &(state.titleBar.textMemory)) // If we're writing on the title bar
@@ -230,22 +225,13 @@ GUIAppEntryPoint(instance) {
 					}
 				
 					AddText('\n');
-					tu->cursorIndex += 1;
 				
-					if(bulletPoint == true) {
+					if(bulletPoint == true)
 						AddText('\b');
-						tu->cursorIndex += 1;
-					}
 				}
 			}
-			else if(tu->textMemory->size > 2 && osState.tabPressed == true) { // Remove bullet point if tab is pressed after it
-				char* text = (char*)tu->textMemory->memory;
-				auto  length = GetStringLength(text);
-				if(text[length - 1] == '\b') {
-					text[length - 1] = ' ';
-					tu->cursorIndex -= 1;
-				}
-			}
+			else if(tu->cursorIndex >= 1 && ((char*)(tu->textMemory->memory))[tu->cursorIndex - 1] == '\b' && osState.tabPressed == true) // Remove bullet point if tab is pressed after it
+				((char*)tu->textMemory->memory)[tu->cursorIndex - 1] = ' ';
 			else if(osState.escapePressed == true) // Esc hit, end writing
 				EndWriting();
 			else if(osState.mouseLeftClickDown == true) { // Left mouse click, check where and decide
@@ -257,11 +243,11 @@ GUIAppEntryPoint(instance) {
 			}
 			else if(osState.leftPressed == true && tu->cursorIndex >= 1)
 				tu->cursorIndex -= 1;
-			else if(osState.rightPressed == true && tu->cursorIndex < GetStringLength((char*)tu->textMemory->memory))
+			else if(osState.rightPressed == true && tu->cursorIndex < (tu->textMemory->size - 1))
 				tu->cursorIndex += 1;
 			
 			// Update cursor position
-			{
+			if(TextIsBeingWritten() == true) { // In case EndWriting() was called above
 				char* string = (char*)(tu->textMemory->memory);
 				auto  length = GetStringLength(string);
 				Assert(tu->cursorIndex <= length);
@@ -334,7 +320,7 @@ GUIAppEntryPoint(instance) {
 				text_box textBox = {};
 				vector   textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
 				auto     cursorPos = textOrigin;
-				if(n->textMemory.size > 0) { // Note has text
+				if(n->textMemory.size > 1) { // Note has text
 					textBox = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
 					cursorPos.x = textBox.cursorLeft;
 					cursorPos.y = textBox.edges.bottom;
@@ -383,7 +369,7 @@ GUIAppEntryPoint(instance) {
 		{
 			auto* tb = &state.titleBar;
 			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
-			if(tb->textMemory.size > 0) {
+			if(tb->textMemory.size > 1) {
 				auto box = WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
 				// if(state.textUpdate.textMemory == &tb->textMemory)
 				// 	SetCursorPos(box.cursorLeft, box.edges.bottom);
