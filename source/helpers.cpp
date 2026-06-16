@@ -59,6 +59,22 @@ program_external void DrawBorder(rectangle& r) {
 	AssertOpenGL();	
 }
 
+program_external bool MouseLeftClickThisFrame() {
+	return state.mouse.lastLeftDown == false && state.mouse.leftDown == true;
+}
+
+program_external bool MouseIsWithinToolbar() {
+	return Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.background));
+}
+
+program_external bool TitleIsBeingUpdated() {
+	return TextIsBeingWritten() == true && state.textUpdate.containerBackground == &state.titleBar.background;
+}
+
+program_external bool NoteIsBeingUpdated() {
+	return TextIsBeingWritten() == true && state.notes.selected != Null && state.textUpdate.containerBackground == &state.notes.selected->background;
+}
+
 program_external void EndWriting() {
 	ClearStruct(state.textUpdate);
 }
@@ -135,12 +151,12 @@ program_external void SetCanvasProjetionMatrix() {
 	AssertOpenGL();		
 }
 
-program_external text_box WriteText(const char* string, f32 x, f32 y, f32 height, bool center) {
+program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 height, bool center) {
 	Assert(string != Null);
 	
-	text_box ret = {};
-	ret.edges.left = x;
-	ret.edges.bottom = y;
+	rectangle ret = {};
+	ret.left = x;
+	ret.bottom = y;
 	
 	auto length = GetStringLength(string);
 	f32 xOffset = 0;
@@ -171,7 +187,7 @@ program_external text_box WriteText(const char* string, f32 x, f32 y, f32 height
 			
 			case('\n'): {
 				nextY -= height * 1.5f; 
-				ret.edges.bottom = nextY;
+				ret.bottom = nextY;
 				nextX = x; 
 			} break;
 			
@@ -401,7 +417,7 @@ program_external text_box WriteText(const char* string, f32 x, f32 y, f32 height
 			default: break;
 		}
 		
-		ret.edges.width = GetMax(ret.edges.width, nextX + height - ret.edges.left);
+		ret.width = GetMax(ret.width, nextX + height - ret.left);
 			
 		if(c != '\n')
 			nextX += height * 1.5f;
@@ -409,10 +425,9 @@ program_external text_box WriteText(const char* string, f32 x, f32 y, f32 height
 	glEnd();
 	AssertOpenGL();
 	
-	ret.edges.height = y + height - ret.edges.bottom;
-	ret.cursorLeft = nextX;
-	Assert(ret.edges.width != 0);
-	Assert(ret.edges.height != 0);
+	ret.height = y + height - ret.bottom;
+	Assert(ret.width != 0);
+	Assert(ret.height != 0);
 	
 	return ret;
 }

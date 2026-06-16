@@ -66,21 +66,18 @@ program_unique struct {
 	struct { // All vectors in viewport space
 		vector pos;
 		vector translation;
-		bool 	 leftDown;
-		bool 	 rightDown;
+		bool   leftDown;
+		bool   lastLeftDown;
+	  bool   rightDown;
 	} mouse;
 	
 } state;
 
-struct text_box {
-	rectangle edges;
-	f32       cursorLeft;
-};
-void 		 AddText(char c);
-void 		 BeginWriting(memory_stack* textMemory, rectangle* containerBackground, ui16 cursorHeight);
-bool 		 TextIsBeingWritten();
-void 		 EndWriting();
-text_box WriteText(const char* string, f32 x, f32 y, f32 height, bool center);
+void 		  AddText(char c);
+void 		  BeginWriting(memory_stack* textMemory, rectangle* containerBackground, ui16 cursorHeight);
+bool 		  TextIsBeingWritten();
+void 		  EndWriting();
+rectangle WriteText(const char* string, f32 x, f32 y, f32 height, bool center);
 
 // Notes
 #define BeginNotesMemoryLoop(_varID) { ForAll(state.notes.memory.size / sizeof(note)) { \
@@ -94,7 +91,11 @@ bool    NoteMemoryIsInUse(note* n);
 vector  ConvertToCanvasSpace(f32 x, f32 y);
 vector  ConvertToCanvasSpace(vector pos);
 vector  ConvertToViewportSpace(vector pos);
+bool    MouseIsWithinToolbar();
+bool    MouseLeftClickThisFrame();
+bool 		NoteIsBeingUpdated();
 void 		SetCursorPos(f32 x, f32 y);
+bool    TitleIsBeingUpdated();
 f32 		UI8ColourToF32(ui8 u);
 #define UnpackDimensions(_struct) (_struct).left, (_struct).bottom, (_struct).width, (_struct).height
 

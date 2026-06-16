@@ -76,13 +76,18 @@ GUIAppEntryPoint(instance) {
 		
 		// Selection of the title bar
 		if(osState.mouseLeftDoubleClick == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.titleBar.background)) == true) {
+			if(TextIsBeingWritten() == true && TitleIsBeingUpdated() == false)
+				EndWriting();
 			state.notes.selected = Null;
-			auto* tb = &state.titleBar;
-			BeginWriting(&tb->textMemory, &tb->background, TitleBarTextHeight);
+			BeginWriting(&state.titleBar.textMemory, &state.titleBar.background, TitleBarTextHeight);
+			goto label_rendering;
 		}
 		
 		// Toolbar
-		if(osState.mouseLeftClickDown == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[0].background)) == true && state.notes.justCreated == false) { // Create new note
+		if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[0].background)) == true) { // Create new note
+			if(TextIsBeingWritten() == true)
+				EndWriting();
+			
 			note* n = Null;
 			
 			// Search for a free slot
@@ -114,83 +119,92 @@ GUIAppEntryPoint(instance) {
 			PushString(Null, true, n->textMemory);
 			state.notes.selected = n;
 			state.notes.justCreated = true;
+			
+			goto label_rendering;
 		}
-		else if(state.notes.selected != Null && osState.mouseLeftClickDown == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[1].background)) == true && TextIsBeingWritten() == true) { // Add a bullet point
+		else if(NoteIsBeingUpdated() == true && MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[1].background)) == true) { // Add a bullet point
 			Assert(state.textUpdate.textMemory != Null);
 			char* text = (char*)state.textUpdate.textMemory->memory;
 			auto  length = GetStringLength(text);
 			Assert(state.textUpdate.cursorIndex <= length);
 			if(state.textUpdate.cursorIndex == 0 || state.textUpdate.cursorIndex >= 1 && text[state.textUpdate.cursorIndex - 1] != '\b') // If the char at the cursor position is not a bullet point
 				AddText('\b');
+				
+			goto label_rendering;
 		}
 
 		// Notes
-		{
-			if(osState.mouseLeftClickDown == true) { // Select and / or drag and deselection
-				auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
-				
-				bool overlap = false;
-				BeginNotesLoop(n) {
-					if(NoteMemoryIsInUse(n) == true && Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(n->background)) == true) {
-						state.notes.selected = n;
-						state.notes.moving = true;
-						if(TextIsBeingWritten() == true) // If text was already being written elsewhere
-							EndWriting();
-						overlap = true;
-						break;
-					}
+		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardles of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
+			auto* previouslySelected = state.notes.selected;
+			state.notes.selected = Null;
+		
+			auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
+			BeginNotesLoop(n) {
+				if(NoteMemoryIsInUse(n) == true && Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(n->background)) == true) {
+					state.notes.selected = n;
+					state.notes.moving = true;
+					break;
 				}
-				EndNotesLoop();
-				
-				if(overlap == false)
-					state.notes.selected = false;
 			}
+			EndNotesLoop();
 			
-			// Move
-			if(state.notes.moving == true) {
-				Assert(state.notes.selected != Null);
-				
-				// Mouse moves in viewport space
-				vector newPosCanvas = { state.notes.selected->background.left + (f32)state.mouse.translation.x / state.canvas.scale, 
-															  state.notes.selected->background.bottom + (f32)state.mouse.translation.y / state.canvas.scale };
-															 
-				// When moving a new note outside of the toolbar, ensure it can't be moved back in
-				if(state.notes.justCreated == true) {
-					f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
-					if(newPosCanvas.x >= toolbarEdgeCanvas)
-						state.notes.justCreated = false;
+			// If we selected a different note or text was being written elsewhere, end writing
+			if(TextIsBeingWritten() == true && (state.notes.selected == Null || previouslySelected != state.notes.selected))
+				EndWriting();
+			
+			if(state.notes.selected != Null && previouslySelected == state.notes.selected)
+				BeginWriting(&state.notes.selected->textMemory, &state.notes.selected->background, NoteTextHeight);
+		}
+		else if(MouseLeftClickThisFrame() == true) { // Select
+			auto* previouslySelected = state.notes.selected;
+			state.notes.selected = Null;
+		
+			auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
+			BeginNotesLoop(n) {
+				if(NoteMemoryIsInUse(n) == true && Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(n->background)) == true) {
+					state.notes.selected = n;
+					state.notes.moving = true;
+					break;
 				}
-				
-				state.notes.selected->background.left = newPosCanvas.x;
-				state.notes.selected->background.bottom = newPosCanvas.y;
 			}
+			EndNotesLoop();
 			
-			// Stop moving and drop
-			if(state.notes.moving == true && osState.mouseLeftClickUp == true) {
-				state.notes.moving = false;
-				
-				// If the note was just created, drop it outside of the toolbar
-				Assert(state.notes.selected != Null);
+			// If we selected a different note or text was being written elsewhere, end writing
+			if(TextIsBeingWritten() == true && (state.notes.selected == Null || previouslySelected != state.notes.selected))
+				EndWriting();
+		}
+		else if(state.notes.moving == true && osState.mouseLeftClickUp == false) { // Move
+			Assert(state.notes.selected != Null);
+			
+			// Mouse moves in viewport space
+			vector newPosCanvas = { state.notes.selected->background.left + (f32)state.mouse.translation.x / state.canvas.scale, 
+														  state.notes.selected->background.bottom + (f32)state.mouse.translation.y / state.canvas.scale };
+														 
+			// When moving a new note outside of the toolbar, ensure it can't be moved back in
+			if(state.notes.justCreated == true) {
 				f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
-				if(state.notes.selected->background.left < toolbarEdgeCanvas && state.notes.justCreated == true)
-					state.notes.selected->background.left = toolbarEdgeCanvas;
-				
-				state.notes.justCreated = false;
+				if(newPosCanvas.x >= toolbarEdgeCanvas)
+					state.notes.justCreated = false;
 			}
 			
-			// Begin writing
-			{
-				auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
-				if(state.notes.selected != Null && osState.mouseLeftDoubleClick == true && Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(state.notes.selected->background)) == true)
-					BeginWriting(&state.notes.selected->textMemory, &state.notes.selected->background, NoteTextHeight);
-			}
+			state.notes.selected->background.left = newPosCanvas.x;
+			state.notes.selected->background.bottom = newPosCanvas.y;
+		}
+		else if(state.notes.moving == true && osState.mouseLeftClickUp == true) { // Drop
+			state.notes.moving = false;
 			
-			// Delete note
-			if(state.notes.selected != Null && TextIsBeingWritten() == false && (osState.deletePressed == true || osState.backspacePressed == true)) {
-				FreeStack(state.notes.selected->textMemory);
-				ClearMemory(state.notes.selected, sizeof(note));
-				state.notes.selected = Null;
-			}
+			// If the note was just created, drop it outside of the toolbar
+			Assert(state.notes.selected != Null);
+			f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
+			if(state.notes.selected->background.left < toolbarEdgeCanvas && state.notes.justCreated == true)
+				state.notes.selected->background.left = toolbarEdgeCanvas;
+			
+			state.notes.justCreated = false;
+		}
+		else if(state.notes.selected != Null && TextIsBeingWritten() == false && (osState.deletePressed == true || osState.backspacePressed == true)) { // Delete note
+			FreeStack(state.notes.selected->textMemory);
+			ClearMemory(state.notes.selected, sizeof(note));
+			state.notes.selected = Null;
 		}
 		
 		// Update text somewhere
@@ -234,7 +248,7 @@ GUIAppEntryPoint(instance) {
 				((char*)tu->textMemory->memory)[tu->cursorIndex - 1] = ' ';
 			else if(osState.escapePressed == true) // Esc hit, end writing
 				EndWriting();
-			else if(osState.mouseLeftClickDown == true) { // Left mouse click, check where and decide
+			else if(osState.mouseLeftClickDown == true && MouseIsWithinToolbar() == false) { // Left mouse click outside of the tool bar, check where and decide
 				vector mousePos = { state.mouse.pos.x, state.mouse.pos.y };
 				if(tu->containerBackground != &state.titleBar.background) // If it's not the title bar, check for overlap in canvas space
 					mousePos = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
@@ -249,7 +263,7 @@ GUIAppEntryPoint(instance) {
 			// Update cursor position
 			if(TextIsBeingWritten() == true) { // In case EndWriting() was called above
 				char* string = (char*)(tu->textMemory->memory);
-				auto  length = GetStringLength(string);
+				auto  length = tu->textMemory->size - 1;
 				Assert(tu->cursorIndex <= length);
 				f32   x = 0; 
 				f32   y = 0;
@@ -261,15 +275,16 @@ GUIAppEntryPoint(instance) {
 					else
 						x += tu->cursorHeight * 1.5f;
 				}
-				x -= tu->cursorHeight * 0.5f; // Place right againt the end of the last glyph
+				x -= tu->cursorHeight * 0.25f; // Place half way between 2 glyphs
 				
-				if(tu->containerBackground == &state.titleBar.background) {
-					auto fullLength = length * tu->cursorHeight * 1.5f - tu->cursorHeight * 0.5f;
+				if(tu->containerBackground == &state.titleBar.background) { // Writing on the title bar
+					auto fullLength = length * tu->cursorHeight * 1.5f; // Including a small space after the last glyph
 					x += state.titleBar.background.left + state.titleBar.background.width / 2 - fullLength / 2;
 					y += state.titleBar.background.bottom + state.titleBar.background.height / 2 - TitleBarTextHeight / 2;
 				}
-				else {
-					InvalidCodePath; // @TODO
+				else { // Writing on a note
+					x += tu->containerBackground->left + NoteTextBorder;
+					y += tu->containerBackground->bottom + tu->containerBackground->height - NoteTextBorder - NoteTextHeight;
 				}
 				
 				SetCursorPos(x, y);
@@ -292,6 +307,9 @@ GUIAppEntryPoint(instance) {
 			state.canvas.translation.x += state.mouse.translation.x;
 			state.canvas.translation.y += state.mouse.translation.y;
 		}
+		
+		// Use gotos to keep things tidy instead of if else everywhere
+		label_rendering:
 		
 		SetCanvasProjetionMatrix();
 		
@@ -317,24 +335,16 @@ GUIAppEntryPoint(instance) {
 		// Draw notes text, update note background rectangle, update cursor
 		BeginNotesLoop(n) {
 			if(NoteMemoryIsInUse(n) == true) {
-				text_box textBox = {};
-				vector   textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
-				auto     cursorPos = textOrigin;
-				if(n->textMemory.size > 1) { // Note has text
+				rectangle textBox = {};
+				vector    textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
+				if(n->textMemory.size > 1) // Note has text
 					textBox = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
-					cursorPos.x = textBox.cursorLeft;
-					cursorPos.y = textBox.edges.bottom;
-				}
-				
-				// Update cursor
-				if(TextIsBeingWritten() == true && &(n->textMemory) == state.textUpdate.textMemory)
-					SetCursorPos(cursorPos.x, cursorPos.y);
 				
 				// Resize note
 				if(TextIsBeingWritten() == true && state.textUpdate.containerBackground == &n->background) {
-					n->background.width = GetMax(NoteMinWidth, textBox.edges.width + NoteTextBorder * 2);
+					n->background.width = GetMax(NoteMinWidth, textBox.width + NoteTextBorder * 2);
 					f32 top = n->background.bottom + n->background.height;
-					n->background.height = GetMax(NoteMinHeight, textBox.edges.height + NoteTextBorder * 2);
+					n->background.height = GetMax(NoteMinHeight, textBox.height + NoteTextBorder * 2);
 					n->background.bottom = top - n->background.height;
 				}
 			}
@@ -370,9 +380,7 @@ GUIAppEntryPoint(instance) {
 			auto* tb = &state.titleBar;
 			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
 			if(tb->textMemory.size > 1) {
-				auto box = WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
-				// if(state.textUpdate.textMemory == &tb->textMemory)
-				// 	SetCursorPos(box.cursorLeft, box.edges.bottom);
+				WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
 			}
 			
 			// Draw separator
@@ -412,6 +420,9 @@ GUIAppEntryPoint(instance) {
 
 		Win32EndGUIUpdateLoop();
 	}
+	
+	// Store state before next frame
+	state.mouse.lastLeftDown = state.mouse.leftDown;
 
 	return 0;
 }
