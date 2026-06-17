@@ -9,12 +9,12 @@
 #include "apad_win32_gui.h"
 #include "helpers.h"
 
-program_local void WriteTextLineHor(ui16 x, ui16 y, ui8 height) {
+program_local void RenderTextLineHor(ui16 x, ui16 y, ui8 height) {
 	glVertex2f(x, y);
 	glVertex2f(x + height, y);
 }
 
-program_local void WriteTextLineVert(ui16 x, ui16 y, ui8 height) {
+program_local void RenderTextLineVert(ui16 x, ui16 y, ui8 height) {
 	glVertex2f(x, y);
 	glVertex2f(x, y + height);
 }
@@ -69,6 +69,49 @@ program_external bool MouseIsWithinToolbar() {
 
 program_external bool TitleIsBeingUpdated() {
 	return TextIsBeingWritten() == true && state.textUpdate.containerBackground == &state.titleBar.background;
+}
+
+program_external void MoveCursor(si8 offset) {
+	Assert(TextIsBeingWritten() == true);
+	
+	auto* tu = &state.textUpdate;
+	Assert(tu->cursorIndex <= tu->textMemory->size - 1);
+	
+	if(offset < 0) {
+		if(-offset >= tu->cursorIndex)
+			tu->cursorIndex = 0;
+		else
+			tu->cursorIndex += offset;
+	}
+	else if(offset > 0) {
+		if(tu->cursorIndex + offset >= tu->textMemory->size - 1)
+			tu->cursorIndex = tu->textMemory->size - 1;
+		else
+			tu->cursorIndex += offset;
+	}
+}
+
+program_external ui16 GetCharOffset(char* c) {
+	Assert(TextIsBeingWritten() == true);
+	return (ui16)((ui8*)c - (ui8*)state.textUpdate.textMemory->memory);
+}
+
+program_external char* FindChar(char c, ui16 pos, bool scanForward) {
+	Assert(TextIsBeingWritten() == true);
+	
+	auto* tu = &state.textUpdate;
+	if(scanForward == false && pos == 0)
+		return Null;
+	
+	char* text = (char*)tu->textMemory->memory;
+	ui32  start = scanForward == true ? pos : pos - 1;
+	ui32  end = scanForward == true ? tu->textMemory->size - 1 : 0;
+	FromTo(start, end) {
+		if(text[it] == c)
+			return text + it;
+	}
+	
+	return Null;
 }
 
 program_external bool NoteIsBeingUpdated() {
@@ -151,7 +194,7 @@ program_external void SetCanvasProjetionMatrix() {
 	AssertOpenGL();		
 }
 
-program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 height, bool center) {
+program_external rectangle RenderText(const char* string, f32 x, f32 y, f32 height, bool center) {
 	Assert(string != Null);
 	
 	rectangle ret = {};
@@ -192,38 +235,38 @@ program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 heigh
 			} break;
 			
 			case('\b'): {
-				WriteTextLineVert(nextX + height / 2, nextY + height / 4, height / 2);
-				WriteTextLineHor(nextX + height / 4, nextY + height / 2, height / 2);
+				RenderTextLineVert(nextX + height / 2, nextY + height / 4, height / 2);
+				RenderTextLineHor(nextX + height / 4, nextY + height / 2, height / 2);
 			} break;
 			
 			case('a'):
 			case('A'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineVert(nextX + height, nextY, height);
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX + height, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
 			} break;
 			
 			case('b'):
 			case('B'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineVert(nextX + height, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX + height, nextY, height);
 				
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY + height / 2, height);
-				WriteTextLineHor(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineHor(nextX, nextY, height);
 			} break;
 			
 			case ('c'):
 			case ('C'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY, height);
 			} break;
 			
 			case ('d'):
 			case ('D'): {
-				WriteTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
 				glVertex2f(nextX, nextY + height);
 				glVertex2f(nextX + height, nextY + height / 2);
 				glVertex2f(nextX, nextY);
@@ -232,50 +275,50 @@ program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 heigh
 			
 			case ('e'):
 			case ('E'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY + height / 2, height);
-				WriteTextLineHor(nextX, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineHor(nextX, nextY, height);
 			} break;
 			
 			case ('f'):
 			case ('F'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
 			} break;
 			
 			case ('g'):
 			case ('G'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY, height);
 				glVertex2f(nextX + height, nextY);
 				glVertex2f(nextX + height, nextY + height / 2);
 			} break;
 			
 			case ('h'):
 			case ('H'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineVert(nextX + height, nextY, height);
-				WriteTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX + height, nextY, height);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
 			} break;
 			
 			case ('i'):
 			case ('I'): {
-				WriteTextLineVert(nextX + height / 2, nextY, height);
+				RenderTextLineVert(nextX + height / 2, nextY, height);
 			} break;
 			
 			case ('j'):
 			case ('J'): {
-				WriteTextLineVert(nextX + height, nextY, height);
-				WriteTextLineHor(nextX, nextY, height);
-				WriteTextLineHor(nextX, nextY + height, height);
+				RenderTextLineVert(nextX + height, nextY, height);
+				RenderTextLineHor(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
 			} break;
 			
 			case ('k'):
 			case ('K'): {
-				WriteTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
 				glVertex2f(nextX, nextY + height / 2);
 				glVertex2f(nextX + height, nextY + height);
 				glVertex2f(nextX, nextY + height / 2);
@@ -284,14 +327,14 @@ program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 heigh
 			
 			case ('l'):
 			case ('L'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineHor(nextX, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY, height);
 			} break;
 
 			case ('m'):
 			case ('M'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineVert(nextX + height, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX + height, nextY, height);
 				glVertex2f(nextX, nextY + height);
 				glVertex2f(nextX + height / 2, nextY + height / 2);
 				glVertex2f(nextX + height / 2, nextY + height / 2);
@@ -300,33 +343,33 @@ program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 heigh
 			
 			case ('n'):
 			case ('N'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineVert(nextX + height, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX + height, nextY, height);
 				glVertex2f(nextX, nextY + height);
 				glVertex2f(nextX + height, nextY);
 			} break;
 
 			case ('o'):
 			case ('O'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineVert(nextX + height, nextY, height);
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX + height, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY, height);
 			} break;
 			
 			case ('p'):
 			case ('P'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
 				glVertex2f(nextX + height, nextY + height);
 				glVertex2f(nextX + height, nextY + height / 2);
 			} break;
 			
 			case ('q'):
 			case ('Q'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineVert(nextX + height / 2, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX + height / 2, nextY, height);
 				glVertex2f(nextX, nextY + height);
 				glVertex2f(nextX + height / 2, nextY + height);
 				glVertex2f(nextX, nextY);
@@ -337,9 +380,9 @@ program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 heigh
 			
 			case ('r'):
 			case ('R'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
 				glVertex2f(nextX + height, nextY + height);
 				glVertex2f(nextX + height, nextY + height / 2);
 				glVertex2f(nextX + height / 2, nextY + height / 2);
@@ -348,9 +391,9 @@ program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 heigh
 			
 			case ('s'):
 			case ('S'): {
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY + height / 2, height);
-				WriteTextLineHor(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineHor(nextX, nextY, height);
 				glVertex2f(nextX, nextY + height / 2);
 				glVertex2f(nextX, nextY + height);
 				glVertex2f(nextX + height, nextY);
@@ -359,15 +402,15 @@ program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 heigh
 			
 			case ('t'):
 			case ('T'): {
-				WriteTextLineVert(nextX + height / 2, nextY, height);
-				WriteTextLineHor(nextX, nextY + height, height);
+				RenderTextLineVert(nextX + height / 2, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
 			} break;
 			
 			case ('u'):
 			case ('U'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineVert(nextX + height, nextY, height);
-				WriteTextLineHor(nextX, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX + height, nextY, height);
+				RenderTextLineHor(nextX, nextY, height);
 			} break;
 			
 			case ('v'):
@@ -380,8 +423,8 @@ program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 heigh
 			
 			case ('w'):
 			case ('W'): {
-				WriteTextLineVert(nextX, nextY, height);
-				WriteTextLineVert(nextX + height, nextY, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineVert(nextX + height, nextY, height);
 				glVertex2f(nextX, nextY);
 				glVertex2f(nextX + height / 2, nextY + height / 2);
 				glVertex2f(nextX + height / 2, nextY + height / 2);
@@ -408,8 +451,8 @@ program_external rectangle WriteText(const char* string, f32 x, f32 y, f32 heigh
 			
 			case ('z'):
 			case ('Z'): {
-				WriteTextLineHor(nextX, nextY + height, height);
-				WriteTextLineHor(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY, height);
 				glVertex2f(nextX, nextY);
 				glVertex2f(nextX + height, nextY + height);
 			} break;

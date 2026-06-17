@@ -16,9 +16,6 @@ Functionality
 	- Setting the gl clear color as option -> board background
 	- Arrows to connect notes
 	- Creation of an image as a note
-	- Navigation of a notes's text filed with arrow keys
-	- @BUG - For some reason insertion of bullet point ends writing @WIP
-	- Differentiate between clicking on a new note and insertion of a bullet point within the toolbar to decide when to deselect a current note
 	
 Vertical toolbar
 	- Usage of images for buttons

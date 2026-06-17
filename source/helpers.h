@@ -73,11 +73,15 @@ program_unique struct {
 	
 } state;
 
-void 		  AddText(char c);
-void 		  BeginWriting(memory_stack* textMemory, rectangle* containerBackground, ui16 cursorHeight);
-bool 		  TextIsBeingWritten();
-void 		  EndWriting();
-rectangle WriteText(const char* string, f32 x, f32 y, f32 height, bool center);
+// Text
+void 	BeginWriting(memory_stack* textMemory, rectangle* containerBackground, ui16 cursorHeight);
+void 	EndWriting();
+
+void 	AddText(char c);
+char* FindChar(char c, ui16 pos, bool scanForward); // Will return Null if not found
+ui16  GetCharOffset(char* c);
+void 	MoveCursor(si8 offset);
+bool 	TextIsBeingWritten();
 
 // Notes
 #define BeginNotesMemoryLoop(_varID) { ForAll(state.notes.memory.size / sizeof(note)) { \
@@ -100,10 +104,10 @@ f32 		UI8ColourToF32(ui8 u);
 #define UnpackDimensions(_struct) (_struct).left, (_struct).bottom, (_struct).width, (_struct).height
 
 // Rendering
-void DrawBorder(rectangle& r);
-void DrawRectangle(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
-void ResetProjectionMatrix();
-void SetCanvasProjetionMatrix();
-
+void 			DrawBorder(rectangle& r);
+void 			DrawRectangle(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
+void 			ResetProjectionMatrix();
+void 			SetCanvasProjetionMatrix();
+rectangle RenderText(const char* string, f32 x, f32 y, f32 height, bool center);
 
 #endif

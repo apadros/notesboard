@@ -119,6 +119,7 @@ GUIAppEntryPoint(instance) {
 			PushString(Null, true, n->textMemory);
 			state.notes.selected = n;
 			state.notes.justCreated = true;
+			state.notes.moving = true;
 			
 			goto label_rendering;
 		}
@@ -173,7 +174,7 @@ GUIAppEntryPoint(instance) {
 			if(TextIsBeingWritten() == true && (state.notes.selected == Null || previouslySelected != state.notes.selected))
 				EndWriting();
 		}
-		else if(state.notes.moving == true && osState.mouseLeftClickUp == false) { // Move
+		else if(state.notes.moving == true && state.mouse.leftDown == true) { // Move
 			Assert(state.notes.selected != Null);
 			
 			// Mouse moves in viewport space
@@ -190,7 +191,7 @@ GUIAppEntryPoint(instance) {
 			state.notes.selected->background.left = newPosCanvas.x;
 			state.notes.selected->background.bottom = newPosCanvas.y;
 		}
-		else if(state.notes.moving == true && osState.mouseLeftClickUp == true) { // Drop
+		else if(state.notes.moving == true && state.mouse.leftDown == false) { // Drop
 			state.notes.moving = false;
 			
 			// If the note was just created, drop it outside of the toolbar
@@ -215,10 +216,11 @@ GUIAppEntryPoint(instance) {
 				AddText(osState.keyPressed);
 			else if(osState.backspacePressed == true){
 				Assert(tu->textMemory->size >= 1);
-				if(tu->cursorIndex > 0) {
-					Remove(sizeof(char), tu->cursorIndex - 1, *tu->textMemory);
-					tu->cursorIndex -= 1;
-				}
+				
+				bool del = tu->cursorIndex > 0; // If the cursor was already at 0, moving down would incorrectly deleted the very first letter
+				MoveCursor(-1);
+				if(del == true)
+					Remove(sizeof(char), tu->cursorIndex, *tu->textMemory);
 			}
 			else if(osState.enterPressed == true) { // Jump to next line + exceptions
 				if(tu->textMemory == &(state.titleBar.textMemory)) // If we're writing on the title bar
@@ -227,8 +229,7 @@ GUIAppEntryPoint(instance) {
 					// Scan back to see if the current line contains a bullet point
 					bool  bulletPoint = false;
 					char* text = (char*)tu->textMemory->memory;
-					auto  length = GetStringLength(text);
-					FromTo(length, 0) {
+					FromTo(tu->cursorIndex, 0) {
 						char c = text[it];
 						if(c == '\b') {
 							bulletPoint = true;
@@ -256,9 +257,44 @@ GUIAppEntryPoint(instance) {
 					EndWriting();
 			}
 			else if(osState.leftPressed == true && tu->cursorIndex >= 1)
-				tu->cursorIndex -= 1;
+				MoveCursor(-1);
 			else if(osState.rightPressed == true && tu->cursorIndex < (tu->textMemory->size - 1))
-				tu->cursorIndex += 1;
+				MoveCursor(1);
+			else if(osState.downPressed == true && NoteIsBeingUpdated() == true) {
+				// Need to scan behind and in front of the cursor to determine the bounds of the current line
+				char* end = FindChar('\n', tu->cursorIndex, true);
+				if(end != Null) {
+					ui32  lineStartOffset = tu->cursorIndex;
+					char* start = FindChar('\n', tu->cursorIndex, false);
+					if(start != Null)
+						lineStartOffset -= (ui8*)start + 1 - (ui8*)tu->textMemory->memory;
+					
+					ui32 delta = (ui32)((ui8*)end + 1 - tu->cursorIndex + lineStartOffset);
+					MoveCursor(delta);
+				}
+			}
+			else if(osState.upPressed == true && NoteIsBeingUpdated() == true) {
+				// Need to scan behind and in front of the cursor to determine the bounds of the current line
+				char* start = FindChar('\n', tu->cursorIndex, false);
+				if(start != Null) {
+					bool  previousLineIsLonger = false;
+					char* previousLineStart = FindChar('\n', GetCharOffset(start), false);
+					if(previousLineStart == Null) // The line above is the very first one
+						previousLineIsLonger = GetCharOffset(start) > tu->cursorIndex - GetCharOffset(start + 1); 
+					else { // The line above is at least the second in the paragraph
+						auto lineLength = GetCharOffset(start) - GetCharOffset(previousLineStart + 1);
+						previousLineIsLonger = lineLength > tu->cursorIndex - GetCharOffset(start + 1);
+					}
+					
+					if(previousLineIsLonger == true) { // Just move cursor up
+						ui16 cursorOffset = tu->cursorIndex - GetCharOffset(start + 1);
+						ui16 lineStartIndex = previousLineStart == Null ? 0 : GetCharOffset(previousLineStart + 1);
+						tu->cursorIndex = lineStartIndex + cursorOffset;
+					}
+					else // Place cursor at the end of the previous line
+						MoveCursor(GetCharOffset(start) - tu->cursorIndex);
+				}
+			}
 			
 			// Update cursor position
 			if(TextIsBeingWritten() == true) { // In case EndWriting() was called above
@@ -338,7 +374,7 @@ GUIAppEntryPoint(instance) {
 				rectangle textBox = {};
 				vector    textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
 				if(n->textMemory.size > 1) // Note has text
-					textBox = WriteText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
+					textBox = RenderText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
 				
 				// Resize note
 				if(TextIsBeingWritten() == true && state.textUpdate.containerBackground == &n->background) {
@@ -362,7 +398,7 @@ GUIAppEntryPoint(instance) {
 			ForAll(3) { // Buttons
 				auto* b = tb->buttons + it;
 				DrawRectangle(UnpackDimensions(b->background), 255, 0, 0);
-				WriteText(b->text, GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
+				RenderText(b->text, GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
 			}
 	
 			// Draw separator
@@ -380,7 +416,7 @@ GUIAppEntryPoint(instance) {
 			auto* tb = &state.titleBar;
 			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
 			if(tb->textMemory.size > 1) {
-				WriteText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
+				RenderText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
 			}
 			
 			// Draw separator
@@ -417,12 +453,14 @@ GUIAppEntryPoint(instance) {
 			glEnd();
 			AssertOpenGL();
 		}
+		
+		// Store state before next frame
+		OutputDebugString(state.mouse.leftDown == true ? "\n true" : "\n false");
+		state.mouse.lastLeftDown = state.mouse.leftDown;
+
 
 		Win32EndGUIUpdateLoop();
 	}
 	
-	// Store state before next frame
-	state.mouse.lastLeftDown = state.mouse.leftDown;
-
 	return 0;
 }
