@@ -42,7 +42,7 @@ GUIAppEntryPoint(instance) {
 		}
 		tb->buttons[0].text = AllocateString("Note", Null);
 		tb->buttons[1].text = AllocateString("Bullet point", Null);
-		tb->buttons[2].text = AllocateString("Button", Null);
+		tb->buttons[2].text = AllocateString("Note Title", Null);
 	}
 
 	state.notes.memory = AllocateMemory(sizeof(note) * 10);
@@ -131,6 +131,17 @@ GUIAppEntryPoint(instance) {
 			if(state.textUpdate.cursorIndex == 0 || state.textUpdate.cursorIndex >= 1 && text[state.textUpdate.cursorIndex - 1] != '\b') // If the char at the cursor position is not a bullet point
 				AddText('\b');
 				
+			goto label_rendering;
+		}
+		else if(GetCurrentNote() != Null && MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[2].background)) == true) { // Add a title to the current note
+			auto* n = GetCurrentNote();
+			if(NoteHasTitle(n) == false) {
+				n->titleMemory = AllocateStack();
+				PushString("Title", true, n->titleMemory);
+				n->background.bottom -= NoteTextBorder * 2 + NoteTitleTextHeight;
+				n->background.height += NoteTextBorder * 2 + NoteTitleTextHeight;
+			}
+		
 			goto label_rendering;
 		}
 
@@ -247,11 +258,14 @@ GUIAppEntryPoint(instance) {
 			}
 			else if(tu->cursorIndex >= 1 && ((char*)(tu->textMemory->memory))[tu->cursorIndex - 1] == '\b' && osState.tabPressed == true) // Remove bullet point if tab is pressed after it
 				((char*)tu->textMemory->memory)[tu->cursorIndex - 1] = ' ';
-			else if(osState.escapePressed == true) // Esc hit, end writing
+			else if(osState.escapePressed == true) { // Esc hit, end writing
+				if(NoteIsBeingUpdated() == true)
+					state.notes.selected = Null;
 				EndWriting();
+			}
 			else if(osState.mouseLeftClickDown == true && MouseIsWithinToolbar() == false) { // Left mouse click outside of the tool bar, check where and decide
 				vector mousePos = { state.mouse.pos.x, state.mouse.pos.y };
-				if(tu->containerBackground != &state.titleBar.background) // If it's not the title bar, check for overlap in canvas space
+				if(TitleIsBeingUpdated() == false) // If it's not the title bar, check for overlap in canvas space
 					mousePos = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
 				if(Overlap(mousePos.x, mousePos.y, UnpackDimensions(*tu->containerBackground)) == false)
 					EndWriting();
@@ -313,14 +327,16 @@ GUIAppEntryPoint(instance) {
 				}
 				x -= tu->cursorHeight * 0.25f; // Place half way between 2 glyphs
 				
-				if(tu->containerBackground == &state.titleBar.background) { // Writing on the title bar
+				if(TitleIsBeingUpdated() == true) { // Writing on the title bar
 					auto fullLength = length * tu->cursorHeight * 1.5f; // Including a small space after the last glyph
 					x += state.titleBar.background.left + state.titleBar.background.width / 2 - fullLength / 2;
 					y += state.titleBar.background.bottom + state.titleBar.background.height / 2 - TitleBarTextHeight / 2;
 				}
 				else { // Writing on a note
-					x += tu->containerBackground->left + NoteTextBorder;
-					y += tu->containerBackground->bottom + tu->containerBackground->height - NoteTextBorder - NoteTextHeight;
+					Assert(NoteIsBeingUpdated() == true);
+					auto textStart = GetNoteTextStart(GetCurrentNote());
+					x += textStart.x;
+					y += textStart.y;
 				}
 				
 				SetCursorPos(x, y);
@@ -368,19 +384,26 @@ GUIAppEntryPoint(instance) {
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
-		// Draw notes text, update note background rectangle, update cursor
+		// Rende notes text and title if it has one, then update note background rectangle
 		BeginNotesLoop(n) {
 			if(NoteMemoryIsInUse(n) == true) {
 				rectangle textBox = {};
-				vector    textOrigin = { n->background.left + NoteTextBorder, n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight };
+				rectangle titleBox = {};
+				vector    textOrigin = GetNoteTextStart(n);
 				if(n->textMemory.size > 1) // Note has text
 					textBox = RenderText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
+				if(NoteHasTitle(n) == true)
+					titleBox = RenderText((const char*)n->titleMemory.memory, n->background.left + n->background.width / 2, n->background.bottom + n->background.height - NoteTextBorder - NoteTitleTextHeight, NoteTitleTextHeight, true);
 				
 				// Resize note
 				if(TextIsBeingWritten() == true && state.textUpdate.containerBackground == &n->background) {
 					n->background.width = GetMax(NoteMinWidth, textBox.width + NoteTextBorder * 2);
 					f32 top = n->background.bottom + n->background.height;
 					n->background.height = GetMax(NoteMinHeight, textBox.height + NoteTextBorder * 2);
+					if(NoteHasTitle(n) == true) {
+						n->background.width = GetMax(n->background.width, titleBox.width + NoteTextBorder * 2);
+						n->background.height += NoteTextBorder * 2 + NoteTitleTextHeight;
+					}
 					n->background.bottom = top - n->background.height;
 				}
 			}
@@ -442,7 +465,7 @@ GUIAppEntryPoint(instance) {
 			f32 cursorX = state.textUpdate.cursorPos.x;
 			f32 cursorY = state.textUpdate.cursorPos.y;
 			f32 cursorHeight = state.textUpdate.cursorHeight;
-			if(state.textUpdate.containerBackground != &state.titleBar.background)
+			if(TitleIsBeingUpdated() == false)
 				SetCanvasProjetionMatrix();
 			
 			glLineWidth(2);

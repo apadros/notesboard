@@ -15,14 +15,17 @@ const ui8  ToobalIconWidth = ToolbarWidth * 0.5f;
 const ui8  ToolbarTextHeight = 10;
 const ui8  ToolVerticalSpaceBetweenIcons = ToolbarTextHeight * 2;
 
-const ui16 NoteMinWidth = 150;
+const ui16 NoteMinWidth = 200;
 const ui16 NoteTextHeight = 15;
 const ui16 NoteTextBorder = NoteTextHeight;
 const ui16 NoteMinHeight = NoteTextHeight + NoteTextBorder * 2;
 
+const ui16 NoteTitleTextHeight = NoteTextHeight * 1.5f;
+
 struct note {
 	rectangle 	 background; // In canvas space
 	char*     	 title;
+	memory_stack titleMemory;
 	memory_stack textMemory;
 };
 
@@ -87,8 +90,13 @@ bool 	TextIsBeingWritten();
 #define BeginNotesMemoryLoop(_varID) { ForAll(state.notes.memory.size / sizeof(note)) { \
 																		     note* _varID = (note*)state.notes.memory.memory + it;
 #define EndNotesMemoryLoop() 				 } }
+
 #define BeginNotesLoop(_varID) BeginNotesMemoryLoop(_varID)
 #define EndNotesLoop() 				 EndNotesMemoryLoop()
+
+note*   GetCurrentNote();
+vector 	GetNoteTextStart(note* n);
+bool    NoteHasTitle(note* n);
 bool    NoteMemoryIsInUse(note* n);
 
 // Misc

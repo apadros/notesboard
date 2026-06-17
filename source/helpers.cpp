@@ -39,8 +39,13 @@ program_external bool NoteMemoryIsInUse(note* n) {
 	return n->background.width != 0 && n->background.height != 0;
 }
 
+program_external bool NoteHasTitle(note* n) {
+	Assert(n != Null);
+	return IsValid(n->titleMemory);
+}
+
 program_external void DrawBorder(rectangle& r) {
-	glLineWidth(3);
+	glLineWidth(2);
 	glBegin(GL_LINES);
 	glColor3f(0, 0, 0);
 	
@@ -57,6 +62,20 @@ program_external void DrawBorder(rectangle& r) {
 	glVertex2f(r.left, r.bottom);
 	glEnd();
 	AssertOpenGL();	
+}
+
+program_external vector GetNoteTextStart(note* n) {
+	Assert(n != Null);
+	
+	vector ret = {};
+	ret.x = n->background.left + NoteTextBorder;
+	
+	if(IsValid(n->titleMemory) == false)
+		ret.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight;
+	else
+		ret.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTitleTextHeight - NoteTextBorder * 2 - NoteTextHeight;
+				
+	return ret;
 }
 
 program_external bool MouseLeftClickThisFrame() {
@@ -89,6 +108,10 @@ program_external void MoveCursor(si8 offset) {
 		else
 			tu->cursorIndex += offset;
 	}
+}
+
+program_external note* GetCurrentNote() {
+	return state.notes.selected;
 }
 
 program_external ui16 GetCharOffset(char* c) {
