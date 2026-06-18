@@ -18,8 +18,8 @@ GUIAppEntryPoint(instance) {
 		tb->background.width = Win32GetProgramWindowClientSize().width;
 		tb->background.height = TitleBarHeight;
 		tb->background.bottom = Win32GetProgramWindowClientSize().height - tb->background.height;
-		tb->textMemory = AllocateStack();
-		PushString("Title", true, tb->textMemory);
+		tb->text = AllocateTextBody(NoteTitleTextHeight, false);
+		InsertText("Title", GetStringLength("Title"), tb->text, 0);
 	}
 
 	// Init toolbar
@@ -79,7 +79,7 @@ GUIAppEntryPoint(instance) {
 			if(TextIsBeingWritten() == true && TitleIsBeingUpdated() == false)
 				EndWriting();
 			state.notes.selected = Null;
-			BeginWriting(&state.titleBar.textMemory, &state.titleBar.background, TitleBarTextHeight);
+			BeginWriting(state.titleBar.text, &state.titleBar.background);
 			goto label_rendering;
 		}
 		
@@ -114,9 +114,7 @@ GUIAppEntryPoint(instance) {
 			auto pos = ConvertToCanvasSpace(0, osState.mouseY - n->background.height / 2);
 			n->background.left = pos.x;
 			n->background.bottom = pos.y;			
-			n->title = Null;
-			n->textMemory = AllocateStack();
-			PushString(Null, true, n->textMemory);
+			n->text = AllocateTextBody(NoteTextHeight, true);
 			state.notes.selected = n;
 			state.notes.justCreated = true;
 			state.notes.moving = true;
@@ -124,8 +122,8 @@ GUIAppEntryPoint(instance) {
 			goto label_rendering;
 		}
 		else if(NoteIsBeingUpdated() == true && MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[1].background)) == true) { // Add a bullet point
-			Assert(state.textUpdate.textMemory != Null);
-			char* text = (char*)state.textUpdate.textMemory->memory;
+			Assert(state.textUpdate.textBody != Null);
+			char* text = GetTextStart(*state.textUpdate.textBody);
 			auto  length = GetStringLength(text);
 			Assert(state.textUpdate.cursorIndex <= length);
 			if(state.textUpdate.cursorIndex == 0 || state.textUpdate.cursorIndex >= 1 && text[state.textUpdate.cursorIndex - 1] != '\b') // If the char at the cursor position is not a bullet point
@@ -136,8 +134,8 @@ GUIAppEntryPoint(instance) {
 		else if(GetCurrentNote() != Null && MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[2].background)) == true) { // Add a title to the current note
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
-				n->titleMemory = AllocateStack();
-				PushString("Title", true, n->titleMemory);
+				n->title = AllocateTextBody(NoteTitleTextHeight, false);
+				InsertText("Title", GetStringLength("Title"), n->title, 0);
 				n->background.bottom -= NoteTextBorder * 2 + NoteTitleTextHeight;
 				n->background.height += NoteTextBorder * 2 + NoteTitleTextHeight;
 			}
@@ -165,7 +163,7 @@ GUIAppEntryPoint(instance) {
 				EndWriting();
 			
 			if(state.notes.selected != Null && previouslySelected == state.notes.selected)
-				BeginWriting(&state.notes.selected->textMemory, &state.notes.selected->background, NoteTextHeight);
+				BeginWriting(state.notes.selected->text, &state.notes.selected->background);
 		}
 		else if(MouseLeftClickThisFrame() == true) { // Select
 			auto* previouslySelected = state.notes.selected;
@@ -214,7 +212,9 @@ GUIAppEntryPoint(instance) {
 			state.notes.justCreated = false;
 		}
 		else if(state.notes.selected != Null && TextIsBeingWritten() == false && (osState.deletePressed == true || osState.backspacePressed == true)) { // Delete note
-			FreeStack(state.notes.selected->textMemory);
+			FreeTextBody(state.notes.selected->text);
+			if(TextBodyIsValid(state.notes.selected->title) == true)
+				FreeTextBody(state.notes.selected->title);
 			ClearMemory(state.notes.selected, sizeof(note));
 			state.notes.selected = Null;
 		}
@@ -226,20 +226,18 @@ GUIAppEntryPoint(instance) {
 			if(osState.keyPressed != Null) // Push text
 				AddText(osState.keyPressed);
 			else if(osState.backspacePressed == true){
-				Assert(tu->textMemory->size >= 1);
-				
 				bool del = tu->cursorIndex > 0; // If the cursor was already at 0, moving down would incorrectly deleted the very first letter
 				MoveCursor(-1);
 				if(del == true)
-					Remove(sizeof(char), tu->cursorIndex, *tu->textMemory);
+					RemoveText(*tu->textBody, tu->cursorIndex);
 			}
 			else if(osState.enterPressed == true) { // Jump to next line + exceptions
-				if(tu->textMemory == &(state.titleBar.textMemory)) // If we're writing on the title bar
+				if(TitleIsBeingUpdated() == true)
 					EndWriting();
 				else {
 					// Scan back to see if the current line contains a bullet point
 					bool  bulletPoint = false;
-					char* text = (char*)tu->textMemory->memory;
+					char* text = GetTextStart(*tu->textBody);
 					FromTo(tu->cursorIndex, 0) {
 						char c = text[it];
 						if(c == '\b') {
@@ -256,8 +254,8 @@ GUIAppEntryPoint(instance) {
 						AddText('\b');
 				}
 			}
-			else if(tu->cursorIndex >= 1 && ((char*)(tu->textMemory->memory))[tu->cursorIndex - 1] == '\b' && osState.tabPressed == true) // Remove bullet point if tab is pressed after it
-				((char*)tu->textMemory->memory)[tu->cursorIndex - 1] = ' ';
+			else if(tu->cursorIndex >= 1 && GetTextStart(*tu->textBody)[tu->cursorIndex - 1] == '\b' && osState.tabPressed == true) // Remove bullet point if tab is pressed after it
+				GetTextStart(*tu->textBody)[tu->cursorIndex - 1] = ' ';
 			else if(osState.escapePressed == true) { // Esc hit, end writing
 				if(NoteIsBeingUpdated() == true)
 					state.notes.selected = Null;
@@ -272,25 +270,39 @@ GUIAppEntryPoint(instance) {
 			}
 			else if(osState.leftPressed == true && tu->cursorIndex >= 1)
 				MoveCursor(-1);
-			else if(osState.rightPressed == true && tu->cursorIndex < (tu->textMemory->size - 1))
+			else if(osState.rightPressed == true && tu->cursorIndex < GetTextLength(*tu->textBody))
 				MoveCursor(1);
 			else if(osState.downPressed == true && NoteIsBeingUpdated() == true) {
+				auto* n = GetCurrentNote();
+				
 				// Need to scan behind and in front of the cursor to determine the bounds of the current line
 				char* end = FindChar('\n', tu->cursorIndex, true);
+				
+				if(end == Null && NoteHasTitle(n) == true && tu->textBody == &n->text) { // If we're updating a title, go to text section
+					EndWriting();
+					BeginWriting(n->text, &n->background);
+				}
+				
 				if(end != Null) {
 					ui32  lineStartOffset = tu->cursorIndex;
 					char* start = FindChar('\n', tu->cursorIndex, false);
 					if(start != Null)
-						lineStartOffset -= (ui8*)start + 1 - (ui8*)tu->textMemory->memory;
+						lineStartOffset -= (ui8*)start + 1 - (ui8*)GetTextStart(*tu->textBody);
 					
 					ui32 delta = (ui32)((ui8*)end + 1 - tu->cursorIndex + lineStartOffset);
 					MoveCursor(delta);
 				}
 			}
 			else if(osState.upPressed == true && NoteIsBeingUpdated() == true) {
+				auto* n = GetCurrentNote();
+				
 				// Need to scan behind and in front of the cursor to determine the bounds of the current line
 				char* start = FindChar('\n', tu->cursorIndex, false);
-				if(start != Null) {
+				if(start == Null && NoteHasTitle(n) == true && tu->textBody == &n->title) { // If we're updating text and note has a title, move to the latter
+					EndWriting();
+					BeginWriting(n->title, &n->background);
+				}
+				else if(start != Null) {
 					bool  previousLineIsLonger = false;
 					char* previousLineStart = FindChar('\n', GetCharOffset(start), false);
 					if(previousLineStart == Null) // The line above is the very first one
@@ -312,23 +324,23 @@ GUIAppEntryPoint(instance) {
 			
 			// Update cursor position
 			if(TextIsBeingWritten() == true) { // In case EndWriting() was called above
-				char* string = (char*)(tu->textMemory->memory);
-				auto  length = tu->textMemory->size - 1;
+				char* string = GetTextStart(*tu->textBody);
+				auto  length = GetTextLength(*tu->textBody);
 				Assert(tu->cursorIndex <= length);
 				f32   x = 0; 
 				f32   y = 0;
 				ForAll(tu->cursorIndex) {
 					if(string[it] == '\n') {
-						y -= tu->cursorHeight * 1.5f;
+						y -= tu->textBody->textHeight * 1.5f;
 						x = 0;
 					}
 					else
-						x += tu->cursorHeight * 1.5f;
+						x += tu->textBody->textHeight * 1.5f;
 				}
-				x -= tu->cursorHeight * 0.25f; // Place half way between 2 glyphs
+				x -= tu->textBody->textHeight * 0.25f; // Place half way between 2 glyphs
 				
 				if(TitleIsBeingUpdated() == true) { // Writing on the title bar
-					auto fullLength = length * tu->cursorHeight * 1.5f; // Including a small space after the last glyph
+					auto fullLength = length * tu->textBody->textHeight * 1.5f; // Including a small space after the last glyph
 					x += state.titleBar.background.left + state.titleBar.background.width / 2 - fullLength / 2;
 					y += state.titleBar.background.bottom + state.titleBar.background.height / 2 - TitleBarTextHeight / 2;
 				}
@@ -390,10 +402,10 @@ GUIAppEntryPoint(instance) {
 				rectangle textBox = {};
 				rectangle titleBox = {};
 				vector    textOrigin = GetNoteTextStart(n);
-				if(n->textMemory.size > 1) // Note has text
-					textBox = RenderText((const char*)n->textMemory.memory, textOrigin.x, textOrigin.y, NoteTextHeight, false);
+				if(GetTextLength(n->text) > 1) // Note has text
+					textBox = RenderText(GetTextStart(n->text), GetTextLength(n->text), textOrigin.x, textOrigin.y, n->text.textHeight, false);
 				if(NoteHasTitle(n) == true)
-					titleBox = RenderText((const char*)n->titleMemory.memory, n->background.left + n->background.width / 2, n->background.bottom + n->background.height - NoteTextBorder - NoteTitleTextHeight, NoteTitleTextHeight, true);
+					titleBox = RenderText(GetTextStart(n->title), GetTextLength(n->title), n->background.left + n->background.width / 2, n->background.bottom + n->background.height - NoteTextBorder - NoteTitleTextHeight, NoteTitleTextHeight, true);
 				
 				// Resize note
 				if(TextIsBeingWritten() == true && state.textUpdate.containerBackground == &n->background) {
@@ -421,7 +433,7 @@ GUIAppEntryPoint(instance) {
 			ForAll(3) { // Buttons
 				auto* b = tb->buttons + it;
 				DrawRectangle(UnpackDimensions(b->background), 255, 0, 0);
-				RenderText(b->text, GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
+				RenderText((char*)b->text, GetStringLength(b->text), GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
 			}
 	
 			// Draw separator
@@ -438,8 +450,8 @@ GUIAppEntryPoint(instance) {
 		{
 			auto* tb = &state.titleBar;
 			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
-			if(tb->textMemory.size > 1) {
-				RenderText((char*)tb->textMemory.memory, tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
+			if(GetTextLength(tb->text) > 1) {
+				RenderText(GetTextStart(tb->text), GetTextLength(tb->text), tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
 			}
 			
 			// Draw separator
@@ -460,11 +472,11 @@ GUIAppEntryPoint(instance) {
 		}
 		
 		// Draw cursor if needed
-		if(state.textUpdate.textMemory != Null) {
+		if(state.textUpdate.textBody != Null) {
 			ResetProjectionMatrix();
 			f32 cursorX = state.textUpdate.cursorPos.x;
 			f32 cursorY = state.textUpdate.cursorPos.y;
-			f32 cursorHeight = state.textUpdate.cursorHeight;
+			f32 cursorHeight = state.textUpdate.textBody->textHeight;
 			if(TitleIsBeingUpdated() == false)
 				SetCanvasProjetionMatrix();
 			

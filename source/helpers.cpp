@@ -24,14 +24,28 @@ program_external void SetCursorPos(f32 x, f32 y) {
 	state.textUpdate.cursorPos.y = y;
 }
 
-program_external void BeginWriting(memory_stack* textMemory, rectangle* containerBackground, ui16 cursorHeight) {
-	Assert(textMemory != Null);
+program_external text_body AllocateTextBody(f32 textHeight, bool allowSpecialChars) {
+	text_body ret = {};
+	ret.memory = AllocateStack();
+	ret.textHeight = textHeight;
+	ret.specialCharsAllowed = allowSpecialChars;
+	return ret;
+}
+
+program_external void BeginWriting(text_body& text, rectangle* containerBackground) {
 	Assert(containerBackground != Null);
-	Assert(cursorHeight != Null);
-	state.textUpdate.textMemory = textMemory;
+	state.textUpdate.textBody = &text;
 	state.textUpdate.containerBackground = containerBackground;
-	state.textUpdate.cursorHeight = cursorHeight;
-	state.textUpdate.cursorIndex = textMemory->size - 1;
+	state.textUpdate.cursorIndex = text.memory.size - 1;
+}
+
+program_external bool TextBodyIsValid(text_body& tb) {
+	return IsValid(tb.memory);
+}
+
+program_external void FreeTextBody(text_body& tb) {
+	if(TextBodyIsValid(tb) == true)
+		FreeStack(tb.memory);
 }
 
 program_external bool NoteMemoryIsInUse(note* n) {
@@ -41,7 +55,7 @@ program_external bool NoteMemoryIsInUse(note* n) {
 
 program_external bool NoteHasTitle(note* n) {
 	Assert(n != Null);
-	return IsValid(n->titleMemory);
+	return TextBodyIsValid(n->title);
 }
 
 program_external void DrawBorder(rectangle& r) {
@@ -70,7 +84,7 @@ program_external vector GetNoteTextStart(note* n) {
 	vector ret = {};
 	ret.x = n->background.left + NoteTextBorder;
 	
-	if(IsValid(n->titleMemory) == false)
+	if(TextBodyIsValid(n->title) == false)
 		ret.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight;
 	else
 		ret.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTitleTextHeight - NoteTextBorder * 2 - NoteTextHeight;
@@ -94,7 +108,7 @@ program_external void MoveCursor(si8 offset) {
 	Assert(TextIsBeingWritten() == true);
 	
 	auto* tu = &state.textUpdate;
-	Assert(tu->cursorIndex <= tu->textMemory->size - 1);
+	Assert(tu->cursorIndex <= tu->textBody->memory.size - 1);
 	
 	if(offset < 0) {
 		if(-offset >= tu->cursorIndex)
@@ -103,8 +117,8 @@ program_external void MoveCursor(si8 offset) {
 			tu->cursorIndex += offset;
 	}
 	else if(offset > 0) {
-		if(tu->cursorIndex + offset >= tu->textMemory->size - 1)
-			tu->cursorIndex = tu->textMemory->size - 1;
+		if(tu->cursorIndex + offset >= tu->textBody->memory.size - 1)
+			tu->cursorIndex = tu->textBody->memory.size - 1;
 		else
 			tu->cursorIndex += offset;
 	}
@@ -116,7 +130,12 @@ program_external note* GetCurrentNote() {
 
 program_external ui16 GetCharOffset(char* c) {
 	Assert(TextIsBeingWritten() == true);
-	return (ui16)((ui8*)c - (ui8*)state.textUpdate.textMemory->memory);
+	return (ui16)((ui8*)c - (ui8*)GetTextStart(*state.textUpdate.textBody));
+}
+
+program_external char* GetTextStart(text_body& tb) {
+	Assert(TextBodyIsValid(tb) == true);
+	return (char*)tb.memory.memory;
 }
 
 program_external char* FindChar(char c, ui16 pos, bool scanForward) {
@@ -126,15 +145,21 @@ program_external char* FindChar(char c, ui16 pos, bool scanForward) {
 	if(scanForward == false && pos == 0)
 		return Null;
 	
-	char* text = (char*)tu->textMemory->memory;
+	char* text = GetTextStart(*tu->textBody);
 	ui32  start = scanForward == true ? pos : pos - 1;
-	ui32  end = scanForward == true ? tu->textMemory->size - 1 : 0;
+	ui32  end = scanForward == true ? tu->textBody->memory.size - 1 : 0;
 	FromTo(start, end) {
 		if(text[it] == c)
 			return text + it;
 	}
 	
 	return Null;
+}
+
+program_external void RemoveText(text_body& tb, ui32 pos) {
+	Assert(TextBodyIsValid(tb) == true);		
+	if(pos < tb.memory.size)
+	  Remove(sizeof(char), pos, tb.memory);
 }
 
 program_external bool NoteIsBeingUpdated() {
@@ -147,15 +172,23 @@ program_external void EndWriting() {
 
 program_external void AddText(char c) {
 	auto* tu = &state.textUpdate;
-	Assert(tu->textMemory != Null);
-	Assert(IsValid(*(tu->textMemory)) == true);
-	void* mem = Insert(sizeof(c), tu->cursorIndex, *tu->textMemory);
-	*((char*)mem) = c;
+	Assert(tu->textBody != Null);
+	InsertText(&c, 1, *tu->textBody, tu->cursorIndex);
 	tu->cursorIndex += 1;
 }
 
+program_external void InsertText(char* string, ui32 length, text_body& tb, ui32 pos) {
+	Assert(string != Null);
+	Assert(length > 0);
+	Assert(TextBodyIsValid(tb) == true);
+	if(pos < tb.memory.size) {
+		void* mem = Insert(length, pos, tb.memory);
+		CopyMemory((void*)string, length, mem); 
+	}
+}
+
 program_external bool TextIsBeingWritten() {
-	return state.textUpdate.textMemory != Null;
+	return state.textUpdate.textBody != Null;
 }
 
 program_external f32 UI8ColourToF32(ui8 u) {
@@ -208,6 +241,11 @@ program_external void DrawRectangle(f32 left, f32 bottom, f32 width, f32 height,
 	AssertOpenGL();
 }
 
+program_external ui32 GetTextLength(text_body& tb) {
+	Assert(TextBodyIsValid(tb) == true);
+	return tb.memory.size;
+}
+
 program_external void SetCanvasProjetionMatrix() {
 	ResetProjectionMatrix();
 	if(state.canvas.scale != 1.0f)
@@ -217,20 +255,20 @@ program_external void SetCanvasProjetionMatrix() {
 	AssertOpenGL();		
 }
 
-program_external rectangle RenderText(const char* string, f32 x, f32 y, f32 height, bool center) {
-	Assert(string != Null);
+program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32 height, bool center) {
+	Assert(text != Null);
+	Assert(length > 0);
 	
 	rectangle ret = {};
 	ret.left = x;
 	ret.bottom = y;
 	
-	auto length = GetStringLength(string);
 	f32 xOffset = 0;
 	if(center == true) {
 		ui16 fullWidth = 0;
 		ui16 nextX = 0;
 		ForAll(length) {
-			char c = string[it];
+			char c = text[it];
 			if(c == '\n')
 				nextX = 0;
 			else {
@@ -247,7 +285,7 @@ program_external rectangle RenderText(const char* string, f32 x, f32 y, f32 heig
 	glLineWidth(3);
 	glBegin(GL_LINES);
 	ForAll(length) {
-		char c = string[it];
+		char c = text[it];
 		switch(c) {
 			case(' '): break;
 			
