@@ -36,7 +36,7 @@ program_external void BeginWriting(text_body& text, rectangle* containerBackgrou
 	Assert(containerBackground != Null);
 	state.textUpdate.textBody = &text;
 	state.textUpdate.containerBackground = containerBackground;
-	state.textUpdate.cursorIndex = text.memory.size - 1;
+	state.textUpdate.cursorOffset = text.memory.size;
 }
 
 program_external bool TextBodyIsValid(text_body& tb) {
@@ -108,19 +108,20 @@ program_external void MoveCursor(si8 offset) {
 	Assert(TextIsBeingWritten() == true);
 	
 	auto* tu = &state.textUpdate;
-	Assert(tu->cursorIndex <= tu->textBody->memory.size - 1);
+	auto  textLength = GetTextLength(*tu->textBody);
+	Assert(tu->cursorOffset <= textLength);
 	
 	if(offset < 0) {
-		if(-offset >= tu->cursorIndex)
-			tu->cursorIndex = 0;
+		if(-offset >= tu->cursorOffset)
+			tu->cursorOffset = 0;
 		else
-			tu->cursorIndex += offset;
+			tu->cursorOffset += offset;
 	}
 	else if(offset > 0) {
-		if(tu->cursorIndex + offset >= tu->textBody->memory.size - 1)
-			tu->cursorIndex = tu->textBody->memory.size - 1;
+		if(tu->cursorOffset + offset >= textLength)
+			tu->cursorOffset = textLength;
 		else
-			tu->cursorIndex += offset;
+			tu->cursorOffset += offset;
 	}
 }
 
@@ -147,7 +148,7 @@ program_external char* FindChar(char c, ui16 pos, bool scanForward) {
 	
 	char* text = GetTextStart(*tu->textBody);
 	ui32  start = scanForward == true ? pos : pos - 1;
-	ui32  end = scanForward == true ? tu->textBody->memory.size - 1 : 0;
+	ui32  end = scanForward == true ? GetTextLength(*tu->textBody) : 0;
 	FromTo(start, end) {
 		if(text[it] == c)
 			return text + it;
@@ -156,10 +157,10 @@ program_external char* FindChar(char c, ui16 pos, bool scanForward) {
 	return Null;
 }
 
-program_external void RemoveText(text_body& tb, ui32 pos) {
+program_external void RemoveChar(text_body& tb, ui32 pos) {
 	Assert(TextBodyIsValid(tb) == true);		
-	if(pos < tb.memory.size)
-	  Remove(sizeof(char), pos, tb.memory);
+	if(pos < GetTextLength(tb))
+		Remove(sizeof(char), pos, tb.memory);
 }
 
 program_external bool NoteIsBeingUpdated() {
@@ -173,15 +174,15 @@ program_external void EndWriting() {
 program_external void AddText(char c) {
 	auto* tu = &state.textUpdate;
 	Assert(tu->textBody != Null);
-	InsertText(&c, 1, *tu->textBody, tu->cursorIndex);
-	tu->cursorIndex += 1;
+	InsertText(&c, 1, *tu->textBody, tu->cursorOffset);
+	tu->cursorOffset += 1;
 }
 
 program_external void InsertText(char* string, ui32 length, text_body& tb, ui32 pos) {
 	Assert(string != Null);
 	Assert(length > 0);
 	Assert(TextBodyIsValid(tb) == true);
-	if(pos < tb.memory.size) {
+	if(pos <= tb.memory.size) {
 		void* mem = Insert(length, pos, tb.memory);
 		CopyMemory((void*)string, length, mem); 
 	}

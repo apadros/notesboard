@@ -31,7 +31,7 @@ void 	AddText(char c); // Will add to current cursor position
 char* FindChar(char c, ui16 pos, bool scanForward); // Will return Null if not found
 ui16  GetCharOffset(char* c);
 void 	MoveCursor(si8 offset);
-void  RemoveText(text_body& tb, ui32 pos); // Will remove a single char after pos
+void  RemoveChar(text_body& tb, ui32 pos); // Will remove a single char after pos
 bool 	TextIsBeingWritten();
 
 // ******************** Notes ******************** //
@@ -87,7 +87,7 @@ program_unique struct {
 		text_body* textBody;
 		rectangle* containerBackground;
 		vector     cursorPos;
-		ui16       cursorIndex; // 0-based
+		ui16       cursorOffset; // 0-based
 	} 					 textUpdate;
 	
 	struct {
