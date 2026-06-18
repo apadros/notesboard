@@ -17,7 +17,7 @@ Functionality
 	- Adding titles to notes @WIP
 		- Ability to differentiate between selection of text body and title
 			- Collision code with specific parts of the background on double click
-		- Moving cursor between title and text body as if they were one @WIP
+		- Position cursor more precisely when moving between note title and text body
 	- Setting a custom colour for the note background
 		- Colour wheel
 	- Boards / folders

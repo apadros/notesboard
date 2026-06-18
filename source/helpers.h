@@ -27,12 +27,13 @@ bool      TextBodyIsValid(text_body& tb);
 void 	BeginWriting(text_body& text, rectangle* containerBackground);
 void 	EndWriting();
 
-void 	AddText(char c); // Will add to current cursor position
-char* FindChar(char c, ui16 pos, bool scanForward); // Will return Null if not found
-ui16  GetCharOffset(char* c);
-void 	MoveCursor(si8 offset);
-void  RemoveChar(text_body& tb, ui32 pos); // Will remove a single char after pos
-bool 	TextIsBeingWritten();
+void 	 AddText(char c); // Will add to current cursor position
+char*  FindChar(char c, ui16 pos, bool scanForward); // Will return Null if not found
+ui16   GetCharOffset(char* c);
+vector GetTextRenderDimensions(char* text, ui32 length, f32 height);
+void 	 MoveCursor(si8 offset);
+void   RemoveChar(text_body& tb, ui32 pos); // Will remove a single char after pos
+bool 	 TextIsBeingWritten();
 
 // ******************** Notes ******************** //
 
@@ -57,10 +58,14 @@ struct note {
 #define EndNotesLoop() 				 EndNotesMemoryLoop()
 
 note*   GetCurrentNote();
-vector 	GetNoteTextStart(note* n);
-bool 		NoteIsBeingUpdated();
-bool    NoteHasTitle(note* n);
-bool    NoteMemoryIsInUse(note* n);
+
+struct note_text_start_vectors {
+	vector title;
+	vector text;
+}    GetNoteTextStartVectors(note* n);
+bool NoteIsBeingUpdated();
+bool NoteHasTitle(note* n);
+bool NoteMemoryIsInUse(note* n);
 
 // ******************** Misc ******************** //
 

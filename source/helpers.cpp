@@ -78,16 +78,20 @@ program_external void DrawBorder(rectangle& r) {
 	AssertOpenGL();	
 }
 
-program_external vector GetNoteTextStart(note* n) {
+program_external note_text_start_vectors GetNoteTextStartVectors(note* n) {
 	Assert(n != Null);
 	
-	vector ret = {};
-	ret.x = n->background.left + NoteTextBorder;
+	note_text_start_vectors ret = {};
 	
-	if(TextBodyIsValid(n->title) == false)
-		ret.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight;
-	else
-		ret.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTitleTextHeight - NoteTextBorder * 2 - NoteTextHeight;
+	// Text body
+	ret.text.x = n->background.left + NoteTextBorder;
+	ret.text.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight;
+	
+	if(TextBodyIsValid(n->title) == true) {
+		ret.text.y -= NoteTitleTextHeight + NoteTextBorder * 2;
+		ret.title.x = GetMiddle(n->background).x - GetTextRenderDimensions(GetTextStart(n->title), GetTextLength(n->title), n->title.textHeight).x / 2;
+		ret.title.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTitleTextHeight;
+	}
 				
 	return ret;
 }
@@ -254,6 +258,26 @@ program_external void SetCanvasProjetionMatrix() {
 	if(state.canvas.translation.x != 0 || state.canvas.translation.y != 0)
 		glTranslatef(state.canvas.translation.x / state.canvas.scale, state.canvas.translation.y / state.canvas.scale, Null);
 	AssertOpenGL();		
+}
+
+program_external vector GetTextRenderDimensions(char* text, ui32 length, f32 height) {
+	Assert(text != Null);
+	Assert(length > 0);
+	
+	vector ret = {};
+	f32 xOffset = 0;
+	ForAll(length) {
+		if(text[it] == 'n') {
+			xOffset = 0; 
+			ret.y += height * 1.5f;
+		}
+		else {
+			xOffset += height * 1.5f;
+			ret.x = GetMax(xOffset, ret.x);
+		}
+	}
+	
+	return ret;
 }
 
 program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32 height, bool center) {

@@ -277,10 +277,10 @@ GUIAppEntryPoint(instance) {
 				
 				// Need to scan behind and in front of the cursor to determine the bounds of the current line
 				char* end = FindChar('\n', tu->cursorOffset, true);
-				
-				if(end == Null && NoteHasTitle(n) == true && tu->textBody == &n->text) { // If we're updating a title, go to text section
+				if(end == Null && NoteHasTitle(n) == true && tu->textBody == &n->title) { // If we're updating a title, go to text section
 					EndWriting();
 					BeginWriting(n->text, &n->background);
+					tu->cursorOffset = 0;
 				}
 				
 				if(end != Null) {
@@ -298,7 +298,7 @@ GUIAppEntryPoint(instance) {
 				
 				// Need to scan behind and in front of the cursor to determine the bounds of the current line
 				char* start = FindChar('\n', tu->cursorOffset, false);
-				if(start == Null && NoteHasTitle(n) == true && tu->textBody == &n->title) { // If we're updating text and note has a title, move to the latter
+				if(start == Null && NoteHasTitle(n) == true && tu->textBody == &n->text) { // If we're updating text and note has a title, move to the latter
 					EndWriting();
 					BeginWriting(n->title, &n->background);
 				}
@@ -341,14 +341,22 @@ GUIAppEntryPoint(instance) {
 				
 				if(TitleIsBeingUpdated() == true) { // Writing on the title bar
 					auto fullLength = tu->textBody->textHeight * length * 1.5f - tu->textBody->textHeight * 0.25f;
-					x += state.titleBar.background.left + state.titleBar.background.width / 2 - fullLength / 2;
-					y += state.titleBar.background.bottom + state.titleBar.background.height / 2 - TitleBarTextHeight / 2;
+					x += GetMiddle(state.titleBar.background).x - fullLength / 2;
+					y += GetMiddle(state.titleBar.background).y - TitleBarTextHeight / 2;
 				}
 				else { // Writing on a note
 					Assert(NoteIsBeingUpdated() == true);
-					auto textStart = GetNoteTextStart(GetCurrentNote());
-					x += textStart.x;
-					y += textStart.y;
+					auto* n = GetCurrentNote();
+					auto  vectors = GetNoteTextStartVectors(n);
+					if(tu->textBody == &n->text) {
+						x += vectors.text.x;
+						y += vectors.text.y;
+					}
+					else { //Updating the title
+						Assert(TextBodyIsValid(n->title) == true);
+						x += vectors.title.x;
+						y += vectors.title.y;
+					}
 				}
 				
 				SetCursorPos(x, y);
@@ -401,11 +409,11 @@ GUIAppEntryPoint(instance) {
 			if(NoteMemoryIsInUse(n) == true) {
 				rectangle textBox = {};
 				rectangle titleBox = {};
-				vector    textOrigin = GetNoteTextStart(n);
+				auto      textVectors = GetNoteTextStartVectors(n);
 				if(GetTextLength(n->text) > 0) // Note has text
-					textBox = RenderText(GetTextStart(n->text), GetTextLength(n->text), textOrigin.x, textOrigin.y, n->text.textHeight, false);
+					textBox = RenderText(GetTextStart(n->text), GetTextLength(n->text), textVectors.text.x, textVectors.text.y, n->text.textHeight, false);
 				if(NoteHasTitle(n) == true)
-					titleBox = RenderText(GetTextStart(n->title), GetTextLength(n->title), n->background.left + n->background.width / 2, n->background.bottom + n->background.height - NoteTextBorder - NoteTitleTextHeight, NoteTitleTextHeight, true);
+					titleBox = RenderText(GetTextStart(n->title), GetTextLength(n->title), textVectors.title.x, textVectors.title.y, n->title.textHeight, false);
 				
 				// Resize note
 				if(TextIsBeingWritten() == true && state.textUpdate.containerBackground == &n->background) {
