@@ -14,13 +14,12 @@ Functionality
 	- Setting the gl clear color as option -> board background
 	- Arrows to connect notes
 	- Creation of an image as a note
-	- Adding titles to notes @WIP
-		- Ability to differentiate between selection of text body and title
-			- Collision code with specific parts of the background on double click
-		- Position cursor more precisely when moving between note title and text body
+	- Differentiate between double clicking on the title or the text body @WIP
+	- Position cursor more precisely when moving between note title and text body
 	- Setting a custom colour for the note background
 		- Colour wheel
 	- Boards / folders
+	- Text container colours
 	
 Vertical toolbar
 	- Usage of images for buttons

@@ -13,7 +13,6 @@
 struct text_body {
 	memory_stack memory;
 	bool         specialCharsAllowed; // Bullet points and new lines
-	f32          textHeight;
 };
 
 // @TODO - Export to APAD API?
@@ -24,7 +23,7 @@ char*     GetTextStart(text_body& tb);
 void 			InsertText(char* string, ui32 length, text_body& tb, ui32 pos);
 bool      TextBodyIsValid(text_body& tb);
 
-void 	BeginWriting(text_body& text, rectangle* containerBackground);
+void 	BeginWriting(text_body& text, rectangle* containerBackground, f32 textHeight, bool leftAligned /* If false assumed to be centered */); // By default will place cursor offset at the end of the text body
 void 	EndWriting();
 
 void 	 AddText(char c); // Will add to current cursor position
@@ -59,10 +58,12 @@ struct note {
 
 note*   GetCurrentNote();
 
-struct note_text_start_vectors {
-	vector title;
-	vector text;
-}    GetNoteTextStartVectors(note* n);
+struct note_text_render_data {
+	rectangle title;
+	rectangle titleContainer;
+	rectangle text;
+	rectangle textContainer;
+}    GetNoteTextRenderData(note* n); // Width == 0 if no text present for both text and title
 bool NoteIsBeingUpdated();
 bool NoteHasTitle(note* n);
 bool NoteMemoryIsInUse(note* n);
@@ -93,6 +94,8 @@ program_unique struct {
 		rectangle* containerBackground;
 		vector     cursorPos;
 		ui16       cursorOffset; // 0-based
+		f32        textHeight;
+		b8         leftAligned;
 	} 					 textUpdate;
 	
 	struct {

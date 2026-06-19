@@ -27,16 +27,17 @@ program_external void SetCursorPos(f32 x, f32 y) {
 program_external text_body AllocateTextBody(f32 textHeight, bool allowSpecialChars) {
 	text_body ret = {};
 	ret.memory = AllocateStack();
-	ret.textHeight = textHeight;
 	ret.specialCharsAllowed = allowSpecialChars;
 	return ret;
 }
 
-program_external void BeginWriting(text_body& text, rectangle* containerBackground) {
+program_external void BeginWriting(text_body& text, rectangle* containerBackground, f32 textHeight, bool leftAligned) {
 	Assert(containerBackground != Null);
 	state.textUpdate.textBody = &text;
 	state.textUpdate.containerBackground = containerBackground;
 	state.textUpdate.cursorOffset = text.memory.size;
+	state.textUpdate.textHeight = textHeight;
+	state.textUpdate.leftAligned = leftAligned;
 }
 
 program_external bool TextBodyIsValid(text_body& tb) {
@@ -78,20 +79,50 @@ program_external void DrawBorder(rectangle& r) {
 	AssertOpenGL();	
 }
 
-program_external note_text_start_vectors GetNoteTextStartVectors(note* n) {
+program_external note_text_render_data GetNoteTextRenderData(note* n) {
 	Assert(n != Null);
 	
-	note_text_start_vectors ret = {};
+	note_text_render_data ret = {};
 	
-	// Text body
-	ret.text.x = n->background.left + NoteTextBorder;
-	ret.text.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTextHeight;
-	
-	if(TextBodyIsValid(n->title) == true) {
-		ret.text.y -= NoteTitleTextHeight + NoteTextBorder * 2;
-		ret.title.x = GetMiddle(n->background).x - GetTextRenderDimensions(GetTextStart(n->title), GetTextLength(n->title), n->title.textHeight).x / 2;
-		ret.title.y = n->background.bottom + n->background.height - NoteTextBorder - NoteTitleTextHeight;
+	// Title
+	f32 textBodyTop = Null;
+	if(NoteHasTitle(n) == true) {
+		ret.title.height = NoteTitleTextHeight;
+		ret.title.bottom = n->background.bottom + n->background.height - NoteTextBorder - ret.title.height;
+		if(GetTextLength(n->title) > 0) {
+			ret.title.width = GetTextRenderDimensions(GetTextStart(n->title), GetTextLength(n->title), NoteTitleTextHeight).x;
+			ret.title.left -= ret.title.width / 2;
+		}
+		else {
+			ret.title.left = GetMiddle(n->background).x;
+			ret.title.width = 0;
+		}
+		textBodyTop = n->background.bottom + n->background.height - NoteTextBorder - ret.title.height - NoteTextBorder * 2;
 	}
+	else
+		textBodyTop = n->background.bottom + n->background.height - NoteTextBorder;
+	ret.titleContainer.left = n->background.left + NoteTextBorder;
+	ret.titleContainer.width = GetMax(ret.title.width, n->background.width - NoteTextBorder * 2);
+	ret.titleContainer.bottom = ret.title.bottom;
+	ret.titleContainer.height = ret.title.height;
+	
+	// Text
+	ret.text.left = n->background.left + NoteTextBorder;
+	if(GetTextLength(n->text) == 0) {
+		ret.text.width = 0;
+		ret.text.height = NoteTextHeight;
+		ret.text.bottom = textBodyTop - ret.text.height;
+	}
+	else {
+		auto textDimensions = GetTextRenderDimensions(GetTextStart(n->text), GetTextLength(n->text), NoteTextHeight);
+		ret.text.width = textDimensions.x;
+		ret.text.height = textDimensions.height;
+		ret.text.bottom = textBodyTop - ret.text.height;
+	}
+	ret.textContainer.left = ret.text.left;
+	ret.textContainer.width = GetMax(n->background.width - NoteTextBorder * 2, ret.text.width);
+	ret.textContainer.bottom = ret.text.bottom;
+	ret.textContainer.height = ret.text.height;
 				
 	return ret;
 }
@@ -262,9 +293,11 @@ program_external void SetCanvasProjetionMatrix() {
 
 program_external vector GetTextRenderDimensions(char* text, ui32 length, f32 height) {
 	Assert(text != Null);
-	Assert(length > 0);
 	
 	vector ret = {};
+	if(length == 0)
+		return ret;
+	
 	f32 xOffset = 0;
 	ForAll(length) {
 		if(text[it] == 'n') {
@@ -272,7 +305,9 @@ program_external vector GetTextRenderDimensions(char* text, ui32 length, f32 hei
 			ret.y += height * 1.5f;
 		}
 		else {
-			xOffset += height * 1.5f;
+			if(xOffset > 0)
+				xOffset += height * 0.5f;
+			xOffset += height;
 			ret.x = GetMax(xOffset, ret.x);
 		}
 	}
