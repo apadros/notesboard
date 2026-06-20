@@ -9,6 +9,8 @@
 #include "apad_win32_gui.h"
 #include "helpers.h"
 
+#include <math.h>
+
 GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", instance);
 	
@@ -280,50 +282,63 @@ GUIAppEntryPoint(instance) {
 			else if(osState.downPressed == true && NoteIsBeingUpdated() == true) {
 				auto* n = GetCurrentNote();
 				
-				// Need to scan behind and in front of the cursor to determine the bounds of the current line
-				char* end = FindChar('\n', tu->cursorOffset, true);
-				if(end == Null && NoteHasTitle(n) == true && tu->textBody == &n->title) { // If we're updating a title, go to text section
+				if(NoteHasTitle(n) == true && tu->textBody == &n->title) { // If we're updating a title, go to text section
+					auto previousCursorOffset = tu->cursorOffset;
+					
 					EndWriting();
 					BeginWriting(n->text, &n->background, NoteTextHeight, true);
-					tu->cursorOffset = 0;
-				}
-				
-				if(end != Null) {
-					ui32  lineStartOffset = tu->cursorOffset;
-					char* start = FindChar('\n', tu->cursorOffset, false);
-					if(start != Null)
-						lineStartOffset -= (ui8*)start + 1 - (ui8*)GetTextStart(*tu->textBody);
 					
-					ui32 delta = (ui32)((ui8*)end + 1 - tu->cursorOffset + lineStartOffset);
-					MoveCursor(delta);
+					auto renderData = GetNoteTextRenderData(n);
+					Assert(previousCursorOffset <= GetTextLength(n->title));
+					f32 cursorX = renderData.title.left + GetTextRenderDimensions(GetTextStart(n->title), previousCursorOffset, NoteTitleTextHeight).x + NoteTitleTextHeight * 0.25f;
+					f32 cursorIndex = (cursorX - renderData.text.left) / (NoteTextHeight * 1.5f);
+					cursorIndex = round(cursorIndex); // @TODO - Export to APAD API?
+					Assert(cursorIndex > 0);
+					
+					tu->cursorOffset = GetMin(cursorIndex, GetTextLength(n->text));
+				}
+				else { // Move down one line within note text
+					// Need to scan behind and in front of the cursor to determine the bounds of the current line
+					char* end = FindChar('\n', tu->cursorOffset, true);
+					if(end != Null) {
+						ui32  lineStartOffset = tu->cursorOffset;
+						char* start = FindChar('\n', tu->cursorOffset, false);
+						if(start != Null)
+							lineStartOffset -= (ui8*)start + 1 - (ui8*)GetTextStart(*tu->textBody);
+						
+						ui32 delta = (ui32)((ui8*)end + 1 - tu->cursorOffset + lineStartOffset);
+						MoveCursor(delta);
+					}
 				}
 			}
 			else if(osState.upPressed == true && NoteIsBeingUpdated() == true) {
 				auto* n = GetCurrentNote();
 				
-				// Need to scan behind and in front of the cursor to determine the bounds of the current line
-				char* start = FindChar('\n', tu->cursorOffset, false);
-				if(start == Null && NoteHasTitle(n) == true && tu->textBody == &n->text) { // If we're updating text and note has a title, move to the latter
+				if(NoteHasTitle(n) == true && tu->textBody == &n->text) { // If we're updating text and note has a title, move to the latter
 					EndWriting();
 					BeginWriting(n->title, &n->background, NoteTitleTextHeight, false);
 				}
-				else if(start != Null) {
-					bool  previousLineIsLonger = false;
-					char* previousLineStart = FindChar('\n', GetCharOffset(start), false);
-					if(previousLineStart == Null) // The line above is the very first one
-						previousLineIsLonger = GetCharOffset(start) > tu->cursorOffset - GetCharOffset(start + 1); 
-					else { // The line above is at least the second in the paragraph
-						auto lineLength = GetCharOffset(start) - GetCharOffset(previousLineStart + 1);
-						previousLineIsLonger = lineLength > tu->cursorOffset - GetCharOffset(start + 1);
+				else { // Move up one line within note text
+					// Need to scan behind and in front of the cursor to determine the bounds of the current line
+					char* start = FindChar('\n', tu->cursorOffset, false);
+					if(start != Null) {
+						bool  previousLineIsLonger = false;
+						char* previousLineStart = FindChar('\n', GetCharOffset(start), false);
+						if(previousLineStart == Null) // The line above is the very first one
+							previousLineIsLonger = GetCharOffset(start) > tu->cursorOffset - GetCharOffset(start + 1); 
+						else { // The line above is at least the second in the paragraph
+							auto lineLength = GetCharOffset(start) - GetCharOffset(previousLineStart + 1);
+							previousLineIsLonger = lineLength > tu->cursorOffset - GetCharOffset(start + 1);
+						}
+						
+						if(previousLineIsLonger == true) { // Just move cursor up
+							ui16 cursorOffset = tu->cursorOffset - GetCharOffset(start + 1);
+							ui16 lineStartIndex = previousLineStart == Null ? 0 : GetCharOffset(previousLineStart + 1);
+							tu->cursorOffset = lineStartIndex + cursorOffset;
+						}
+						else // Place cursor at the end of the previous line
+							MoveCursor(GetCharOffset(start) - tu->cursorOffset);
 					}
-					
-					if(previousLineIsLonger == true) { // Just move cursor up
-						ui16 cursorOffset = tu->cursorOffset - GetCharOffset(start + 1);
-						ui16 lineStartIndex = previousLineStart == Null ? 0 : GetCharOffset(previousLineStart + 1);
-						tu->cursorOffset = lineStartIndex + cursorOffset;
-					}
-					else // Place cursor at the end of the previous line
-						MoveCursor(GetCharOffset(start) - tu->cursorOffset);
 				}
 			}
 			
