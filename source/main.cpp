@@ -329,10 +329,21 @@ GUIAppEntryPoint(instance) {
 			
 			// Update cursor position
 			if(TextIsBeingWritten() == true) { // In case EndWriting() was called above
-				Assert(tu->cursorOffset <= GetTextLength(*tu->textBody));
-				auto pos = GetTextRenderDimensions(GetTextStart(*tu->textBody), tu->cursorOffset, tu->textHeight);
-				if(tu->cursorOffset > 0)
-					pos.x += tu->textHeight * 0.25f; // Place half way between 2 glyphs
+				vector pos = {};
+				{
+					Assert(tu->cursorOffset <= GetTextLength(*tu->textBody));
+					auto* text = GetTextStart(*tu->textBody);
+					ForAll(tu->cursorOffset) {
+						if(text[it] == '\n') {
+							pos.x = 0;
+							pos.y -= tu->textHeight * 1.5f;
+						}
+						else
+							pos.x += tu->textHeight * 1.5f;
+					}
+					if(tu->cursorOffset > 0)
+						pos.x -= tu->textHeight * 0.25f; // Place half way between 2 glyphs
+				}
 				
 				if(TitleIsBeingUpdated() == true) { // Writing on the title bar
 					auto fullLength = GetTextRenderDimensions(GetTextStart(*tu->textBody), GetTextLength(*tu->textBody), TitleBarTextHeight).x;
@@ -349,7 +360,7 @@ GUIAppEntryPoint(instance) {
 					}
 					else { // Update text
 						pos.x += renderData.text.left;
-						pos.y = renderData.text.bottom + renderData.text.height - NoteTextHeight - pos.y; // Starts at the top
+						pos.y += renderData.textContainer.bottom + renderData.textContainer.height - NoteTextHeight; // Starts at the top
 					}
 				}
 				
@@ -452,8 +463,10 @@ GUIAppEntryPoint(instance) {
 		{
 			auto* tb = &state.titleBar;
 			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
-			if(GetTextLength(tb->text) > 1)
-				RenderText(GetTextStart(tb->text), GetTextLength(tb->text), tb->background.left + tb->background.width / 2, tb->background.bottom + tb->background.height / 2 - TitleBarTextHeight / 2, TitleBarTextHeight, true);
+			if(GetTextLength(tb->text) > 1) {
+				auto middle = GetMiddle(tb->background);
+				RenderText(GetTextStart(tb->text), GetTextLength(tb->text), middle.x, middle.y - TitleBarTextHeight / 2, TitleBarTextHeight, true);
+			}
 			
 			// Draw separator
 			glLineWidth(3);

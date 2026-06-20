@@ -29,7 +29,7 @@ void 	EndWriting();
 void 	 AddText(char c); // Will add to current cursor position
 char*  FindChar(char c, ui16 pos, bool scanForward); // Will return Null if not found
 ui16   GetCharOffset(char* c);
-vector GetTextRenderDimensions(char* text, ui32 length, f32 height);
+vector GetTextRenderDimensions(char* text, ui32 length, f32 height); // Will return a minimum y of height even if no text present, by x will equal 0
 void 	 MoveCursor(si8 offset);
 void   RemoveChar(text_body& tb, ui32 pos); // Will remove a single char after pos
 bool 	 TextIsBeingWritten();

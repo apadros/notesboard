@@ -91,20 +91,21 @@ program_external note_text_render_data GetNoteTextRenderData(note* n) {
 		ret.title.bottom = n->background.bottom + n->background.height - NoteTextBorder - ret.title.height;
 		if(GetTextLength(n->title) > 0) {
 			ret.title.width = GetTextRenderDimensions(GetTextStart(n->title), GetTextLength(n->title), NoteTitleTextHeight).x;
-			ret.title.left -= ret.title.width / 2;
+			ret.title.left = GetMiddle(n->background).x - ret.title.width / 2;
 		}
 		else {
 			ret.title.left = GetMiddle(n->background).x;
 			ret.title.width = 0;
 		}
 		textBodyTop = n->background.bottom + n->background.height - NoteTextBorder - ret.title.height - NoteTextBorder * 2;
+		
+		ret.titleContainer.left = n->background.left + NoteTextBorder;
+		ret.titleContainer.width = GetMax(ret.title.width, n->background.width - NoteTextBorder * 2);
+		ret.titleContainer.bottom = ret.title.bottom;
+		ret.titleContainer.height = ret.title.height;
 	}
 	else
 		textBodyTop = n->background.bottom + n->background.height - NoteTextBorder;
-	ret.titleContainer.left = n->background.left + NoteTextBorder;
-	ret.titleContainer.width = GetMax(ret.title.width, n->background.width - NoteTextBorder * 2);
-	ret.titleContainer.bottom = ret.title.bottom;
-	ret.titleContainer.height = ret.title.height;
 	
 	// Text
 	ret.text.left = n->background.left + NoteTextBorder;
@@ -115,6 +116,8 @@ program_external note_text_render_data GetNoteTextRenderData(note* n) {
 	}
 	else {
 		auto textDimensions = GetTextRenderDimensions(GetTextStart(n->text), GetTextLength(n->text), NoteTextHeight);
+		Assert(textDimensions.x > 0);
+		Assert(textDimensions.y >= NoteTextHeight);
 		ret.text.width = textDimensions.x;
 		ret.text.height = textDimensions.height;
 		ret.text.bottom = textBodyTop - ret.text.height;
@@ -294,19 +297,19 @@ program_external void SetCanvasProjetionMatrix() {
 program_external vector GetTextRenderDimensions(char* text, ui32 length, f32 height) {
 	Assert(text != Null);
 	
-	vector ret = {};
+	vector ret = { Null, height };
 	if(length == 0)
 		return ret;
 	
 	f32 xOffset = 0;
 	ForAll(length) {
-		if(text[it] == 'n') {
+		if(text[it] == '\n') {
 			xOffset = 0; 
 			ret.y += height * 1.5f;
 		}
 		else {
 			if(xOffset > 0)
-				xOffset += height * 0.5f;
+				xOffset += height * 0.5f; // Space between glyphs
 			xOffset += height;
 			ret.x = GetMax(xOffset, ret.x);
 		}
@@ -324,22 +327,10 @@ program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32
 	ret.bottom = y;
 	
 	f32 xOffset = 0;
-	if(center == true) {
-		ui16 fullWidth = 0;
-		ui16 nextX = 0;
-		ForAll(length) {
-			char c = text[it];
-			if(c == '\n')
-				nextX = 0;
-			else {
-				nextX += height * 1.5f;
-				fullWidth = GetMax(fullWidth, nextX);
-			}
-		}
-		xOffset = fullWidth / 2;
-	}
+	if(center == true)
+		xOffset = -GetTextRenderDimensions(text, length, height).x / 2;
 	
-	f32 nextX = x - xOffset;
+	f32 nextX = x + xOffset;
 	f32 nextY = y;
 	glColor3f(1, 0, 0);
 	glLineWidth(3);
