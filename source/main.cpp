@@ -314,13 +314,29 @@ GUIAppEntryPoint(instance) {
 			else if(osState.upPressed == true && NoteIsBeingUpdated() == true) {
 				auto* n = GetCurrentNote();
 				
-				if(NoteHasTitle(n) == true && tu->textBody == &n->text) { // If we're updating text and note has a title, move to the latter
+				char* start = FindChar('\n', tu->cursorOffset, false);
+				if(start == Null && NoteHasTitle(n) == true && tu->textBody == &n->text) { // If we're updating the first line of text and note has a title, move to the latter
+					auto previousCursorOffset = tu->cursorOffset;
+					
 					EndWriting();
 					BeginWriting(n->title, &n->background, NoteTitleTextHeight, false);
+					
+					auto renderData = GetNoteTextRenderData(n);
+					Assert(previousCursorOffset <= GetTextLength(n->text));
+					f32 cursorX = renderData.text.left + GetTextRenderDimensions(GetTextStart(n->text), previousCursorOffset, NoteTextHeight).x + NoteTextHeight * 0.25f;
+					f32 cursorIndex = 0;
+					if(cursorX > renderData.title.left && cursorX < renderData.title.left + renderData.title.width) {
+						cursorIndex = (cursorX - renderData.title.left) / (NoteTitleTextHeight * 1.5f);
+						cursorIndex = round(cursorIndex); // @TODO - Export to APAD API?
+					}
+					else if(cursorX >= renderData.title.left + renderData.title.width)
+						cursorIndex = GetTextLength(n->title);
+					Assert(cursorIndex >= 0);
+					
+					tu->cursorOffset = GetMin(cursorIndex, GetTextLength(n->title));
 				}
-				else { // Move up one line within note text
+				else if(start != Null) { // Move up one line within note text
 					// Need to scan behind and in front of the cursor to determine the bounds of the current line
-					char* start = FindChar('\n', tu->cursorOffset, false);
 					if(start != Null) {
 						bool  previousLineIsLonger = false;
 						char* previousLineStart = FindChar('\n', GetCharOffset(start), false);
