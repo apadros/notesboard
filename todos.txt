@@ -14,12 +14,14 @@ Functionality
 	- Setting the gl clear color as option -> board background
 	- Arrows to connect notes
 	- Creation of an image as a note
-	- Position mouse cursor more accurately on text body when double clicking it
+	- Position mouse cursor more accurately on text body when double clicking it @WIP
+		- Code works but somewhat inaccurate
 	- Setting a custom colour for the note background
 		- Colour wheel
 	- Boards / folders
 	- Text container colours
 	- Saving and loading of notes
+	- Cursor blinking animation
 	
 Vertical toolbar
 	- Usage of images for buttons

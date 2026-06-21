@@ -166,10 +166,47 @@ GUIAppEntryPoint(instance) {
 			
 			if(state.notes.selected != Null) {
 				auto renderData = GetNoteTextRenderData(state.notes.selected);
-				if(Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(renderData.titleContainer)) == true) // Update title
+				if(Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(renderData.titleContainer)) == true) { // Update title
 					BeginWriting(state.notes.selected->title, &state.notes.selected->background, NoteTitleTextHeight, false);
-				else if(Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(renderData.textContainer)) == true) // Update text
-					BeginWriting(state.notes.selected->text, &state.notes.selected->background, NoteTextHeight, true);
+					
+					// Position mouse cursor more precisely
+					f32 offset = (mousePosCanvas.x - renderData.title.left) / (NoteTitleTextHeight * 1.5f); // @TODO - This takes into consideration a small space of length NoteTitleTextHeight * 0.5f at the end of the text
+					offset = round(offset);
+					Cap(offset, 0, GetTextLength(state.notes.selected->title));
+					state.textUpdate.cursorOffset = offset;
+				}
+				else if(Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(renderData.textContainer)) == true) { // Update text
+					auto* n = state.notes.selected;
+					
+					BeginWriting(n->text, &n->background, NoteTextHeight, true);
+					
+					// Loop through the text and check each glyphs's position agains mouse pos to correctly set the cursor
+					auto* text = GetTextStart(n->text);
+					auto  length = GetTextLength(n->text);
+					f32   x = renderData.text.left;
+					f32   y = renderData.text.bottom + renderData.text.height - NoteTextHeight;
+					ForAll(length) {\
+						if(text[it] == '\n') {
+							y -= NoteTextHeight * 1.5f; 
+							x = renderData.text.left;
+						}
+						else if(mousePosCanvas.y >= y && mousePosCanvas.y <= y + NoteTextHeight * 1.5f) { // Check for vertical overlap
+							// Get the line end
+							char* end = FindChar('\n', it, true);
+							if(end == Null) // Very last line
+								end = text + length;
+								
+							ui16 width = GetTextRenderDimensions(text + it, (ui32)(end - (text + it)), NoteTextHeight).x;
+							if(mousePosCanvas.x <= x + width) // If mouse is within a line
+								state.textUpdate.cursorOffset = it + (mousePosCanvas.x - renderData.text.left) / (NoteTextHeight * 1.5f);
+							else
+								state.textUpdate.cursorOffset = end - text; // Place cursor at the end of the line
+							break;
+						}
+						else
+							x += NoteTextHeight * 1.5f;
+					}
+				}
 			}
 		}
 		else if(MouseLeftClickThisFrame() == true) { // Select
