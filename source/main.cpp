@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <gl\gl.h>
+#include "apad_array.h"
 #include "apad_base_types.h"
 #include "apad_error.h"
 #include "apad_maths.h"
@@ -34,7 +35,7 @@ GUIAppEntryPoint(instance) {
 
 		// Init buttons, starting at the top
 		tb->textHeight = ToolbarTextHeight;
-		ForAll(3) {
+		ForAll(GetArrayLength(tb->buttons)) {
 			auto* b = tb->buttons + it;
 			b->background.width = ToobalIconWidth;
 			b->background.left = tb->background.left + tb->background.width / 2 - b->background.width / 2;
@@ -45,6 +46,8 @@ GUIAppEntryPoint(instance) {
 		tb->buttons[0].text = AllocateString("Note", Null);
 		tb->buttons[1].text = AllocateString("Bullet point", Null);
 		tb->buttons[2].text = AllocateString("Note Title", Null);
+		tb->buttons[3].text = AllocateString("Save", Null);
+		tb->buttons[4].text = AllocateString("Load", Null);
 	}
 
 	state.notes.memory = AllocateMemory(sizeof(note) * 10);
@@ -511,7 +514,7 @@ GUIAppEntryPoint(instance) {
 			auto* tb = &state.toolBar;
 			DrawRectangle(UnpackDimensions(state.toolBar.background), 255, 255, 255); // Background
 	
-			ForAll(3) { // Buttons
+			ForAll(GetArrayLength(tb->buttons)) { // Buttons
 				auto* b = tb->buttons + it;
 				DrawRectangle(UnpackDimensions(b->background), 255, 0, 0);
 				RenderText((char*)b->text, GetStringLength(b->text), GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);

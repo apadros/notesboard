@@ -105,7 +105,7 @@ program_unique struct {
 			rectangle 	background;
 			const char* text;
 			ui16        textBottom;
-		} 						buttons[3];
+		} 						buttons[5];
 		ui16          textHeight;
 	} toolBar;
 
