@@ -3,6 +3,7 @@
 #include "apad_array.h"
 #include "apad_base_types.h"
 #include "apad_error.h"
+#include "apad_file.h"
 #include "apad_maths.h"
 #include "apad_memory.h"
 #include "apad_opengl.h"
@@ -147,6 +148,48 @@ GUIAppEntryPoint(instance) {
 		
 			goto label_rendering;
 		}
+		else if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[3].background)) == true) { // Save
+			auto memory = AllocateStack();
+			
+			// Store board title
+			if(GetTextLength(state.titleBar.text) > 0)
+				PushString(GetTextStart(state.titleBar.text), false, memory);
+			PushString(Null, true, memory);
+				
+			BeginNotesLoop(n) {
+				if(NoteMemoryIsInUse(n) == true) {
+					PushInstance(n->background, memory);
+					if(NoteHasTitle(n) == true) {
+						auto* b = PushStruct(bool, memory);
+						*b = true;
+						PushString(GetTextStart(n->title), true, memory);
+					}
+					else {
+						auto* b = PushStruct(bool, memory);
+						*b = false;
+					}
+					
+					if(GetTextLength(n->text) > 0)
+						PushString(GetTextStart(n->text), true, memory);
+				}
+			}
+			EndNotesLoop();
+			
+			CreateDirectory(".\\Boards", Null); // Create a new directory if it doesn't exist
+			char* path = SaveFileAsGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Open GUi
+			SaveFile(memory.memory, memory.size, path);
+			
+			Win32DisplayInfoBox("File saved!", false);
+			
+			FreeStack(memory);
+			
+			goto label_rendering;
+		}
+		else if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[4].background)) == true) { // Load
+			
+		
+			goto label_rendering;
+		}
 
 		// Notes
 		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardles of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
@@ -175,7 +218,7 @@ GUIAppEntryPoint(instance) {
 					// Position mouse cursor more precisely
 					f32 offset = (mousePosCanvas.x - renderData.title.left) / (NoteTitleTextHeight * 1.5f); // @TODO - This takes into consideration a small space of length NoteTitleTextHeight * 0.5f at the end of the text
 					offset = round(offset);
-					Cap(offset, 0, GetTextLength(state.notes.selected->title));
+					Clamp(offset, 0, GetTextLength(state.notes.selected->title));
 					state.textUpdate.cursorOffset = offset;
 				}
 				else if(Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(renderData.textContainer)) == true) { // Update text

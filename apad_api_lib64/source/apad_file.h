@@ -5,6 +5,7 @@
 #include "apad_intrinsics.h"
 #include "apad_memory.h"
 #include "apad_win32.h"
+#include "apad_win32_gui.h"
 
 typedef memory_block file;
 
@@ -19,10 +20,16 @@ typedef memory_block file;
 // For some reason can't declare these function pointers as dll_import
 program_unique void 			(*DeleteFile)(const char* path) = Win32DeleteFile; // FileExists() must be called first
 program_unique bool 			(*FileExists)(const char* path) = Win32FileExists;
+program_unique void 			(*FreeFile)(file& f) = FreeMemory;
 program_unique file 			(*LoadFile)(const char* path) = Win32LoadFile; // FileExists() must be called first
+program_unique char*      (*OpenFileGUI)(const char* directory, // Directory to open the GUI at, folders must separated by '\\'. Can be Null.
+																				 const char* filters)   // List of file types and extensions in format [type_string]\0[*.extension]\0...\0. E.g. "All\0*.*\0Text files\0*.txt\0\0" 
+																				 = Win32OpenFileGUI; 
+program_unique char*      (*SaveFileAsGUI)(const char* directory, // Directory to open the GUI at, folders must separated by '\\'. Can be Null.
+																					 const char* filters)   // List of file types and extensions in format [type_string]\0[*.extension]\0...\0. E.g. "All\0*.*\0Text files\0*.txt\0\0" 
+																				   = Win32SaveFileAsGUI; 
 dll_import     void 			  SaveFile(void* data, ui32 dataSize, const char* path); // Will create a new file if it doesn't exist; if it does it'll get replaced.
 dll_import     void         SaveFile(file& f, const char* path);
-program_unique void 			(*FreeFile)(file& f) = FreeMemory;
 dll_import 		 bool   			IsValid(file f); // Defined in apad_memory.cpp
 dll_import 		 const char*  GetFileNameAndExtension(const char* path); // Does not allocate a new string
 dll_import 		 const char*  GetFileExtension(const char* path); // Does not allocate a new string

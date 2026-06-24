@@ -30,8 +30,8 @@ struct vector {
 	dll_import vector operator/(f32 f);
 };
 
-#define 				  Cap(_value, _min, _max) { if((_value) < (_min)) (_value) = (_min); \
-								  													else if((_value) > (_max)) (_value) = (_max); }
+#define 				  Clamp(_value, _min, _max) { if((_value) < (_min)) (_value) = (_min); \
+								  													  else if((_value) > (_max)) (_value) = (_max); }
 #define 				  Magnitude(_x) ((_x) < 0 ? -(_x) : (_x))																				
 dll_export vector GetMiddle(rectangle r);
 #define 				  GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))
