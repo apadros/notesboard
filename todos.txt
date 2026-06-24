@@ -9,23 +9,21 @@ Background
 	
 Functionality
 	- Prevent mouse from moving when attempting to drag a note outside the canvas
-	- Allow placing the cursor manually in a text section with the mouse
-		- Change the mouse image to the cursor and back
 	- Setting the gl clear color as option -> board background
 	- Arrows to connect notes
 	- Creation of an image as a note
 	- Position mouse cursor more accurately on text body when double clicking it - currently works but is somewhat inaccurate
+		- Change the mouse image to the cursor and back
 	- Setting a custom colour for the note background
 		- Colour wheel
 	- Boards / folders
 	- Text container colours
 	- Saving and loading of notes @WIP
-		- Need to add new capabilities to APAD_API first @WIP
-		- Board layout file
-		- Link to Win32 saving and loading API
+		- Check various @TODO in these sections
 	- Cursor blinking animation
 	- Horizontal (main) menu under the program title bar
-		- Save & load
+		- Save & load buttons
+		- Icons
 	
 Vertical toolbar
 	- Usage of images for buttons

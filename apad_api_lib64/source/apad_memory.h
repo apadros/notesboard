@@ -19,7 +19,7 @@
 #define 							 ReadMemMovePtr(_mem, _dataType) *CastMemMovePtr(_mem, _dataType)
 
 dll_import void ClearMemory(void* memory, ui32 size);
-#define 							 ClearStruct(_s) ClearMemory(&(_s), sizeof(_s))
+#define 				ClearStruct(_s) ClearMemory(&(_s), sizeof(_s))
 dll_import void CopyMemory(void* source, ui32 size, void* destination);
 
 // ******************** Memory blocks ******************** //
@@ -51,8 +51,8 @@ dll_import void*  			Push(ui32 size, memory_stack& stack);
 dll_import void*			  Push(void* memory, ui32 size, memory_stack& stack); 
 #define                 PushInstance(_inst, _stack) \
 												  Push(&(_inst), sizeof(_inst), (_stack))
-#define 								PushStruct(_structType, _stack) \
-													(_structType*)Push(sizeof(_structType), (_stack))
+#define 								PushType(_type, _stack) \
+													(_type*)Push(sizeof(_type), (_stack))
 
 dll_import void  				Remove(ui32 size, ui32 offset, memory_stack& stack); // Will move contents beyond offset + size down to offset
 dll_import void 				ResetStack(memory_stack& stack);

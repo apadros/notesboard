@@ -22,7 +22,7 @@ GUIAppEntryPoint(instance) {
 		tb->background.width = Win32GetProgramWindowClientSize().width;
 		tb->background.height = TitleBarHeight;
 		tb->background.bottom = Win32GetProgramWindowClientSize().height - tb->background.height;
-		tb->text = AllocateTextBody(TitleBarTextHeight, false);
+		tb->text = AllocateTextBody(false);
 		InsertText("Title", GetStringLength("Title"), tb->text, 0);
 	}
 
@@ -91,40 +91,12 @@ GUIAppEntryPoint(instance) {
 		
 		// Toolbar
 		if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[0].background)) == true) { // Create new note
-			if(TextIsBeingWritten() == true)
-				EndWriting();
-			
-			note* n = Null;
-			
-			// Search for a free slot
-			BeginNotesMemoryLoop(t) {
-				if(NoteMemoryIsInUse(t) == false) {
-					n = t;
-					break;
-				}
-			}
-			EndNotesMemoryLoop();
-			
-			// If not found, allocate more memory
-			if(n == Null) {
-				auto newBlock = AllocateMemory(state.notes.memory.size * 2);
-				CopyMemory(state.notes.memory.memory, state.notes.memory.size, newBlock.memory);
-				FreeMemory(state.notes.memory);
-				state.notes.memory = newBlock;
-				n = (note*)((ui8*)state.notes.memory.memory + state.notes.memory.size / 2);
-			}
-			
-			Assert(n != Null);
-			n->background.height = NoteTextHeight * 3;
-			n->background.width = NoteMinWidth;
-			auto pos = ConvertToCanvasSpace(0, osState.mouseY - n->background.height / 2);
-			n->background.left = pos.x;
-			n->background.bottom = pos.y;			
-			n->text = AllocateTextBody(NoteTextHeight, true);
+			auto pos = ConvertToCanvasSpace(0, osState.mouseY - NoteMinHeight / 2);
+			auto* n = CreateNote(pos, Null, Null);
 			state.notes.selected = n;
 			state.notes.justCreated = true;
 			state.notes.moving = true;
-			
+	
 			goto label_rendering;
 		}
 		else if(TextIsBeingWritten() && MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[1].background)) == true && state.textUpdate.textBody->specialCharsAllowed == true) { // Add a bullet point
@@ -140,7 +112,7 @@ GUIAppEntryPoint(instance) {
 		else if(GetCurrentNote() != Null && MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[2].background)) == true) { // Add a title to the current note
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
-				n->title = AllocateTextBody(NoteTitleTextHeight, false);
+				n->title = AllocateTextBody(false);
 				InsertText("Title", GetStringLength("Title"), n->title, 0);
 				n->background.bottom -= NoteTextBorder * 2 + NoteTitleTextHeight;
 				n->background.height += NoteTextBorder * 2 + NoteTitleTextHeight;
@@ -149,45 +121,86 @@ GUIAppEntryPoint(instance) {
 			goto label_rendering;
 		}
 		else if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[3].background)) == true) { // Save
-			auto memory = AllocateStack();
-			
-			// Store board title
-			if(GetTextLength(state.titleBar.text) > 0)
-				PushString(GetTextStart(state.titleBar.text), false, memory);
-			PushString(Null, true, memory);
-				
-			BeginNotesLoop(n) {
-				if(NoteMemoryIsInUse(n) == true) {
-					PushInstance(n->background, memory);
-					if(NoteHasTitle(n) == true) {
-						auto* b = PushStruct(bool, memory);
-						*b = true;
-						PushString(GetTextStart(n->title), true, memory);
-					}
-					else {
-						auto* b = PushStruct(bool, memory);
-						*b = false;
-					}
-					
-					if(GetTextLength(n->text) > 0)
-						PushString(GetTextStart(n->text), true, memory);
-				}
-			}
-			EndNotesLoop();
-			
+			// @TODO - Creating a new directory this way just keeps creating more within each folder, need a better way
+			// Maybe check if can be opened first and, if it doesn't exist, create?
 			CreateDirectory(".\\Boards", Null); // Create a new directory if it doesn't exist
-			char* path = SaveFileAsGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Open GUi
-			SaveFile(memory.memory, memory.size, path);
+			char* path = SaveFileAsGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Open GUI
+			if(path != Null) {
+				auto memory = AllocateStack();
+				
+				// Store board title
+				if(GetTextLength(state.titleBar.text) > 0)
+					PushString(GetTextStart(state.titleBar.text), false, memory);
+				PushString(Null, true, memory);
+				
+				// Notes
+				BeginNotesLoop(n) {
+					if(NoteMemoryIsInUse(n) == true) {
+						// Store the rectangle
+						f32* f = PushType(f32, memory);
+						*f = n->background.left;
+						f = PushType(f32, memory);
+						*f = n->background.bottom;
+						f = PushType(f32, memory);
+						*f = n->background.width;
+						f = PushType(f32, memory);
+						*f = n->background.height;
+						
+						// Text contents
+						if(NoteHasTitle(n) == true)
+							PushString(GetTextStart(n->title), false, memory);
+						PushString(Null, true, memory);
+						
+						if(GetTextLength(n->text) > 0)
+							PushString(GetTextStart(n->text), false, memory);
+						PushString(Null, true, memory);
+					}
+				}
+				EndNotesLoop();
 			
-			Win32DisplayInfoBox("File saved!", false);
-			
-			FreeStack(memory);
+				SaveFile(memory.memory, memory.size, path);
+				Win32DisplayInfoBox("File saved!", false);
+				
+				FreeStack(memory);
+			}
 			
 			goto label_rendering;
 		}
 		else if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[4].background)) == true) { // Load
-			
-		
+			char* path = OpenFileGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Open GUI
+			// @TODO - Error detection / message
+			if(path != Null && FileExists(path) == true) {
+				auto file = LoadFile(path);
+				void* data = file.memory;
+				
+				char* boardTitle = (char*)data;
+				MovePtr(data, GetStringLength(boardTitle) + 1);
+				if(boardTitle[0] != '\0') {
+					ClearTextBody(state.titleBar.text);
+					InsertText(boardTitle, GetStringLength(boardTitle), state.titleBar.text, 0);
+				}
+				
+				ClearMemory(state.notes.memory.memory, state.notes.memory.size);
+				
+				// Extract notes
+				while(data < (ui8*)file.memory + file.size) {
+					f32 left = ReadMemMovePtr(data, f32);
+					f32 bottom = ReadMemMovePtr(data, f32);
+					f32 width = ReadMemMovePtr(data, f32);
+					f32 height = ReadMemMovePtr(data, f32);
+					
+					char* title = (char*)data;
+					MovePtr(data, GetStringLength(title) + 1);
+					
+					char* text = (char*)data;
+					MovePtr(data, GetStringLength(text) + 1);
+					
+					auto* n = CreateNote({left, bottom}, title[0] == '\0' ? Null : title, text[0] == '\0' ? Null : text);
+					n->background.width = width;
+					n->background.height = height;
+				}
+			}
+				
 			goto label_rendering;
 		}
 

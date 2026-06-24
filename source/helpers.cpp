@@ -24,7 +24,48 @@ program_external void SetCursorPos(f32 x, f32 y) {
 	state.textUpdate.cursorPos.y = y;
 }
 
-program_external text_body AllocateTextBody(f32 textHeight, bool allowSpecialChars) {
+program_external note* CreateNote(vector pos, const char* title, const char* text) {
+	if(TextIsBeingWritten() == true)
+				EndWriting();
+			
+	note* n = Null;
+	
+	// Search for a free slot
+	BeginNotesMemoryLoop(t) {
+		if(NoteMemoryIsInUse(t) == false) {
+			n = t;
+			break;
+		}
+	}
+	EndNotesMemoryLoop();
+	
+	// If not found, allocate more memory
+	if(n == Null) {
+		auto newBlock = AllocateMemory(state.notes.memory.size * 2);
+		CopyMemory(state.notes.memory.memory, state.notes.memory.size, newBlock.memory);
+		FreeMemory(state.notes.memory);
+		state.notes.memory = newBlock;
+		n = (note*)((ui8*)state.notes.memory.memory + state.notes.memory.size / 2);
+	}
+	
+	// Init
+	Assert(n != Null);
+	n->background.height = NoteTextHeight * 3;
+	n->background.width = NoteMinWidth;
+	n->background.left = pos.x;
+	n->background.bottom = pos.y;			
+	n->text = AllocateTextBody(true);
+	if(text != Null)
+		InsertText((char*)text, GetStringLength(text), n->text, 0);
+	if(title != Null) {
+		n->title = AllocateTextBody(false);
+		InsertText((char*)title, GetStringLength(title), n->title, 0);
+	}
+	
+	return n;
+}
+
+program_external text_body AllocateTextBody(bool allowSpecialChars) {
 	text_body ret = {};
 	ret.memory = AllocateStack();
 	ret.specialCharsAllowed = allowSpecialChars;
@@ -207,6 +248,10 @@ program_external bool NoteIsBeingUpdated() {
 
 program_external void EndWriting() {
 	ClearStruct(state.textUpdate);
+}
+
+program_external void ClearTextBody(text_body& tb) {
+	ResetStack(tb.memory);
 }
 
 program_external void AddText(char c) {

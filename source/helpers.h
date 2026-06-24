@@ -16,7 +16,8 @@ struct text_body {
 };
 
 // @TODO - Export to APAD API?
-text_body AllocateTextBody(f32 textHeight, bool allowSpecialChars);
+text_body AllocateTextBody(bool allowSpecialChars);
+void 			ClearTextBody(text_body& tb);
 void      FreeTextBody(text_body& tb);
 ui32 			GetTextLength(text_body& tb);
 char*     GetTextStart(text_body& tb);
@@ -56,6 +57,7 @@ struct note {
 #define BeginNotesLoop(_varID) BeginNotesMemoryLoop(_varID)
 #define EndNotesLoop() 				 EndNotesMemoryLoop()
 
+note*   CreateNote(vector pos, const char* title, const char* text);
 note*   GetCurrentNote();
 
 struct note_text_render_data {
