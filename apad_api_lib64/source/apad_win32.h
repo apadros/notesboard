@@ -27,4 +27,14 @@ dll_import memory_block Win32LoadFile(const char* path);
 												// If it does it'll get replaced.
 dll_import void 				Win32SaveFile(void* data, ui32 dataSize, const char* path);
 
+// ******************** Directories ********************  //
+
+dll_import void  Win32CreateDirectory(const char* path);
+dll_import void  Win32DeleteDirectory(const char* path);
+dll_import bool  Win32DirectoryExists(const char* path);
+dll_import char* Win32GetCurrentDirectory(); // Will return a full path but point to the last directory
+dll_import char* Win32GetCurrentDirectoryFullPath();
+dll_import void  Win32SetCurrentDirectory(const char* path);
+
+
 #endif

@@ -19,7 +19,7 @@
 #define 							 ReadMemMovePtr(_mem, _dataType) *CastMemMovePtr(_mem, _dataType)
 
 dll_import void ClearMemory(void* memory, ui32 size);
-#define 				ClearStruct(_s) ClearMemory(&(_s), sizeof(_s))
+#define 							 ClearStruct(_s) ClearMemory(&(_s), sizeof(_s))
 dll_import void CopyMemory(void* source, ui32 size, void* destination);
 
 // ******************** Memory blocks ******************** //

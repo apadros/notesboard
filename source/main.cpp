@@ -121,10 +121,14 @@ GUIAppEntryPoint(instance) {
 			goto label_rendering;
 		}
 		else if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[3].background)) == true) { // Save
-			// @TODO - Creating a new directory this way just keeps creating more within each folder, need a better way
-			// Maybe check if can be opened first and, if it doesn't exist, create?
-			CreateDirectory(".\\Boards", Null); // Create a new directory if it doesn't exist
-			char* path = SaveFileAsGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Open GUI
+			// Set correct directory
+			if(StringsAreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
+				if(Win32DirectoryExists("Boards") == false)
+					Win32CreateDirectory("Boards");
+				Win32SetCurrentDirectory("Boards");
+			}
+			
+			char* path = SaveFileAsGUI(Null, "Bola boards\0*.bb\0\0"); // Get save file path
 			if(path != Null) {
 				auto memory = AllocateStack();
 				
@@ -167,8 +171,16 @@ GUIAppEntryPoint(instance) {
 			goto label_rendering;
 		}
 		else if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[4].background)) == true) { // Load
-			char* path = OpenFileGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Open GUI
-			// @TODO - Error detection / message
+			// Set correct directory
+			if(StringsAreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
+				if(Win32DirectoryExists("Boards") == false) {
+					Win32DisplayInfoBox("No files to load yet", false);
+					goto label_rendering; // Nothing to open if the directory didn't even exist
+				}
+				Win32SetCurrentDirectory("Boards");
+			}
+			
+			char* path = OpenFileGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Get open file path
 			if(path != Null && FileExists(path) == true) {
 				auto file = LoadFile(path);
 				void* data = file.memory;
