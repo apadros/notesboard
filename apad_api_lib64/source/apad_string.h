@@ -37,7 +37,7 @@ dll_import bool IsWhitespace(char c); // Space, horizontal & vertical tabs, carr
 dll_import 			 char* AllocateString( // Allocates string on API global memory
 																			 // Will automatically add a null-char if target length does not contain one
 																			const char* s, 
-																			ui16        length); // Set to Null to copy until and including the null-char
+																			ui16        length = Null); // Leave as Null to copy until and including the null-char
 dll_import 			 char* Concatenate( // Allocates string on API global memory
 																		// Will remove all null-chars from all strings supplied and automatically add one to the final returned string
 																		ui8 count, 

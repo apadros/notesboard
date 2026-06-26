@@ -19,8 +19,9 @@ Functionality
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar
-		- Save & load buttons
-		- Icons
+		- Button / option highlight when hovering with the mouse
+		- Buttons' functionalities
+		- Back button - go back to previous board
 	
 Vertical toolbar
 	- Usage of images for buttons

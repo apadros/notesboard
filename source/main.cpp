@@ -16,12 +16,26 @@
 GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", instance);
 	
+	// Init top menu
+	{
+		auto* m = &state.topMenu;
+		m->background.left = 0;
+		m->background.width = Win32GetProgramWindowClientSize().x;
+		m->background.height = TopMenuHeight;
+		m->background.bottom = Win32GetProgramWindowClientSize().y - m->background.height;
+		ForAll(GetArrayLength(m->buttons))
+			m->buttons[it].left = TopMenuButtonWidth * it;
+		m->buttons[0].text = AllocateString("Save");
+		m->buttons[1].text = AllocateString("Load");
+		m->buttons[2].text = AllocateString("Back");
+	}
+	
 	// Init title bar
 	{
 		auto* tb = &state.titleBar;
 		tb->background.width = Win32GetProgramWindowClientSize().width;
 		tb->background.height = TitleBarHeight;
-		tb->background.bottom = Win32GetProgramWindowClientSize().height - tb->background.height;
+		tb->background.bottom = state.topMenu.background.bottom - tb->background.height;
 		tb->text = AllocateTextBody(false);
 		InsertText("Title", GetStringLength("Title"), tb->text, 0);
 	}
@@ -32,7 +46,7 @@ GUIAppEntryPoint(instance) {
 		tb->background.left = 0;
 		tb->background.bottom = 0;
 		tb->background.width = ToolbarWidth;
-		tb->background.height = Win32GetProgramWindowClientSize().height - state.titleBar.background.height;
+		tb->background.height = state.topMenu.background.bottom - state.titleBar.background.height;
 
 		// Init buttons, starting at the top
 		tb->textHeight = ToolbarTextHeight;
@@ -44,11 +58,11 @@ GUIAppEntryPoint(instance) {
 			b->background.bottom = tb->background.height - (ToolVerticalSpaceBetweenIcons + b->background.height + tb->textHeight * 2) * (it + 1);
 			b->textBottom = b->background.bottom - ToolbarTextHeight * 2;
 		}
-		tb->buttons[0].text = AllocateString("Note", Null);
-		tb->buttons[1].text = AllocateString("Bullet point", Null);
-		tb->buttons[2].text = AllocateString("Note Title", Null);
-		tb->buttons[3].text = AllocateString("Save", Null);
-		tb->buttons[4].text = AllocateString("Load", Null);
+		tb->buttons[0].text = AllocateString("Note");
+		tb->buttons[1].text = AllocateString("Bullet point");
+		tb->buttons[2].text = AllocateString("Note Title");
+		tb->buttons[3].text = AllocateString("Save");
+		tb->buttons[4].text = AllocateString("Load");
 	}
 
 	state.notes.memory = AllocateMemory(sizeof(note) * 10);
@@ -655,6 +669,30 @@ GUIAppEntryPoint(instance) {
 			glVertex2f(tu->cursorPos.x, tu->cursorPos.y+ tu->textHeight);
 			glEnd();
 			AssertOpenGL();
+		}
+		
+		// Render top menu
+		{
+			ResetProjectionMatrix();
+			
+			auto* m = &state.topMenu;
+			DrawRectangle(UnpackDimensions(m->background), 146, 139, 183);
+			
+			ForAll(GetArrayLength(m->buttons)) {
+				auto* b = m->buttons + it;
+				RenderText((char*)b->text, GetStringLength(b->text), b->left + TopMenuButtonWidth / 2, GetMiddle(m->background).y - TopMenuTextHeight / 2, TopMenuTextHeight, true);
+				
+				// Draw separator
+				if(it < GetArrayLength(m->buttons) - 1) {
+					glColor3f(1, 1, 1);
+					glLineWidth(2);
+					glBegin(GL_LINES);
+					glVertex2f(b->left + TopMenuButtonWidth, GetMiddle(m->background).y - TopMenuTextHeight / 2);
+					glVertex2f(b->left + TopMenuButtonWidth, GetMiddle(m->background).y + TopMenuTextHeight / 2);
+					glEnd();
+					AssertOpenGL();
+				}
+			}
 		}
 		
 		// Store state before next frame

@@ -82,6 +82,10 @@ const ui8  ToolVerticalSpaceBetweenIcons = ToolbarTextHeight * 2;
 
 const f32  CursorBlinkFullLength = 1.5f;
 
+const ui8  TopMenuHeight = 50;
+const ui16 TopMenuButtonWidth = 200; // In viewport space
+const ui8  TopMenuTextHeight = (f32)TopMenuHeight / 2;
+
 program_unique struct {
 	struct {
 		vector translation; // In viewport space, applied post scaling, therefore must be scaled
@@ -92,6 +96,14 @@ program_unique struct {
 		rectangle background; // In viewport space
 		text_body text;
 	} 					titleBar;
+	
+	struct {
+		rectangle 		background;
+		struct {
+			f32         left;
+			const char* text;
+		} 						buttons[3];
+	} 							topMenu;
 	
 	struct {
 		text_body* textBody;
