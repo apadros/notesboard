@@ -80,6 +80,8 @@ const ui8  ToobalIconWidth = ToolbarWidth * 0.5f;
 const ui8  ToolbarTextHeight = 10;
 const ui8  ToolVerticalSpaceBetweenIcons = ToolbarTextHeight * 2;
 
+const f32  CursorBlinkFullLength = 1.5f;
+
 program_unique struct {
 	struct {
 		vector translation; // In viewport space, applied post scaling, therefore must be scaled
@@ -98,6 +100,8 @@ program_unique struct {
 		ui16       cursorOffset; // 0-based
 		f32        textHeight;
 		b8         leftAligned;
+		f32        cursorBlinkTime;
+		f32        cursorAlpha;
 	} 					 textUpdate;
 	
 	struct {

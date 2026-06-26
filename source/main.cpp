@@ -505,6 +505,22 @@ GUIAppEntryPoint(instance) {
 				
 				SetCursorPos(pos.x, pos.y);
 			}
+			
+			// Update cursor blink animation
+			tu->cursorBlinkTime += osState.lastFrameTime;
+			if(tu->cursorBlinkTime > CursorBlinkFullLength) {
+				// In case we get a frame time >= CursorBlinkFullLength * 2 for whatever reason
+				do 		tu->cursorBlinkTime -= CursorBlinkFullLength;
+				while(tu->cursorBlinkTime > CursorBlinkFullLength);
+			}
+			Assert(tu->cursorBlinkTime >= 0);
+			Assert(tu->cursorBlinkTime <= CursorBlinkFullLength);
+			if(tu->cursorBlinkTime >= 0 && tu->cursorBlinkTime < CursorBlinkFullLength / 2)
+				tu->cursorAlpha = LERP(1.0f, 0.0f, tu->cursorBlinkTime / (CursorBlinkFullLength / 2));
+			else
+				tu->cursorAlpha = LERP(0.0f, 1.0f, (tu->cursorBlinkTime - CursorBlinkFullLength / 2) / (CursorBlinkFullLength / 2)); 
+			Assert(tu->cursorAlpha >= 0);
+			Assert(tu->cursorAlpha <= 1.0f);
 		}
 		
 		// Update scaling
@@ -626,25 +642,23 @@ GUIAppEntryPoint(instance) {
 		
 		// Draw cursor if needed
 		if(state.textUpdate.textBody != Null) {
+			auto* tu = &state.textUpdate;
+			
 			ResetProjectionMatrix();
-			f32 cursorX = state.textUpdate.cursorPos.x;
-			f32 cursorY = state.textUpdate.cursorPos.y;
-			f32 cursorHeight = state.textUpdate.textHeight;
 			if(TitleIsBeingUpdated() == false)
 				SetCanvasProjetionMatrix();
 			
 			glLineWidth(2);
-			glColor3f(0, 0, 0);
+			glColor4f(0, 0, 0, tu->cursorAlpha);
 			glBegin(GL_LINES);
-			glVertex2f(cursorX, cursorY);
-			glVertex2f(cursorX, cursorY + cursorHeight);
+			glVertex2f(tu->cursorPos.x, tu->cursorPos.y);
+			glVertex2f(tu->cursorPos.x, tu->cursorPos.y+ tu->textHeight);
 			glEnd();
 			AssertOpenGL();
 		}
 		
 		// Store state before next frame
 		state.mouse.lastLeftDown = state.mouse.leftDown;
-
 
 		Win32EndGUIUpdateLoop();
 	}

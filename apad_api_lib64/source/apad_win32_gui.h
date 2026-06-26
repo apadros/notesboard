@@ -45,6 +45,8 @@ struct win32_state {
 	bool rightAlt;
 	bool leftCtrl;
 	bool rightCtrl;
+	
+	f32  lastFrameTime;
 };
 	
 // These need to be encased in a while(true) loop

@@ -202,6 +202,8 @@ program_external void MoveCursor(si8 offset) {
 		else
 			tu->cursorOffset += offset;
 	}
+	
+	tu->cursorBlinkTime = 0;
 }
 
 program_external note* GetCurrentNote() {

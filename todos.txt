@@ -18,8 +18,6 @@ Functionality
 		- Colour wheel
 	- Boards / folders
 	- Text container colours
-	- Saving and loading of notes @WIP
-	- Cursor blinking animation
 	- Horizontal (main) menu under the program title bar
 		- Save & load buttons
 		- Icons
