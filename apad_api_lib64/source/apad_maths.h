@@ -38,5 +38,6 @@ dll_export vector GetMiddle(rectangle r);
 dll_import f32    LERP(f32 min, f32 max, f32 perc); // Linear interpolation
 #define 				  Magnitude(_x) ((_x) < 0 ? -(_x) : (_x))																				
 dll_import bool   Overlap(f32 x0, f32 y0, f32 left1, f32 bottom1, f32 width1, f32 height1);
+#define           UnpackRectangle(_r) (_r).left, (_r).bottom, (_r).width, (_r).height
 
 #endif

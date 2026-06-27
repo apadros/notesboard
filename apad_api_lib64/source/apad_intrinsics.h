@@ -29,12 +29,12 @@
 #define For for
 #define ForAll(count) for(ui32 it = 0; it < (count); it++)
 #define ForAllInc(count, increment) for(ui32 it = 0; it < (count); it += increment)
-#define FromTo(start, end) for(ui32 it = (start); \
-		                       ((si32)((end) - (start)) > 0) ? it < (end) : it > (end); \
-		                       ((si32)((end) - (start)) > 0) ? it++ : it--)
-#define FromToInc(start, end) for(ui32 it = (start); \
-		                          ((end) - (start) > 0) ? it <= (end) : it >= (end); \
-		                          ((end) - (start) > 0) ? it++ : it--)
+#define FromTo(start, end) for(si32 it = (start); \
+		                       ((end) > (start)) ? it < (end) : it > (end); \
+		                       ((end) > (start)) ? it++ : it--)
+#define FromToInc(start, end) for(si32 it = (start); \
+		                          ((end) > (start)) ? it <= (end) : it >= (end); \
+															((end) > (start)) ? it++ : it--)
 
 // Enums
 // Format: BeginEnum(id) { options } EndEnum(id);

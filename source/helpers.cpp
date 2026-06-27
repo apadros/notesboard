@@ -176,7 +176,16 @@ program_external bool MouseLeftClickThisFrame() {
 }
 
 program_external bool MouseIsWithinToolbar() {
-	return Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.background));
+	return Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackRectangle(state.toolBar.background));
+}
+
+program_external bool MouseOverlapsGUI(rectangle& r) {
+	return Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackRectangle(r));
+}
+
+program_external bool MouseOverlapsCanvas(rectangle& r) {
+	auto pos = ConvertToCanvasSpace(state.mouse.pos);
+	return Overlap(pos.x, pos.y, UnpackRectangle(r));
 }
 
 program_external bool TitleIsBeingUpdated() {

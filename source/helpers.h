@@ -123,7 +123,7 @@ program_unique struct {
 			rectangle 	background;
 			const char* text;
 			ui16        textBottom;
-		} 						buttons[5];
+		} 						buttons[3];
 		ui16          textHeight;
 	} toolBar;
 
@@ -150,10 +150,11 @@ vector  ConvertToCanvasSpace(vector pos);
 vector  ConvertToViewportSpace(vector pos);
 bool    MouseIsWithinToolbar();
 bool    MouseLeftClickThisFrame();
+bool    MouseOverlapsCanvas(rectangle& r);
+bool    MouseOverlapsGUI(rectangle& r);
 void 		SetCursorPos(f32 x, f32 y);
 bool    TitleIsBeingUpdated();
 f32 		UI8ColourToF32(ui8 u);
-#define UnpackDimensions(_struct) (_struct).left, (_struct).bottom, (_struct).width, (_struct).height
 
 // Rendering
 void 			DrawBorder(rectangle& r);

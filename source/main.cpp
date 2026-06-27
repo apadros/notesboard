@@ -61,8 +61,6 @@ GUIAppEntryPoint(instance) {
 		tb->buttons[0].text = AllocateString("Note");
 		tb->buttons[1].text = AllocateString("Bullet point");
 		tb->buttons[2].text = AllocateString("Note Title");
-		tb->buttons[3].text = AllocateString("Save");
-		tb->buttons[4].text = AllocateString("Load");
 	}
 
 	state.notes.memory = AllocateMemory(sizeof(note) * 10);
@@ -94,8 +92,112 @@ GUIAppEntryPoint(instance) {
 		else if(osState.mouseRightClickUp == true)
 			state.mouse.rightDown = false;
 		
+		// Top menu
+		if(MouseOverlapsGUI(state.topMenu.background) == true) {
+			auto* m = &state.topMenu;
+			if(MouseLeftClickThisFrame() == true) {
+				ForAll(GetArrayLength(m->buttons)) {
+					if(state.mouse.pos.x >= m->buttons[it].left && state.mouse.pos.x < m->buttons[it].left + TopMenuButtonWidth) {
+						if(it == 0) { // Save
+							// Set correct directory
+							if(StringsAreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
+								if(Win32DirectoryExists("Boards") == false)
+									Win32CreateDirectory("Boards");
+								Win32SetCurrentDirectory("Boards");
+							}
+							
+							char* path = SaveFileAsGUI(Null, "Bola boards\0*.bb\0\0"); // Get save file path
+							if(path != Null) {
+								auto memory = AllocateStack();
+								
+								// Store board title
+								if(GetTextLength(state.titleBar.text) > 0)
+									PushString(GetTextStart(state.titleBar.text), false, memory);
+								PushString(Null, true, memory);
+								
+								// Notes
+								BeginNotesLoop(n) {
+									if(NoteMemoryIsInUse(n) == true) {
+										// Store the rectangle
+										f32* f = PushType(f32, memory);
+										*f = n->background.left;
+										f = PushType(f32, memory);
+										*f = n->background.bottom;
+										f = PushType(f32, memory);
+										*f = n->background.width;
+										f = PushType(f32, memory);
+										*f = n->background.height;
+										
+										// Text contents
+										if(NoteHasTitle(n) == true)
+											PushString(GetTextStart(n->title), false, memory);
+										PushString(Null, true, memory);
+										
+										if(GetTextLength(n->text) > 0)
+											PushString(GetTextStart(n->text), false, memory);
+										PushString(Null, true, memory);
+									}
+								}
+								EndNotesLoop();
+							
+								SaveFile(memory.memory, memory.size, path);
+								Win32DisplayInfoBox("File saved!", false);
+								
+								FreeStack(memory);
+							}
+						}
+						else if(it == 1) { // Load
+							// Set correct directory
+							if(StringsAreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
+								if(Win32DirectoryExists("Boards") == false) {
+									Win32DisplayInfoBox("No files to load yet", false);
+									goto label_rendering; // Nothing to open if the directory didn't even exist
+								}
+								Win32SetCurrentDirectory("Boards");
+							}
+							
+							char* path = OpenFileGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Get open file path
+							if(path != Null && FileExists(path) == true) {
+								auto file = LoadFile(path);
+								void* data = file.memory;
+								
+								char* boardTitle = (char*)data;
+								MovePtr(data, GetStringLength(boardTitle) + 1);
+								if(boardTitle[0] != '\0') {
+									ClearTextBody(state.titleBar.text);
+									InsertText(boardTitle, GetStringLength(boardTitle), state.titleBar.text, 0);
+								}
+								
+								ClearMemory(state.notes.memory.memory, state.notes.memory.size);
+								
+								// Extract notes
+								while(data < (ui8*)file.memory + file.size) {
+									f32 left = ReadMemMovePtr(data, f32);
+									f32 bottom = ReadMemMovePtr(data, f32);
+									f32 width = ReadMemMovePtr(data, f32);
+									f32 height = ReadMemMovePtr(data, f32);
+									
+									char* title = (char*)data;
+									MovePtr(data, GetStringLength(title) + 1);
+									
+									char* text = (char*)data;
+									MovePtr(data, GetStringLength(text) + 1);
+									
+									auto* n = CreateNote({left, bottom}, title[0] == '\0' ? Null : title, text[0] == '\0' ? Null : text);
+									n->background.width = width;
+									n->background.height = height;
+								}
+							}
+						}
+						
+						goto label_rendering;
+					}
+				}
+			}
+		}
+		
 		// Selection of the title bar
-		if(osState.mouseLeftDoubleClick == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.titleBar.background)) == true) {
+		if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(state.titleBar.background) == true) {
 			if(TextIsBeingWritten() == true && TitleIsBeingUpdated() == false)
 				EndWriting();
 			state.notes.selected = Null;
@@ -104,7 +206,7 @@ GUIAppEntryPoint(instance) {
 		}
 		
 		// Toolbar
-		if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[0].background)) == true) { // Create new note
+		if(MouseLeftClickThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[0].background) == true) { // Create new note
 			auto pos = ConvertToCanvasSpace(0, osState.mouseY - NoteMinHeight / 2);
 			auto* n = CreateNote(pos, Null, Null);
 			state.notes.selected = n;
@@ -113,7 +215,7 @@ GUIAppEntryPoint(instance) {
 	
 			goto label_rendering;
 		}
-		else if(TextIsBeingWritten() && MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[1].background)) == true && state.textUpdate.textBody->specialCharsAllowed == true) { // Add a bullet point
+		else if(TextIsBeingWritten() && MouseLeftClickThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[1].background) == true && state.textUpdate.textBody->specialCharsAllowed == true) { // Add a bullet point
 			Assert(state.textUpdate.textBody != Null);
 			char* text = GetTextStart(*state.textUpdate.textBody);
 			auto  length = GetStringLength(text);
@@ -123,7 +225,7 @@ GUIAppEntryPoint(instance) {
 				
 			goto label_rendering;
 		}
-		else if(GetCurrentNote() != Null && MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[2].background)) == true) { // Add a title to the current note
+		else if(GetCurrentNote() != Null && MouseLeftClickThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[2].background) == true) { // Add a title to the current note
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
 				n->title = AllocateTextBody(false);
@@ -134,110 +236,14 @@ GUIAppEntryPoint(instance) {
 		
 			goto label_rendering;
 		}
-		else if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[3].background)) == true) { // Save
-			// Set correct directory
-			if(StringsAreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
-				if(Win32DirectoryExists("Boards") == false)
-					Win32CreateDirectory("Boards");
-				Win32SetCurrentDirectory("Boards");
-			}
-			
-			char* path = SaveFileAsGUI(Null, "Bola boards\0*.bb\0\0"); // Get save file path
-			if(path != Null) {
-				auto memory = AllocateStack();
-				
-				// Store board title
-				if(GetTextLength(state.titleBar.text) > 0)
-					PushString(GetTextStart(state.titleBar.text), false, memory);
-				PushString(Null, true, memory);
-				
-				// Notes
-				BeginNotesLoop(n) {
-					if(NoteMemoryIsInUse(n) == true) {
-						// Store the rectangle
-						f32* f = PushType(f32, memory);
-						*f = n->background.left;
-						f = PushType(f32, memory);
-						*f = n->background.bottom;
-						f = PushType(f32, memory);
-						*f = n->background.width;
-						f = PushType(f32, memory);
-						*f = n->background.height;
-						
-						// Text contents
-						if(NoteHasTitle(n) == true)
-							PushString(GetTextStart(n->title), false, memory);
-						PushString(Null, true, memory);
-						
-						if(GetTextLength(n->text) > 0)
-							PushString(GetTextStart(n->text), false, memory);
-						PushString(Null, true, memory);
-					}
-				}
-				EndNotesLoop();
-			
-				SaveFile(memory.memory, memory.size, path);
-				Win32DisplayInfoBox("File saved!", false);
-				
-				FreeStack(memory);
-			}
-			
-			goto label_rendering;
-		}
-		else if(MouseLeftClickThisFrame() == true && Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackDimensions(state.toolBar.buttons[4].background)) == true) { // Load
-			// Set correct directory
-			if(StringsAreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
-				if(Win32DirectoryExists("Boards") == false) {
-					Win32DisplayInfoBox("No files to load yet", false);
-					goto label_rendering; // Nothing to open if the directory didn't even exist
-				}
-				Win32SetCurrentDirectory("Boards");
-			}
-			
-			char* path = OpenFileGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Get open file path
-			if(path != Null && FileExists(path) == true) {
-				auto file = LoadFile(path);
-				void* data = file.memory;
-				
-				char* boardTitle = (char*)data;
-				MovePtr(data, GetStringLength(boardTitle) + 1);
-				if(boardTitle[0] != '\0') {
-					ClearTextBody(state.titleBar.text);
-					InsertText(boardTitle, GetStringLength(boardTitle), state.titleBar.text, 0);
-				}
-				
-				ClearMemory(state.notes.memory.memory, state.notes.memory.size);
-				
-				// Extract notes
-				while(data < (ui8*)file.memory + file.size) {
-					f32 left = ReadMemMovePtr(data, f32);
-					f32 bottom = ReadMemMovePtr(data, f32);
-					f32 width = ReadMemMovePtr(data, f32);
-					f32 height = ReadMemMovePtr(data, f32);
-					
-					char* title = (char*)data;
-					MovePtr(data, GetStringLength(title) + 1);
-					
-					char* text = (char*)data;
-					MovePtr(data, GetStringLength(text) + 1);
-					
-					auto* n = CreateNote({left, bottom}, title[0] == '\0' ? Null : title, text[0] == '\0' ? Null : text);
-					n->background.width = width;
-					n->background.height = height;
-				}
-			}
-				
-			goto label_rendering;
-		}
 
 		// Notes
 		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardles of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
 			auto* previouslySelected = state.notes.selected;
 			state.notes.selected = Null;
 		
-			auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
 			BeginNotesLoop(n) {
-				if(NoteMemoryIsInUse(n) == true && Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(n->background)) == true) {
+				if(NoteMemoryIsInUse(n) == true && MouseOverlapsCanvas(n->background) == true) {
 					state.notes.selected = n;
 					state.notes.moving = true;
 					break;
@@ -250,8 +256,9 @@ GUIAppEntryPoint(instance) {
 				EndWriting();
 			
 			if(state.notes.selected != Null) {
+				auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos);
 				auto renderData = GetNoteTextRenderData(state.notes.selected);
-				if(Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(renderData.titleContainer)) == true) { // Update title
+				if(MouseOverlapsCanvas(renderData.titleContainer) == true) { // Update title
 					BeginWriting(state.notes.selected->title, &state.notes.selected->background, NoteTitleTextHeight, false);
 					
 					// Position mouse cursor more precisely
@@ -260,7 +267,7 @@ GUIAppEntryPoint(instance) {
 					Clamp(offset, 0, GetTextLength(state.notes.selected->title));
 					state.textUpdate.cursorOffset = offset;
 				}
-				else if(Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(renderData.textContainer)) == true) { // Update text
+				else if(MouseOverlapsCanvas(renderData.textContainer) == true) { // Update text
 					auto* n = state.notes.selected;
 					
 					BeginWriting(n->text, &n->background, NoteTextHeight, true);
@@ -300,7 +307,7 @@ GUIAppEntryPoint(instance) {
 		
 			auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
 			BeginNotesLoop(n) {
-				if(NoteMemoryIsInUse(n) == true && Overlap(mousePosCanvas.x, mousePosCanvas.y, UnpackDimensions(n->background)) == true) {
+				if(NoteMemoryIsInUse(n) == true && MouseOverlapsCanvas(n->background) == true) {
 					state.notes.selected = n;
 					state.notes.moving = true;
 					break;
@@ -391,10 +398,10 @@ GUIAppEntryPoint(instance) {
 				EndWriting();
 			}
 			else if(osState.mouseLeftClickDown == true && MouseIsWithinToolbar() == false) { // Left mouse click outside of the tool bar, check where and decide
-				vector mousePos = { state.mouse.pos.x, state.mouse.pos.y };
+				vector mousePos = state.mouse.pos;
 				if(TitleIsBeingUpdated() == false) // If it's not the title bar, check for overlap in canvas space
 					mousePos = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
-				if(Overlap(mousePos.x, mousePos.y, UnpackDimensions(*tu->containerBackground)) == false)
+				if(Overlap(mousePos.x, mousePos.y, UnpackRectangle(*tu->containerBackground)) == false)
 					EndWriting();
 			}
 			else if(osState.leftPressed == true && tu->cursorOffset >= 1)
@@ -567,7 +574,7 @@ GUIAppEntryPoint(instance) {
 					draw = false;
 					
 				if(draw == true)
-					DrawRectangle(UnpackDimensions(n->background), 255, 255, 255);
+					DrawRectangle(UnpackRectangle(n->background), 255, 255, 255);
 			}
 		}
 		EndNotesMemoryLoop();
@@ -610,11 +617,11 @@ GUIAppEntryPoint(instance) {
 		// Toolbar
 		{
 			auto* tb = &state.toolBar;
-			DrawRectangle(UnpackDimensions(state.toolBar.background), 255, 255, 255); // Background
+			DrawRectangle(UnpackRectangle(state.toolBar.background), 255, 255, 255); // Background
 	
 			ForAll(GetArrayLength(tb->buttons)) { // Buttons
 				auto* b = tb->buttons + it;
-				DrawRectangle(UnpackDimensions(b->background), 255, 0, 0);
+				DrawRectangle(UnpackRectangle(b->background), 255, 0, 0);
 				RenderText((char*)b->text, GetStringLength(b->text), GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
 			}
 	
@@ -631,7 +638,7 @@ GUIAppEntryPoint(instance) {
 		// Title bar
 		{
 			auto* tb = &state.titleBar;
-			DrawRectangle(UnpackDimensions(tb->background), 255, 255, 255);
+			DrawRectangle(UnpackRectangle(tb->background), 255, 255, 255);
 			if(GetTextLength(tb->text) > 1) {
 				auto middle = GetMiddle(tb->background);
 				RenderText(GetTextStart(tb->text), GetTextLength(tb->text), middle.x, middle.y - TitleBarTextHeight / 2, TitleBarTextHeight, true);
@@ -650,7 +657,7 @@ GUIAppEntryPoint(instance) {
 		// If a note was just created, draw in front of the tool bar
 		if(state.notes.selected != Null && state.notes.justCreated == true) {
 			SetCanvasProjetionMatrix();
-			DrawRectangle(UnpackDimensions(state.notes.selected->background), 255, 255, 255);
+			DrawRectangle(UnpackRectangle(state.notes.selected->background), 255, 255, 255);
 			DrawBorder(state.notes.selected->background);
 		}
 		
@@ -676,7 +683,18 @@ GUIAppEntryPoint(instance) {
 			ResetProjectionMatrix();
 			
 			auto* m = &state.topMenu;
-			DrawRectangle(UnpackDimensions(m->background), 146, 139, 183);
+			DrawRectangle(UnpackRectangle(m->background), 146, 139, 183);
+		
+			// Potentially highlight selected option
+			if(MouseOverlapsGUI(m->background) == true) {
+				FromToInc(GetArrayLength(m->buttons) - 1, 0) {
+					if(state.mouse.pos.x >= m->buttons[it].left && state.mouse.pos.x < m->buttons[it].left + TopMenuButtonWidth) {
+						DrawRectangle(m->buttons[it].left, m->background.bottom, TopMenuButtonWidth, m->background.height, 0, 0, 0);
+						OutputDebugString(Concatenate(2, "\n ", ToString(state.mouse.pos.y)));
+						break;
+					}
+				}
+			}
 			
 			ForAll(GetArrayLength(m->buttons)) {
 				auto* b = m->buttons + it;
