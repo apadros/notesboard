@@ -96,7 +96,7 @@ GUIAppEntryPoint(instance) {
 		// Top menu
 		if(MouseOverlapsGUI(state.topMenu.background) == true) {
 			auto* m = &state.topMenu;
-			if(MouseLeftClickThisFrame() == true) {
+			if(MouseLeftDownThisFrame() == true) {
 				ForAll(GetArrayLength(m->buttons)) {
 					if(state.mouse.pos.x >= m->buttons[it].left && state.mouse.pos.x < m->buttons[it].left + TopMenuButtonWidth) {
 						if(it == 0) { // Save
@@ -207,7 +207,7 @@ GUIAppEntryPoint(instance) {
 		}
 		
 		// Toolbar
-		if(MouseLeftClickThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[0].background) == true) { // Create new note
+		if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[0].background) == true) { // Create new note
 			auto pos = ConvertToCanvasSpace(0, osState.mouseY - NoteMinHeight / 2);
 			auto* n = CreateNote(pos, Null, Null);
 			state.notes.selected = n;
@@ -216,7 +216,7 @@ GUIAppEntryPoint(instance) {
 	
 			goto label_rendering;
 		}
-		else if(TextIsBeingWritten() && MouseLeftClickThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[1].background) == true && state.textUpdate.textBody->specialCharsAllowed == true) { // Add a bullet point
+		else if(TextIsBeingWritten() && MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[1].background) == true && state.textUpdate.textBody->specialCharsAllowed == true) { // Add a bullet point
 			Assert(state.textUpdate.textBody != Null);
 			char* text = GetTextStart(*state.textUpdate.textBody);
 			auto  length = GetStringLength(text);
@@ -226,7 +226,7 @@ GUIAppEntryPoint(instance) {
 				
 			goto label_rendering;
 		}
-		else if(GetCurrentNote() != Null && MouseLeftClickThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[2].background) == true) { // Add a title to the current note
+		else if(GetCurrentNote() != Null && MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[2].background) == true) { // Add a title to the current note
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
 				n->title = AllocateTextBody(false);
@@ -237,10 +237,42 @@ GUIAppEntryPoint(instance) {
 		
 			goto label_rendering;
 		}
-		else if(MouseLeftClickThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[3].background) == true) { // Toggle colour wheel
-			GetColourPane()->display = !GetColourPane()->display;
+		else if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[3].background) == true) { // Toggle colour wheel
+			auto* panel = GetColourPanel();
+			panel->display = !panel->display;
+			if(panel->display == true) {
+				panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
+				panel->frame.width = ColourPanelWidth;
+				panel->frame.height = ColourPanelHeight;
+				panel->frame.bottom = GetTopRight(GetToolBar()->buttons[3].background).y - panel->frame.height;
+				panel->selection = GetMiddle(GetColourPanelWheelRectangle());
+			}
 			goto label_rendering;
 		}
+		
+		// Colour panel
+		if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(GetColourPanel()->frame) == true) {
+			auto* panel = GetColourPanel();
+			auto wheel = GetColourPanelWheelRectangle();
+			if(MouseOverlapsGUI(wheel) == true) { // @TODO - Improve precision
+				panel->updatingSelection = true;
+				panel->selection = state.mouse.pos;
+			}
+			
+			goto label_rendering;
+		}
+		else if(GetColourPanel()->updatingSelection == true) { // Update selection position
+			auto* panel = GetColourPanel();
+			if(osState.mouseLeftClickUp == true)
+				panel->updatingSelection = false;
+			else {
+				panel->selection += state.mouse.translation;
+				auto wheel = GetColourPanelWheelRectangle();
+				Clamp(panel->selection.x, wheel.left, wheel.left + wheel.width);
+				Clamp(panel->selection.y, wheel.bottom, wheel.bottom + wheel.height);
+			}
+		}
+		
 
 		// Notes
 		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardles of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
@@ -268,7 +300,7 @@ GUIAppEntryPoint(instance) {
 					
 					// Position mouse cursor more precisely
 					f32 offset = (mousePosCanvas.x - renderData.title.left) / (NoteTitleTextHeight * 1.5f); // @TODO - This takes into consideration a small space of length NoteTitleTextHeight * 0.5f at the end of the text
-					offset = round(offset);
+					offset = RoundToNearestInteger(offset);
 					Clamp(offset, 0, GetTextLength(state.notes.selected->title));
 					state.textUpdate.cursorOffset = offset;
 				}
@@ -306,7 +338,7 @@ GUIAppEntryPoint(instance) {
 				}
 			}
 		}
-		else if(MouseLeftClickThisFrame() == true) { // Select
+		else if(MouseLeftDownThisFrame() == true) { // Select
 			auto* previouslySelected = state.notes.selected;
 			state.notes.selected = Null;
 		
@@ -426,7 +458,7 @@ GUIAppEntryPoint(instance) {
 					Assert(previousCursorOffset <= GetTextLength(n->title));
 					f32 cursorX = renderData.title.left + GetTextRenderDimensions(GetTextStart(n->title), previousCursorOffset, NoteTitleTextHeight).x + NoteTitleTextHeight * 0.25f;
 					f32 cursorIndex = (cursorX - renderData.text.left) / (NoteTextHeight * 1.5f);
-					cursorIndex = round(cursorIndex); // @TODO - Export to APAD API?
+					cursorIndex = RoundToNearestInteger(cursorIndex); // @TODO - Export to APAD API?
 					Assert(cursorIndex > 0);
 					
 					tu->cursorOffset = GetMin(cursorIndex, GetTextLength(n->text));
@@ -461,7 +493,7 @@ GUIAppEntryPoint(instance) {
 					f32 cursorIndex = 0;
 					if(cursorX > renderData.title.left && cursorX < renderData.title.left + renderData.title.width) {
 						cursorIndex = (cursorX - renderData.title.left) / (NoteTitleTextHeight * 1.5f);
-						cursorIndex = round(cursorIndex); // @TODO - Export to APAD API?
+						cursorIndex = RoundToNearestInteger(cursorIndex); // @TODO - Export to APAD API?
 					}
 					else if(cursorX >= renderData.title.left + renderData.title.width)
 						cursorIndex = GetTextLength(n->title);
@@ -586,7 +618,7 @@ GUIAppEntryPoint(instance) {
 
 		// Draw border on a selected note
 		if(state.notes.selected != Null && state.notes.justCreated == false)
-			DrawBorder(state.notes.selected->background);
+			DrawBorder(UnpackRectangle(state.notes.selected->background));
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
@@ -663,7 +695,7 @@ GUIAppEntryPoint(instance) {
 		if(state.notes.selected != Null && state.notes.justCreated == true) {
 			SetCanvasProjetionMatrix();
 			DrawRectangle(UnpackRectangle(state.notes.selected->background), 255, 255, 255);
-			DrawBorder(state.notes.selected->background);
+			DrawBorder(UnpackRectangle(state.notes.selected->background));
 		}
 		
 		// Draw cursor if needed
@@ -718,20 +750,68 @@ GUIAppEntryPoint(instance) {
 			}
 		}
 		
-		// Colour pane
-		if(GetColourPane()->display == true) {
-			auto* pane = GetColourPane();
-			
-			pane->frame.left = GetTopRight(GetToolBar()->background).x + 100;
-			pane->frame.width = 200;
-			pane->frame.height = 200;
-			pane->frame.bottom = GetTopRight(GetToolBar()->buttons[3].background).y - pane->frame.height;
+		// Colour panel
+		if(GetColourPanel()->display == true) {
+			auto* panel = GetColourPanel();
 			
 			SetGUIProjectionMatrix();
-			DrawRectangle(UnpackRectangle(pane->frame), 255, 255, 255); // Draw the frame
+			DrawRectangle(UnpackRectangle(panel->frame), 255, 255, 255); // Draw the frame
+			glLineWidth(2);
+			DrawBorder(UnpackRectangle(panel->frame));
 			
-			// @TODO - Draw a wheel
 			
+			// Draw colour wheel
+			{
+				auto r = GetColourPanelWheelRectangle();
+				
+				// @TODO - Currently drawing a triangle
+				
+				#if 0
+				
+				glBegin(GL_TRIANGLES);
+				glColor3f(1.0f, 0, 0);
+				glVertex2f(r.left + r.width / 2, r.bottom + r.height);
+				glColor3f(0, 1.0f, 0);
+				glVertex2f(r.left, r.bottom);
+				glColor3f(0, 0, 1.0f);
+				glVertex2f(r.left + r.width, r.bottom);
+				glEnd();
+				
+				#else
+				
+				// @WIP - Draw a circle with Sine() and Cos() functions
+				// glBeing(GL_LINE_LOOP);
+				
+				glEnd();
+				
+				#endif
+				
+				AssertOpenGL();
+				
+				DrawBorder(UnpackRectangle(r));
+			}
+			
+			// Bottom half - sample colour and rgb text boxes
+			{
+				// For now just draw 4 boes
+				// @TODO - Have the sample colour in a circular container, the rest rectangles
+				ForAll(4) {
+					f32 middleX = panel->frame.left + (panel->frame.width / 4) * it + panel->frame.width / 8;
+					f32 width = panel->frame.width / 5;
+					f32 middleY = panel->frame.bottom + panel->frame.height / 4;
+					f32 height = panel->frame.height / 5;
+					glLineWidth(1);
+					DrawBorder(middleX - width / 2, middleY - height / 2, width, height);
+				}
+			}
+			
+			// Draw selection on colour wheel
+			{
+				// @TODO - Draw a circle instead of a rectangle
+				f32 size = 10;
+				glLineWidth(1);
+				DrawBorder(panel->selection.x - size / 2, panel->selection.y - size / 2, size, size);
+			}
 		}
 		
 		// Store state before next frame

@@ -100,24 +100,31 @@ program_external bool NoteHasTitle(note* n) {
 	return TextBodyIsValid(n->title);
 }
 
-program_external void DrawBorder(rectangle& r) {
+program_external void DrawBorder(f32 left, f32 bottom, f32 width, f32 height) {
 	glLineWidth(2);
 	glBegin(GL_LINES);
 	glColor3f(0, 0, 0);
 	
-	glVertex2f(r.left, r.bottom);
-	glVertex2f(r.left, r.bottom + r.height);
+	glVertex2f(left, bottom);
+	glVertex2f(left, bottom + height);
 	
-	glVertex2f(r.left, r.bottom + r.height);
-	glVertex2f(r.left + r.width, r.bottom + r.height);
+	glVertex2f(left, bottom + height);
+	glVertex2f(left + width, bottom + height);
 	
-	glVertex2f(r.left + r.width, r.bottom + r.height);
-	glVertex2f(r.left + r.width, r.bottom);
+	glVertex2f(left + width, bottom + height);
+	glVertex2f(left + width, bottom);
 	
-	glVertex2f(r.left + r.width, r.bottom);
-	glVertex2f(r.left, r.bottom);
+	glVertex2f(left + width, bottom);
+	glVertex2f(left, bottom);
 	glEnd();
 	AssertOpenGL();	
+}
+
+program_external rectangle GetColourPanelWheelRectangle() {
+	auto* panel = GetColourPanel();
+	f32 middleX = GetMiddle(panel->frame).x;
+	f32 middleY = panel->frame.bottom + panel->frame.height * ColourWheelVerticalCenterMult;
+	return CreateRectangle(middleX - ColourWheelSize / 2, middleY - ColourWheelSize / 2, ColourWheelSize, ColourWheelSize);
 }
 
 program_external note_text_render_data GetNoteTextRenderData(note* n) {
@@ -171,7 +178,7 @@ program_external note_text_render_data GetNoteTextRenderData(note* n) {
 	return ret;
 }
 
-program_external bool MouseLeftClickThisFrame() {
+program_external bool MouseLeftDownThisFrame() {
 	return state.mouse.lastLeftDown == false && state.mouse.leftDown == true;
 }
 

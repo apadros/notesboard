@@ -30,15 +30,19 @@ struct vector {
 	dll_import vector operator/(f32 f);
 };
 
-#define 				  Clamp(_value, _min, _max) { if((_value) < (_min)) (_value) = (_min); \
-								  													  else if((_value) > (_max)) (_value) = (_max); }
-dll_import vector GetMiddle(rectangle r);
-#define 				  GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))
-#define 				  GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
-dll_import vector GetTopRight(rectangle& r);
-dll_import f32    LERP(f32 min, f32 max, f32 perc); // Linear interpolation
-#define 				  Magnitude(_x) ((_x) < 0 ? -(_x) : (_x))																				
-dll_import bool   Overlap(f32 x0, f32 y0, f32 left1, f32 bottom1, f32 width1, f32 height1);
-#define           UnpackRectangle(_r) (_r).left, (_r).bottom, (_r).width, (_r).height
+#define 				     Clamp(_value, _min, _max) { if((_value) < (_min)) (_value) = (_min); \
+								     													   else if((_value) > (_max)) (_value) = (_max); }
+dll_import f32 			 Cos(f32 degs);
+dll_import rectangle CreateRectangle(f32 left, f32 bottom, f32 width, f32 height);
+dll_import vector    GetMiddle(rectangle r);
+#define 				     GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))
+#define 				     GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
+dll_import vector    GetTopRight(rectangle& r);
+dll_import f32       LERP(f32 min, f32 max, f32 perc); // Linear interpolation
+#define 				     Magnitude(_x) ((_x) < 0 ? -(_x) : (_x))																				
+dll_import bool      Overlap(f32 x0, f32 y0, f32 left1, f32 bottom1, f32 width1, f32 height1);
+dll_export f32       RoundToNearestInteger(f32 value);
+dll_import f32 			 Sine(f32 degs);
+#define              UnpackRectangle(_r) (_r).left, (_r).bottom, (_r).width, (_r).height
 
 #endif

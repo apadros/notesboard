@@ -86,6 +86,11 @@ const ui8  TopMenuHeight = 50;
 const ui16 TopMenuButtonWidth = 200; // In viewport space
 const ui8  TopMenuTextHeight = (f32)TopMenuHeight / 2;
 
+const ui8 ColourPanelWidth = 250;
+const ui8 ColourPanelHeight = 250;
+const ui8 ColourWheelSize = 130;
+const f32 ColourWheelVerticalCenterMult = 0.7;
+
 program_unique struct {
 	struct {
 		vector translation; // In viewport space, applied post scaling, therefore must be scaled
@@ -125,13 +130,14 @@ program_unique struct {
 			ui16        textBottom;
 		} 						buttons[4];
 		ui16          textHeight;
-	} toolBar;
+	} 							toolBar;
 	
 	struct {
 		bool 			display;
 		rectangle frame;
-		// @TODO - Add custom colours
-	} colourPane;
+		vector    selection;
+		bool      updatingSelection;
+	} 					colourPanel;
 
 	struct {
 		memory_block memory;
@@ -150,28 +156,34 @@ program_unique struct {
 	
 } state;
 
-
 // Misc
-vector  ConvertToCanvasSpace(f32 x, f32 y);
-vector  ConvertToCanvasSpace(vector pos);
-vector  ConvertToViewportSpace(vector pos);
-#define GetColourPane() (&state.colourPane)
-#define GetTitleBar() (&state.titleBar)
-#define GetToolBar() (&state.toolBar)
-#define GetTopMenu() (&state.topMenu)
+#define GetTitleBar()    (&state.titleBar)
+#define GetToolBar() 		 (&state.toolBar)
+#define GetTopMenu() 		 (&state.topMenu)
 bool    MouseIsWithinToolbar();
-bool    MouseLeftClickThisFrame();
+bool    MouseLeftDownThisFrame();
 bool    MouseOverlapsCanvas(rectangle& r);
 bool    MouseOverlapsGUI(rectangle& r);
 void 		SetCursorPos(f32 x, f32 y);
 bool    TitleIsBeingUpdated();
 f32 		UI8ColourToF32(ui8 u);
 
+// Colour panel
+#define 	GetColourPanel() \
+						(&state.colourPanel)
+rectangle GetColourPanelWheelRectangle();
+
+// Space and projection matrix stuff
+vector  ConvertToCanvasSpace(f32 x, f32 y);
+vector  ConvertToCanvasSpace(vector pos);
+vector  ConvertToViewportSpace(vector pos);
+void 		SetGUIProjectionMatrix();
+void 		SetCanvasProjetionMatrix();
+
+
 // Rendering
-void 			DrawBorder(rectangle& r);
+void 			DrawBorder(f32 left, f32 bottom, f32 width, f32 height);
 void 			DrawRectangle(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
-void 			SetGUIProjectionMatrix();
-void 			SetCanvasProjetionMatrix();
 rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32 height, bool center);
 
 #endif
