@@ -61,6 +61,7 @@ GUIAppEntryPoint(instance) {
 		tb->buttons[0].text = AllocateString("Note");
 		tb->buttons[1].text = AllocateString("Bullet point");
 		tb->buttons[2].text = AllocateString("Note Title");
+		tb->buttons[3].text = AllocateString("Colour Wheel");
 	}
 
 	state.notes.memory = AllocateMemory(sizeof(note) * 10);
@@ -71,7 +72,7 @@ GUIAppEntryPoint(instance) {
 		
 		// Reset the projection matrix and draw the canvas background
 		{	
-			ResetProjectionMatrix();
+			SetGUIProjectionMatrix();
 			DrawRectangle(0, 0, canvas.width, canvas.height, 230, 230, 230);
 		}
 
@@ -234,6 +235,10 @@ GUIAppEntryPoint(instance) {
 				n->background.height += NoteTextBorder * 2 + NoteTitleTextHeight;
 			}
 		
+			goto label_rendering;
+		}
+		else if(MouseLeftClickThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[3].background) == true) { // Toggle colour wheel
+			GetColourPane()->display = !GetColourPane()->display;
 			goto label_rendering;
 		}
 
@@ -612,7 +617,7 @@ GUIAppEntryPoint(instance) {
 		EndNotesLoop();
 		
 		// Draw the overlying UI
-		ResetProjectionMatrix();
+		SetGUIProjectionMatrix();
 			
 		// Toolbar
 		{
@@ -665,7 +670,7 @@ GUIAppEntryPoint(instance) {
 		if(state.textUpdate.textBody != Null) {
 			auto* tu = &state.textUpdate;
 			
-			ResetProjectionMatrix();
+			SetGUIProjectionMatrix();
 			if(TitleIsBeingUpdated() == false)
 				SetCanvasProjetionMatrix();
 			
@@ -680,7 +685,7 @@ GUIAppEntryPoint(instance) {
 		
 		// Render top menu
 		{
-			ResetProjectionMatrix();
+			SetGUIProjectionMatrix();
 			
 			auto* m = &state.topMenu;
 			DrawRectangle(UnpackRectangle(m->background), 146, 139, 183);
@@ -711,6 +716,22 @@ GUIAppEntryPoint(instance) {
 					AssertOpenGL();
 				}
 			}
+		}
+		
+		// Colour pane
+		if(GetColourPane()->display == true) {
+			auto* pane = GetColourPane();
+			
+			pane->frame.left = GetTopRight(GetToolBar()->background).x + 100;
+			pane->frame.width = 200;
+			pane->frame.height = 200;
+			pane->frame.bottom = GetTopRight(GetToolBar()->buttons[3].background).y - pane->frame.height;
+			
+			SetGUIProjectionMatrix();
+			DrawRectangle(UnpackRectangle(pane->frame), 255, 255, 255); // Draw the frame
+			
+			// @TODO - Draw a wheel
+			
 		}
 		
 		// Store state before next frame

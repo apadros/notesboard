@@ -308,8 +308,7 @@ program_external vector ConvertToViewportSpace(vector pos) {
 	return p;
 }
 
-// @TODO - Export to API?
-program_external void ResetProjectionMatrix() {
+program_external void SetGUIProjectionMatrix() {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	AssertOpenGL();
@@ -342,7 +341,7 @@ program_external ui32 GetTextLength(text_body& tb) {
 }
 
 program_external void SetCanvasProjetionMatrix() {
-	ResetProjectionMatrix();
+	SetGUIProjectionMatrix();
 	if(state.canvas.scale != 1.0f)
 		glScalef(state.canvas.scale, state.canvas.scale, 1.0f);
 	if(state.canvas.translation.x != 0 || state.canvas.translation.y != 0)

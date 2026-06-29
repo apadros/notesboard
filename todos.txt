@@ -8,6 +8,7 @@ Background
 	- Mac OS compatibility
 	
 Functionality
+	- Double click anywhere on the canvas to create a note
 	- Prevent mouse from moving when attempting to drag a note outside the canvas
 	- Setting the gl clear color as option -> board background
 	- Arrows to connect notes
@@ -15,7 +16,9 @@ Functionality
 	- Position mouse cursor more accurately on text body when double clicking it - currently works but is somewhat inaccurate
 		- Change the mouse image to the cursor and back
 	- Setting a custom colour for the note background
-		- Colour wheel
+		- Colour wheel @WIP
+			- Saving custom colours between the colour wheel itself and the text pane underneath
+			- Possibility to manually set rgb numbers - requires text fields
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar

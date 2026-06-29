@@ -123,9 +123,15 @@ program_unique struct {
 			rectangle 	background;
 			const char* text;
 			ui16        textBottom;
-		} 						buttons[3];
+		} 						buttons[4];
 		ui16          textHeight;
 	} toolBar;
+	
+	struct {
+		bool 			display;
+		rectangle frame;
+		// @TODO - Add custom colours
+	} colourPane;
 
 	struct {
 		memory_block memory;
@@ -144,10 +150,15 @@ program_unique struct {
 	
 } state;
 
+
 // Misc
 vector  ConvertToCanvasSpace(f32 x, f32 y);
 vector  ConvertToCanvasSpace(vector pos);
 vector  ConvertToViewportSpace(vector pos);
+#define GetColourPane() (&state.colourPane)
+#define GetTitleBar() (&state.titleBar)
+#define GetToolBar() (&state.toolBar)
+#define GetTopMenu() (&state.topMenu)
 bool    MouseIsWithinToolbar();
 bool    MouseLeftClickThisFrame();
 bool    MouseOverlapsCanvas(rectangle& r);
@@ -159,7 +170,7 @@ f32 		UI8ColourToF32(ui8 u);
 // Rendering
 void 			DrawBorder(rectangle& r);
 void 			DrawRectangle(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
-void 			ResetProjectionMatrix();
+void 			SetGUIProjectionMatrix();
 void 			SetCanvasProjetionMatrix();
 rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32 height, bool center);
 
