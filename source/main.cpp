@@ -254,7 +254,7 @@ GUIAppEntryPoint(instance) {
 		if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(GetColourPanel()->frame) == true) {
 			auto* panel = GetColourPanel();
 			auto wheel = GetColourPanelWheelRectangle();
-			if(MouseOverlapsGUI(wheel) == true) { // @TODO - Improve precision
+			if(Overlap(GetMiddle(wheel).x, GetMiddle(wheel).y, state.mouse.pos.x, state.mouse.pos.y, wheel.width / 2) == true) {
 				panel->updatingSelection = true;
 				panel->selection = state.mouse.pos;
 			}
@@ -266,10 +266,10 @@ GUIAppEntryPoint(instance) {
 			if(osState.mouseLeftClickUp == true)
 				panel->updatingSelection = false;
 			else {
-				panel->selection += state.mouse.translation;
+				auto newPos = panel->selection + state.mouse.translation;
 				auto wheel = GetColourPanelWheelRectangle();
-				Clamp(panel->selection.x, wheel.left, wheel.left + wheel.width);
-				Clamp(panel->selection.y, wheel.bottom, wheel.bottom + wheel.height);
+				if(Overlap(GetMiddle(wheel).x, GetMiddle(wheel).y, newPos.x, newPos.y, wheel.width / 2) == true) // Check if new position lies within the wheel
+					panel->selection += state.mouse.translation;
 			}
 		}
 		
@@ -618,7 +618,7 @@ GUIAppEntryPoint(instance) {
 
 		// Draw border on a selected note
 		if(state.notes.selected != Null && state.notes.justCreated == false)
-			DrawBorder(UnpackRectangle(state.notes.selected->background));
+			DrawBorder(UnpackRectangle(state.notes.selected->background), 0, 0, 0);
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
@@ -695,7 +695,7 @@ GUIAppEntryPoint(instance) {
 		if(state.notes.selected != Null && state.notes.justCreated == true) {
 			SetCanvasProjetionMatrix();
 			DrawRectangle(UnpackRectangle(state.notes.selected->background), 255, 255, 255);
-			DrawBorder(UnpackRectangle(state.notes.selected->background));
+			DrawBorder(UnpackRectangle(state.notes.selected->background), 0, 0, 0);
 		}
 		
 		// Draw cursor if needed
@@ -757,7 +757,7 @@ GUIAppEntryPoint(instance) {
 			SetGUIProjectionMatrix();
 			DrawRectangle(UnpackRectangle(panel->frame), 255, 255, 255); // Draw the frame
 			glLineWidth(2);
-			DrawBorder(UnpackRectangle(panel->frame));
+			DrawBorder(UnpackRectangle(panel->frame), 0, 0, 0);
 			
 			
 			// Draw colour wheel
@@ -785,8 +785,6 @@ GUIAppEntryPoint(instance) {
 				glEnd();
 				
 				AssertOpenGL();
-				
-				// DrawBorder(UnpackRectangle(r));
 			}
 			
 			// Bottom half - sample colour and rgb text boxes
@@ -799,7 +797,7 @@ GUIAppEntryPoint(instance) {
 					f32 middleY = panel->frame.bottom + panel->frame.height / 4;
 					f32 height = panel->frame.height / 5;
 					glLineWidth(1);
-					DrawBorder(middleX - width / 2, middleY - height / 2, width, height);
+					DrawBorder(middleX - width / 2, middleY - height / 2, width, height, 0, 0, 0);
 				}
 			}
 			
@@ -808,7 +806,7 @@ GUIAppEntryPoint(instance) {
 				// @TODO - Draw a circle instead of a rectangle
 				f32 size = 10;
 				glLineWidth(1);
-				DrawBorder(panel->selection.x - size / 2, panel->selection.y - size / 2, size, size);
+				DrawBorder(panel->selection.x - size / 2, panel->selection.y - size / 2, size, size, 255, 255, 255);
 			}
 		}
 		

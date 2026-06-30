@@ -100,10 +100,10 @@ program_external bool NoteHasTitle(note* n) {
 	return TextBodyIsValid(n->title);
 }
 
-program_external void DrawBorder(f32 left, f32 bottom, f32 width, f32 height) {
+program_external void DrawBorder(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b) {
 	glLineWidth(2);
 	glBegin(GL_LINES);
-	glColor3f(0, 0, 0);
+	glColor3f(UI8ColourToF32(r), UI8ColourToF32(g), UI8ColourToF32(b));
 	
 	glVertex2f(left, bottom);
 	glVertex2f(left, bottom + height);

@@ -182,7 +182,7 @@ void 		SetCanvasProjetionMatrix();
 
 
 // Rendering
-void 			DrawBorder(f32 left, f32 bottom, f32 width, f32 height);
+void 			DrawBorder(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
 void 			DrawRectangle(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
 rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32 height, bool center);
 
