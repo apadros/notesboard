@@ -769,9 +769,8 @@ GUIAppEntryPoint(instance) {
 				glColor3f(0, 0, 0);
 				glVertex2f(GetMiddle(r).x, GetMiddle(r).y);
 				
-				ui8 points = 36;
-				FromToInc(0, points) {
-					f32 angle = it * 360 / points;
+				FromToInc(0, ColourWheelVertices + 1) {
+					f32 angle = it * 360 / ColourWheelVertices;
 					if(angle <= 120)
 						glColor3f(LERP(1.0f, 0, angle / 120), LERP(0, 1.0f, angle / 120), 0);
 					else if(angle <= 240)
@@ -790,8 +789,72 @@ GUIAppEntryPoint(instance) {
 			// Bottom half - sample colour and rgb text boxes
 			{
 				// For now just draw 4 boes
-				// @TODO - Have the sample colour in a circular container, the rest rectangles
 				ForAll(4) {
+					if(it == 0) { // Colour selection
+						// Center
+						// glColor3f(0, 0, 0);
+						// glVertex2f(GetMiddle(r).x, GetMiddle(r).y);
+						
+						auto wheelRec = GetColourPanelWheelRectangle();
+						auto vector = panel->selection - GetMiddle(wheelRec);
+						
+						// Scale magnitude
+						f32 magnitude01 = Magnitude(vector) / (wheelRec.width / 2); // 0 -> 1 between circle center and outer edges
+						
+						// Angle of current selection
+						f32 angle = 0; // About the horizontal axis
+						if(vector.x == 0) 
+							angle = vector.y > 0 ? 90 : 270;
+						else if(vector.y == 0)
+							angle = vector.x > 0 ? 0 : 180;
+						else {
+							f32 a = Magnitude(vector.x);
+							f32 o = Magnitude(vector.y);
+							angle = ArcTan(o / a);
+							if(vector.x < 0 && vector.y > 0)
+								angle = 180 - angle;
+							else if(vector.x < 0 && vector.y < 0)
+								angle += 180;
+							else if(vector.x > 0 && vector.y < 0)
+								angle = 360 - angle;
+						}
+						
+						// Adjust angle to start from the vertical axis (red)
+						angle -= 90;
+						if(angle < 0)
+							angle += 360;
+						
+						// Work out the max colour based on the angle
+						f32 rmax = 0;
+						f32 gmax = 0;
+						f32 bmax = 0;
+						if(angle <= 120) {
+							rmax = LERP(1.0f, 0, angle / 120);
+							gmax = LERP(0, 1.0f, angle / 120);
+						}
+						else if(angle <= 240) {
+							gmax = LERP(1.0f, 0, (angle - 120) / 120);
+							bmax = LERP(0, 1.0f, (angle - 120) / 120);
+						}
+						else {
+							rmax = LERP(0, 1.0f, (angle - 240) / 120);
+							bmax = LERP(1.0f, 0, (angle - 240) / 120);
+						}
+						
+						// Final colour
+						f32 r = LERP(0, rmax, magnitude01);
+						f32 g = LERP(0, gmax, magnitude01);
+						f32 b = LERP(0, bmax, magnitude01);
+						
+						f32 middleX = panel->frame.left + (panel->frame.width / 4) * it + panel->frame.width / 8;
+						f32 width = panel->frame.width / 5;
+						f32 middleY = panel->frame.bottom + panel->frame.height / 4;
+						f32 height = panel->frame.height / 5;
+						
+						// Draw rectangle of the chosen colour
+						DrawRectangle(middleX - width / 2, middleY - height / 2, width, height, r * 255, g * 255, b * 255);
+					}
+					
 					f32 middleX = panel->frame.left + (panel->frame.width / 4) * it + panel->frame.width / 8;
 					f32 width = panel->frame.width / 5;
 					f32 middleY = panel->frame.bottom + panel->frame.height / 4;

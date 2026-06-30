@@ -30,6 +30,9 @@ struct vector {
 	dll_import vector operator/(f32 f);
 };
 
+dll_import f32 			 ArcCos(f32 f);
+dll_import f32 			 ArcSine(f32 f);
+dll_import f32 			 ArcTan(f32 f);
 #define 				     Clamp(_value, _min, _max) { if((_value) < (_min)) (_value) = (_min); \
 								     													   else if((_value) > (_max)) (_value) = (_max); }
 dll_import f32 			 Cos(f32 degs);
@@ -47,6 +50,7 @@ dll_import bool 		 Overlap(f32 x0, f32 y0, f32 x1, f32 y1, f32 testDistance); //
 dll_import f32       RoundToNearestInteger(f32 value);
 dll_import f32 			 Sine(f32 degs);
 dll_import f32 			 SquareRoot(f32 f);
+dll_import f32 			 Tan(f32 degs);
 #define              UnpackRectangle(_r) (_r).left, (_r).bottom, (_r).width, (_r).height
 
 #endif

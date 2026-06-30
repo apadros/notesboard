@@ -17,11 +17,13 @@ Functionality
 		- Change the mouse image to the cursor and back
 	- Setting a custom colour for the note background
 		- Colour pane @WIP
-			- Colour circle above @WIP
 			- Ok / cancel buttons
-			- Saving of custom colours to the project file
-			- Saving custom colours between the colour wheel itself and the text pane underneath
+			- Saving of custom colours
+				- Place between the colour wheel itself and the text pane underneath
+				- Make into circles
+				- Save to project file
 			- Possibility to manually set rgb numbers - requires text fields
+			- Currently selected colour is currently displayed as a square, make into circle
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar

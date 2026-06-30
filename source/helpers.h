@@ -90,6 +90,7 @@ const ui8 ColourPanelWidth = 250;
 const ui8 ColourPanelHeight = 250;
 const ui8 ColourWheelSize = 130;
 const f32 ColourWheelVerticalCenterMult = 0.7;
+const ui8 ColourWheelVertices = 36;
 
 program_unique struct {
 	struct {
