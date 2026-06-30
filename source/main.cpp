@@ -763,32 +763,30 @@ GUIAppEntryPoint(instance) {
 			// Draw colour wheel
 			{
 				auto r = GetColourPanelWheelRectangle();
+				glBegin(GL_TRIANGLE_FAN);
 				
-				// @TODO - Currently drawing a triangle
+				// Center
+				glColor3f(0, 0, 0);
+				glVertex2f(GetMiddle(r).x, GetMiddle(r).y);
 				
-				#if 0
-				
-				glBegin(GL_TRIANGLES);
-				glColor3f(1.0f, 0, 0);
-				glVertex2f(r.left + r.width / 2, r.bottom + r.height);
-				glColor3f(0, 1.0f, 0);
-				glVertex2f(r.left, r.bottom);
-				glColor3f(0, 0, 1.0f);
-				glVertex2f(r.left + r.width, r.bottom);
+				ui8 points = 36;
+				FromToInc(0, points) {
+					f32 angle = it * 360 / points;
+					if(angle <= 120)
+						glColor3f(LERP(1.0f, 0, angle / 120), LERP(0, 1.0f, angle / 120), 0);
+					else if(angle <= 240)
+						glColor3f(0, LERP(1.0f, 0, (angle - 120) / 120), LERP(0, 1.0f, (angle - 120) / 120));
+					else
+						glColor3f(LERP(0, 1.0f, (angle - 240) / 120), 0, LERP(1.0f, 0, (angle - 240) / 120));
+					f32 x = GetMiddle(r).x - Sine(angle) * r.width / 2;
+					f32 y = GetMiddle(r).y + Cos(angle) * r.height / 2;
+					glVertex2f(x, y);
+				}
 				glEnd();
-				
-				#else
-				
-				// @WIP - Draw a circle with Sine() and Cos() functions
-				// glBeing(GL_LINE_LOOP);
-				
-				glEnd();
-				
-				#endif
 				
 				AssertOpenGL();
 				
-				DrawBorder(UnpackRectangle(r));
+				// DrawBorder(UnpackRectangle(r));
 			}
 			
 			// Bottom half - sample colour and rgb text boxes
