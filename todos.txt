@@ -23,7 +23,7 @@ Functionality
 				- Make into circles
 				- Save to project file
 			- Possibility to manually set rgb numbers - requires text fields
-			- Currently selected colour is currently displayed as a square, make into circle
+			- Currently selected colour is currently displayed as a square, make into circle @WIP
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar

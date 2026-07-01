@@ -138,7 +138,8 @@ program_external rectangle GetColourPanelWheelRectangle() {
 	auto* panel = GetColourPanel();
 	f32 middleX = panel->frame.left + panel->frame.width / 3;
 	f32 middleY = panel->frame.bottom + panel->frame.height * ColourWheelVerticalCenterMult;
-	return CreateRectangle(middleX - ColourWheelSize / 2, middleY - ColourWheelSize / 2, ColourWheelSize, ColourWheelSize);
+	f32 size = ColourWheelSizeMult * panel->frame.width;
+	return CreateRectangle(middleX - size / 2, middleY - size / 2, size, size);
 }
 
 program_external rectangle GetColourPanelSliderRectangle() {
@@ -146,7 +147,7 @@ program_external rectangle GetColourPanelSliderRectangle() {
 	f32 middleX = panel->frame.left + panel->frame.width * 0.75f;
 	f32 middleY = GetMiddle(GetColourPanelWheelRectangle()).y;
 	f32 width = 25;
-	f32 height = ColourWheelSize;
+	f32 height = ColourWheelSizeMult * panel->frame.width;
 	return CreateRectangle(middleX - width / 2, middleY - height / 2, width, height);
 }
 
@@ -502,7 +503,8 @@ program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32
 			} break;
 			
 			case ('i'):
-			case ('I'): {
+			case ('I'): 
+			case ('1'): {
 				RenderTextLineVert(nextX + height / 2, nextY, height);
 			} break;
 			
@@ -547,7 +549,8 @@ program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32
 			} break;
 
 			case ('o'):
-			case ('O'): {
+			case ('O'): 
+			case ('0'): {
 				RenderTextLineVert(nextX, nextY, height);
 				RenderTextLineVert(nextX + height, nextY, height);
 				RenderTextLineHor(nextX, nextY + height, height);
@@ -652,6 +655,23 @@ program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32
 				RenderTextLineHor(nextX, nextY, height);
 				glVertex2f(nextX, nextY);
 				glVertex2f(nextX + height, nextY + height);
+			} break;
+			
+			case ('3'): {
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineVert(nextX + height, nextY + height / 2, height / 2);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineVert(nextX + height, nextY, height / 2);
+				RenderTextLineHor(nextX, nextY, height);
+			} break;
+			
+			// @WIP
+			case ('4'): {
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineVert(nextX + height, nextY + height / 2, height / 2);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineVert(nextX + height, nextY, height / 2);
+				RenderTextLineHor(nextX, nextY, height);
 			} break;
 			
 			default: break;

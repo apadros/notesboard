@@ -86,11 +86,11 @@ const ui8  TopMenuHeight = 50;
 const ui16 TopMenuButtonWidth = 200; // In viewport space
 const ui8  TopMenuTextHeight = (f32)TopMenuHeight / 2;
 
-const ui8 ColourPanelWidth = 250;
-const ui8 ColourPanelHeight = 250;
-const ui8 ColourWheelSize = 130;
-const f32 ColourWheelVerticalCenterMult = 0.7f;
-const ui8 ColourWheelVertices = 36;
+const ui16 ColourPanelWidth = 400;  // In viewport space
+const ui16 ColourPanelHeight = 400; // In viewport space
+const f32  ColourWheelSizeMult = 0.5f;
+const f32  ColourWheelVerticalCenterMult = 0.7f;
+const ui8  ColourWheelVertices = 36;
 
 program_unique struct {
 	struct {

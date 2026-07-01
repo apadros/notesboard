@@ -244,7 +244,7 @@ GUIAppEntryPoint(instance) {
 				panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
 				panel->frame.width = ColourPanelWidth;
 				panel->frame.height = ColourPanelHeight;
-				panel->frame.bottom = GetTopRight(GetToolBar()->buttons[3].background).y - panel->frame.height;
+				panel->frame.bottom = GetMiddle(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
 				panel->selection = GetMiddle(GetColourPanelWheelRectangle());
 				panel->sliderCenterY = GetTopRight(GetColourPanelWheelRectangle()).y;
 			}
@@ -774,7 +774,6 @@ GUIAppEntryPoint(instance) {
 			glLineWidth(2);
 			DrawRectangleBorder(UnpackRectangle(panel->frame), 0, 0, 0);
 			
-			
 			// Draw colour wheel
 			{
 				auto r = GetColourPanelWheelRectangle();
@@ -801,6 +800,14 @@ GUIAppEntryPoint(instance) {
 				
 				// Draw outer edges
 				DrawCircleBorder(GetMiddle(r).x, GetMiddle(r).y, r.width / 2, 2, 0, 0, 0);
+				
+				// Draw selection
+				{
+					// @TODO - Draw a circle instead of a rectangle
+					f32 size = 10;
+					glLineWidth(1);
+					DrawRectangleBorder(panel->selection.x - size / 2, panel->selection.y - size / 2, size, size, 255, 255, 255);
+				}
 				
 				AssertOpenGL();
 			}
@@ -884,7 +891,7 @@ GUIAppEntryPoint(instance) {
 			{
 				auto* panel = GetColourPanel();
 				
-				// For now just draw 4 boes
+				// For now just draw 1 circle and 3 boxes
 				ForAll(4) {
 					if(it == 0) { // Final colour selection
 						auto rec = GetColourPanelSliderRectangle();
@@ -893,31 +900,34 @@ GUIAppEntryPoint(instance) {
 						f32 g = wheelGreen * sliderScale;
 						f32 b = wheelBlue * sliderScale;
 						
-						// Draw box with final colour @TODO - Replace with circle
+						f32 centerX = panel->frame.left + (panel->frame.width / 4) * it + panel->frame.width / 8;
+						f32 centerY = panel->frame.bottom + panel->frame.height / 4;
+						f32 radius = panel->frame.width / 5 / 2;
+						
+						//  Colour circle
+						glBegin(GL_TRIANGLE_FAN);
+						glColor3f(r, g, b);
+						ui8 vertices = 36;
+						FromToInc(0, vertices + 1) {
+							f32 angle = it * 360 / vertices;
+							f32 x = centerX - Sine(angle) * radius;
+							f32 y = centerY + Cos(angle) * radius;
+							glVertex2f(x, y);
+						}
+						glEnd();
+						
+						// Frame
+						DrawCircleBorder(centerX, centerY, radius, 2, 0, 0, 0);
+					}
+					else {
 						f32 middleX = panel->frame.left + (panel->frame.width / 4) * it + panel->frame.width / 8;
 						f32 width = panel->frame.width / 5;
 						f32 middleY = panel->frame.bottom + panel->frame.height / 4;
 						f32 height = panel->frame.height / 5;
-						DrawRectangle(middleX - width / 2, middleY - height / 2, width, height, r * 255, g * 255, b * 255);
+						glLineWidth(1);
+						DrawRectangleBorder(middleX - width / 2, middleY - height / 2, width, height, 0, 0, 0);
 					}
-					
-					f32 middleX = panel->frame.left + (panel->frame.width / 4) * it + panel->frame.width / 8;
-					f32 width = panel->frame.width / 5;
-					f32 middleY = panel->frame.bottom + panel->frame.height / 4;
-					f32 height = panel->frame.height / 5;
-					glLineWidth(1);
-					DrawRectangleBorder(middleX - width / 2, middleY - height / 2, width, height, 0, 0, 0);
 				}
-				
-				
-			}
-			
-			// Draw selection on colour wheel
-			{
-				// @TODO - Draw a circle instead of a rectangle
-				f32 size = 10;
-				glLineWidth(1);
-				DrawRectangleBorder(panel->selection.x - size / 2, panel->selection.y - size / 2, size, size, 255, 255, 255);
 			}
 		}
 		
