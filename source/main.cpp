@@ -202,7 +202,7 @@ GUIAppEntryPoint(instance) {
 			if(TextIsBeingWritten() == true && TitleIsBeingUpdated() == false)
 				EndWriting();
 			state.notes.selected = Null;
-			BeginWriting(state.titleBar.text, &state.titleBar.background, TitleBarTextHeight, false);
+			BeginWriting(state.titleBar.text, state.titleBar.background, TitleBarTextHeight, false);
 			goto label_rendering;
 		}
 		
@@ -247,6 +247,14 @@ GUIAppEntryPoint(instance) {
 				panel->frame.bottom = GetMiddle(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
 				panel->selection = GetMiddle(GetColourPanelWheelRectangle());
 				panel->sliderCenterY = GetTopRight(GetColourPanelWheelRectangle()).y;
+				panel->red = AllocateTextBody(false);
+				panel->green = AllocateTextBody(false);
+				panel->blue = AllocateTextBody(false);
+			}
+			else {
+				FreeTextBody(panel->red);
+				FreeTextBody(panel->green);
+				FreeTextBody(panel->blue);
 			}
 			goto label_rendering;
 		}
@@ -262,6 +270,9 @@ GUIAppEntryPoint(instance) {
 			else if(MouseOverlapsGUI(GetColourPanelSliderRectangle()) == true) { // Colour slider
 				panel->updatingSlider = true;
 				panel->sliderCenterY = state.mouse.pos.y;
+			}
+			else {
+				
 			}
 			
 			goto label_rendering;
@@ -311,7 +322,7 @@ GUIAppEntryPoint(instance) {
 				auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos);
 				auto renderData = GetNoteTextRenderData(state.notes.selected);
 				if(MouseOverlapsCanvas(renderData.titleContainer) == true) { // Update title
-					BeginWriting(state.notes.selected->title, &state.notes.selected->background, NoteTitleTextHeight, false);
+					BeginWriting(state.notes.selected->title, state.notes.selected->background, NoteTitleTextHeight, false);
 					
 					// Position mouse cursor more precisely
 					f32 offset = (mousePosCanvas.x - renderData.title.left) / (NoteTitleTextHeight * 1.5f); // @TODO - This takes into consideration a small space of length NoteTitleTextHeight * 0.5f at the end of the text
@@ -322,7 +333,7 @@ GUIAppEntryPoint(instance) {
 				else if(MouseOverlapsCanvas(renderData.textContainer) == true) { // Update text
 					auto* n = state.notes.selected;
 					
-					BeginWriting(n->text, &n->background, NoteTextHeight, true);
+					BeginWriting(n->text, n->background, NoteTextHeight, true);
 					
 					// Loop through the text and check each glyphs's position agains mouse pos to correctly set the cursor
 					auto* text = GetTextStart(n->text);
@@ -467,7 +478,7 @@ GUIAppEntryPoint(instance) {
 					auto previousCursorOffset = tu->cursorOffset;
 					
 					EndWriting();
-					BeginWriting(n->text, &n->background, NoteTextHeight, true);
+					BeginWriting(n->text, n->background, NoteTextHeight, true);
 					
 					auto renderData = GetNoteTextRenderData(n);
 					Assert(previousCursorOffset <= GetTextLength(n->title));
@@ -500,7 +511,7 @@ GUIAppEntryPoint(instance) {
 					auto previousCursorOffset = tu->cursorOffset;
 					
 					EndWriting();
-					BeginWriting(n->title, &n->background, NoteTitleTextHeight, false);
+					BeginWriting(n->title, n->background, NoteTitleTextHeight, false);
 					
 					auto renderData = GetNoteTextRenderData(n);
 					Assert(previousCursorOffset <= GetTextLength(n->text));
@@ -919,7 +930,7 @@ GUIAppEntryPoint(instance) {
 						// Frame
 						DrawCircleBorder(centerX, centerY, radius, 2, 0, 0, 0);
 					}
-					else {
+					else { // RGB text boxes
 						f32 middleX = panel->frame.left + (panel->frame.width / 4) * it + panel->frame.width / 8;
 						f32 width = panel->frame.width / 5;
 						f32 middleY = panel->frame.bottom + panel->frame.height / 4;

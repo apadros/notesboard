@@ -52,9 +52,9 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 	Assert(n != Null);
 	n->background.height = NoteTextHeight * 3;
 	n->background.width = NoteMinWidth;
-	n->background.left = pos.x;
+	n->background.left = ;
 	n->background.bottom = pos.y;			
-	n->text = AllocateTextBody(true);
+	n->text = AllocateTextBody(true, pos.x, pos.y, NoteMinWidth, NoteTextHeight * 3);
 	if(text != Null)
 		InsertText((char*)text, GetStringLength(text), n->text, 0);
 	if(title != Null) {
@@ -65,17 +65,21 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 	return n;
 }
 
-program_external text_body AllocateTextBody(bool allowSpecialChars) {
+program_external rectangle& GetTextBodyBackground(text_body& tb) {
+	return tb.background;
+}
+
+program_external text_body AllocateTextBody(bool allowSpecialChars, f32 left, f32 bottom, f32 width, f32 height) {
 	text_body ret = {};
 	ret.memory = AllocateStack();
 	ret.specialCharsAllowed = allowSpecialChars;
+	ret.background = CreateRectangle(left, bottom, width, height);
 	return ret;
 }
 
-program_external void BeginWriting(text_body& text, rectangle* containerBackground, f32 textHeight, bool leftAligned) {
-	Assert(containerBackground != Null);
+program_external void BeginWriting(text_body& text, rectangle& containerBackground, f32 textHeight, bool leftAligned) {
 	state.textUpdate.textBody = &text;
-	state.textUpdate.containerBackground = containerBackground;
+	state.textUpdate.containerBackground = &containerBackground;
 	state.textUpdate.cursorOffset = text.memory.size;
 	state.textUpdate.textHeight = textHeight;
 	state.textUpdate.leftAligned = leftAligned;
@@ -220,7 +224,7 @@ program_external bool MouseOverlapsCanvas(rectangle& r) {
 }
 
 program_external bool TitleIsBeingUpdated() {
-	return TextIsBeingWritten() == true && state.textUpdate.containerBackground == &state.titleBar.background;
+	return TextIsBeingWritten() == true && state.textUpdate.textBody->memory.memory == &state.titleBar.text.memory.memory;
 }
 
 program_external void MoveCursor(si8 offset) {
@@ -285,7 +289,7 @@ program_external void RemoveChar(text_body& tb, ui32 pos) {
 }
 
 program_external bool NoteIsBeingUpdated() {
-	return TextIsBeingWritten() == true && state.notes.selected != Null && state.textUpdate.containerBackground == &state.notes.selected->background;
+	return TextIsBeingWritten() == true && state.notes.selected != Null && state.textUpdate.textBody->memory.memory == &state.notes.selected->text.memory.memory;
 }
 
 program_external void EndWriting() {
@@ -446,7 +450,8 @@ program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32
 			} break;
 			
 			case('b'):
-			case('B'): {
+			case('B'): 
+			case('8'): {
 				RenderTextLineVert(nextX, nextY, height);
 				RenderTextLineVert(nextX + height, nextY, height);
 				
@@ -590,7 +595,8 @@ program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32
 			} break;
 			
 			case ('s'):
-			case ('S'): {
+			case ('S'):
+			case ('5'): {
 				RenderTextLineHor(nextX, nextY + height, height);
 				RenderTextLineHor(nextX, nextY + height / 2, height);
 				RenderTextLineHor(nextX, nextY, height);
@@ -657,6 +663,15 @@ program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32
 				glVertex2f(nextX + height, nextY + height);
 			} break;
 			
+			case ('2'): {
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineVert(nextX + height, nextY + height / 2, height / 2);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineVert(nextX, nextY, height / 2);
+				RenderTextLineHor(nextX, nextY, height);
+				
+			} break;
+			
 			case ('3'): {
 				RenderTextLineHor(nextX, nextY + height, height);
 				RenderTextLineVert(nextX + height, nextY + height / 2, height / 2);
@@ -665,12 +680,31 @@ program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32
 				RenderTextLineHor(nextX, nextY, height);
 			} break;
 			
-			// @WIP
 			case ('4'): {
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineVert(nextX + height, nextY + height / 2, height / 2);
 				RenderTextLineHor(nextX, nextY + height / 2, height);
+				RenderTextLineVert(nextX + height, nextY, height);
+				glVertex2f(nextX, nextY + height / 2);
+				glVertex2f(nextX + height, nextY + height);
+			} break;
+			
+			case ('6'): {
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineVert(nextX, nextY, height);
+				RenderTextLineHor(nextX, nextY, height);
 				RenderTextLineVert(nextX + height, nextY, height / 2);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
+			} break;
+			
+			case ('7'): {
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineVert(nextX + height, nextY, height);
+			} break;
+			
+			case ('9'): {
+				RenderTextLineVert(nextX, nextY + height / 2, height / 2);
+				RenderTextLineVert(nextX + height, nextY, height);
+				RenderTextLineHor(nextX, nextY + height, height);
+				RenderTextLineHor(nextX, nextY + height / 2, height);
 				RenderTextLineHor(nextX, nextY, height);
 			} break;
 			

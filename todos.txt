@@ -22,14 +22,18 @@ Functionality
 				- Place between the colour wheel itself and the text pane underneath
 				- Make into circles
 				- Save to project file
-			- Possibility to manually set rgb numbers - requires text fields
-			- Currently selected colour is currently displayed as a square, make into circle @WIP
+			- Possibility to manually set rgb numbers - requires text bodies within the colour panel
+				- Add rectangles as intrinsic parts of text bodies - clicking them is part of the text update code, need a rectangle anyway @WIP
+				- Will also need to add flags for allowable content - tabs, bullet points, numbers, lower case, upper case etc - can use a ui8 with bitwise operations
+					- Text update pipeline can just check when deciding to add text
+				- Also add text height - want to have differnt text bodies with different font sizes and different fonts in the future
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar
 		- Bug where option continues to be highlighted when moving the mouse to the window title
 			- Mouse pos isn't updated when moving beyond the client area, so same value continues to be used in overlap checks
 		- Back button - go back to previous board
+	- Updating the GUI layout with changes to the client window (gl viewport)
 	
 Vertical toolbar
 	- Usage of images for buttons
