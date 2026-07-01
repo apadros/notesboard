@@ -89,7 +89,7 @@ const ui8  TopMenuTextHeight = (f32)TopMenuHeight / 2;
 const ui8 ColourPanelWidth = 250;
 const ui8 ColourPanelHeight = 250;
 const ui8 ColourWheelSize = 130;
-const f32 ColourWheelVerticalCenterMult = 0.7;
+const f32 ColourWheelVerticalCenterMult = 0.7f;
 const ui8 ColourWheelVertices = 36;
 
 program_unique struct {
@@ -138,6 +138,8 @@ program_unique struct {
 		rectangle frame;
 		vector    selection;
 		bool      updatingSelection;
+		f32       sliderCenterY;
+		bool      updatingSlider;
 	} 					colourPanel;
 
 	struct {
@@ -172,6 +174,7 @@ f32 		UI8ColourToF32(ui8 u);
 // Colour panel
 #define 	GetColourPanel() \
 						(&state.colourPanel)
+rectangle GetColourPanelSliderRectangle();
 rectangle GetColourPanelWheelRectangle();
 
 // Space and projection matrix stuff
@@ -183,7 +186,8 @@ void 		SetCanvasProjetionMatrix();
 
 
 // Rendering
-void 			DrawBorder(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
+void 			DrawRectangleBorder(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
+void 			DrawCircleBorder(f32 centerX, f32 centerY, f32 radius, ui8 lineWidth, ui8 r, ui8 g, ui8 b);
 void 			DrawRectangle(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
 rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32 height, bool center);
 

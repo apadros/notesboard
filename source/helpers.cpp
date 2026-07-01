@@ -100,7 +100,7 @@ program_external bool NoteHasTitle(note* n) {
 	return TextBodyIsValid(n->title);
 }
 
-program_external void DrawBorder(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b) {
+program_external void DrawRectangleBorder(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b) {
 	glLineWidth(2);
 	glBegin(GL_LINES);
 	glColor3f(UI8ColourToF32(r), UI8ColourToF32(g), UI8ColourToF32(b));
@@ -120,11 +120,34 @@ program_external void DrawBorder(f32 left, f32 bottom, f32 width, f32 height, ui
 	AssertOpenGL();	
 }
 
+program_external void DrawCircleBorder(f32 centerX, f32 centerY, f32 radius, ui8 lineWidth, ui8 r, ui8 g, ui8 b) {
+	glLineWidth(lineWidth);
+	glBegin(GL_LINE_LOOP);
+	glColor3f(UI8ColourToF32(r), UI8ColourToF32(g), UI8ColourToF32(b));
+	ui8 vertices = 72;
+	FromToInc(0, vertices + 1) {
+		f32 angle = it * 360 / vertices;
+		f32 x = centerX - Sine(angle) * radius;
+		f32 y = centerY + Cos(angle) * radius;
+		glVertex2f(x, y);
+	}
+	glEnd();	
+}
+
 program_external rectangle GetColourPanelWheelRectangle() {
 	auto* panel = GetColourPanel();
-	f32 middleX = GetMiddle(panel->frame).x;
+	f32 middleX = panel->frame.left + panel->frame.width / 3;
 	f32 middleY = panel->frame.bottom + panel->frame.height * ColourWheelVerticalCenterMult;
 	return CreateRectangle(middleX - ColourWheelSize / 2, middleY - ColourWheelSize / 2, ColourWheelSize, ColourWheelSize);
+}
+
+program_external rectangle GetColourPanelSliderRectangle() {
+	auto* panel = GetColourPanel();
+	f32 middleX = panel->frame.left + panel->frame.width * 0.75f;
+	f32 middleY = GetMiddle(GetColourPanelWheelRectangle()).y;
+	f32 width = 25;
+	f32 height = ColourWheelSize;
+	return CreateRectangle(middleX - width / 2, middleY - height / 2, width, height);
 }
 
 program_external note_text_render_data GetNoteTextRenderData(note* n) {

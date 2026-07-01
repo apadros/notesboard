@@ -246,6 +246,7 @@ GUIAppEntryPoint(instance) {
 				panel->frame.height = ColourPanelHeight;
 				panel->frame.bottom = GetTopRight(GetToolBar()->buttons[3].background).y - panel->frame.height;
 				panel->selection = GetMiddle(GetColourPanelWheelRectangle());
+				panel->sliderCenterY = GetTopRight(GetColourPanelWheelRectangle()).y;
 			}
 			goto label_rendering;
 		}
@@ -254,9 +255,13 @@ GUIAppEntryPoint(instance) {
 		if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(GetColourPanel()->frame) == true) {
 			auto* panel = GetColourPanel();
 			auto wheel = GetColourPanelWheelRectangle();
-			if(Overlap(GetMiddle(wheel).x, GetMiddle(wheel).y, state.mouse.pos.x, state.mouse.pos.y, wheel.width / 2) == true) {
+			if(Overlap(GetMiddle(wheel).x, GetMiddle(wheel).y, state.mouse.pos.x, state.mouse.pos.y, wheel.width / 2) == true) { // Colour wheel
 				panel->updatingSelection = true;
 				panel->selection = state.mouse.pos;
+			}
+			else if(MouseOverlapsGUI(GetColourPanelSliderRectangle()) == true) { // Colour slider
+				panel->updatingSlider = true;
+				panel->sliderCenterY = state.mouse.pos.y;
 			}
 			
 			goto label_rendering;
@@ -272,7 +277,17 @@ GUIAppEntryPoint(instance) {
 					panel->selection += state.mouse.translation;
 			}
 		}
-		
+		else if(GetColourPanel()->updatingSlider == true) { // Update slider position
+			auto* panel = GetColourPanel();
+			if(osState.mouseLeftClickUp == true)
+				panel->updatingSlider = false;
+			else {
+				auto newPos = panel->selection + state.mouse.translation;
+				auto rec = GetColourPanelSliderRectangle();
+				if(MouseOverlapsGUI(GetColourPanelSliderRectangle()) == true) // Check if new position lies within the wheel
+					panel->sliderCenterY += state.mouse.translation.y;
+			}
+		}
 
 		// Notes
 		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardles of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
@@ -618,7 +633,7 @@ GUIAppEntryPoint(instance) {
 
 		// Draw border on a selected note
 		if(state.notes.selected != Null && state.notes.justCreated == false)
-			DrawBorder(UnpackRectangle(state.notes.selected->background), 0, 0, 0);
+			DrawRectangleBorder(UnpackRectangle(state.notes.selected->background), 0, 0, 0);
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
@@ -695,7 +710,7 @@ GUIAppEntryPoint(instance) {
 		if(state.notes.selected != Null && state.notes.justCreated == true) {
 			SetCanvasProjetionMatrix();
 			DrawRectangle(UnpackRectangle(state.notes.selected->background), 255, 255, 255);
-			DrawBorder(UnpackRectangle(state.notes.selected->background), 0, 0, 0);
+			DrawRectangleBorder(UnpackRectangle(state.notes.selected->background), 0, 0, 0);
 		}
 		
 		// Draw cursor if needed
@@ -757,7 +772,7 @@ GUIAppEntryPoint(instance) {
 			SetGUIProjectionMatrix();
 			DrawRectangle(UnpackRectangle(panel->frame), 255, 255, 255); // Draw the frame
 			glLineWidth(2);
-			DrawBorder(UnpackRectangle(panel->frame), 0, 0, 0);
+			DrawRectangleBorder(UnpackRectangle(panel->frame), 0, 0, 0);
 			
 			
 			// Draw colour wheel
@@ -766,9 +781,10 @@ GUIAppEntryPoint(instance) {
 				glBegin(GL_TRIANGLE_FAN);
 				
 				// Center
-				glColor3f(0, 0, 0);
+				glColor3f(1.0f, 1.0f, 1.0f);
 				glVertex2f(GetMiddle(r).x, GetMiddle(r).y);
 				
+				// Draw the wheel itself
 				FromToInc(0, ColourWheelVertices + 1) {
 					f32 angle = it * 360 / ColourWheelVertices;
 					if(angle <= 120)
@@ -783,75 +799,105 @@ GUIAppEntryPoint(instance) {
 				}
 				glEnd();
 				
+				// Draw outer edges
+				DrawCircleBorder(GetMiddle(r).x, GetMiddle(r).y, r.width / 2, 2, 0, 0, 0);
+				
 				AssertOpenGL();
+			}
+			
+			// Get the current wheel colour selection
+			f32 wheelRed = 0;
+			f32 wheelGreen = 0;
+			f32 wheelBlue = 0;
+			{
+				auto wheelRec = GetColourPanelWheelRectangle();
+				auto vector = panel->selection - GetMiddle(wheelRec);
+				
+				// Scale magnitude
+				f32 magnitude01 = Magnitude(vector) / (wheelRec.width / 2); // 0 -> 1 between circle center and outer edges
+				
+				// Angle of current selection
+				f32 angle = 0; // About the horizontal axis
+				if(vector.x == 0) 
+					angle = vector.y > 0 ? 90 : 270;
+				else if(vector.y == 0)
+					angle = vector.x > 0 ? 0 : 180;
+				else {
+					f32 a = Magnitude(vector.x);
+					f32 o = Magnitude(vector.y);
+					angle = ArcTan(o / a);
+					if(vector.x < 0 && vector.y > 0)
+						angle = 180 - angle;
+					else if(vector.x < 0 && vector.y < 0)
+						angle += 180;
+					else if(vector.x > 0 && vector.y < 0)
+						angle = 360 - angle;
+				}
+				
+				// Adjust angle to start from the vertical axis (red)
+				angle -= 90;
+				if(angle < 0)
+					angle += 360;
+				
+				// Work out the max colour based on the angle
+				f32 rmax = 0;
+				f32 gmax = 0;
+				f32 bmax = 0;
+				if(angle <= 120) {
+					rmax = LERP(1.0f, 0, angle / 120);
+					gmax = LERP(0, 1.0f, angle / 120);
+				}
+				else if(angle <= 240) {
+					gmax = LERP(1.0f, 0, (angle - 120) / 120);
+					bmax = LERP(0, 1.0f, (angle - 120) / 120);
+				}
+				else {
+					rmax = LERP(0, 1.0f, (angle - 240) / 120);
+					bmax = LERP(1.0f, 0, (angle - 240) / 120);
+				}
+				
+				// Final colour
+				wheelRed = LERP(1.0f, rmax, magnitude01);
+				wheelGreen = LERP(1.0f, gmax, magnitude01);
+				wheelBlue = LERP(1.0f, bmax, magnitude01);
+			}
+			
+			// Draw colour slider to the right of the wheel
+			{
+				auto rec = GetColourPanelSliderRectangle();
+				glBegin(GL_QUADS);
+				glColor3f(0, 0, 0);
+				glVertex2f(rec.left, rec.bottom);
+				glVertex2f(rec.left + rec.width, rec.bottom);
+				glColor3f(wheelRed, wheelGreen, wheelBlue);
+				glVertex2f(rec.left + rec.width, rec.bottom + rec.height);
+				glVertex2f(rec.left, rec.bottom + rec.height);
+				glEnd();
+				glLineWidth(1);
+				DrawRectangleBorder(rec.left, rec.bottom, rec.width, rec.height, 0, 0, 0);
+				
+				// Draw selection
+				DrawRectangleBorder(rec.left - 3, panel->sliderCenterY - 5, rec.width + 6, 10, 0, 0, 0);
 			}
 			
 			// Bottom half - sample colour and rgb text boxes
 			{
+				auto* panel = GetColourPanel();
+				
 				// For now just draw 4 boes
 				ForAll(4) {
-					if(it == 0) { // Colour selection
-						// Center
-						// glColor3f(0, 0, 0);
-						// glVertex2f(GetMiddle(r).x, GetMiddle(r).y);
+					if(it == 0) { // Final colour selection
+						auto rec = GetColourPanelSliderRectangle();
+						f32 sliderScale = (panel->sliderCenterY - rec.bottom) / rec.height;
+						f32 r = wheelRed * sliderScale;
+						f32 g = wheelGreen * sliderScale;
+						f32 b = wheelBlue * sliderScale;
 						
-						auto wheelRec = GetColourPanelWheelRectangle();
-						auto vector = panel->selection - GetMiddle(wheelRec);
-						
-						// Scale magnitude
-						f32 magnitude01 = Magnitude(vector) / (wheelRec.width / 2); // 0 -> 1 between circle center and outer edges
-						
-						// Angle of current selection
-						f32 angle = 0; // About the horizontal axis
-						if(vector.x == 0) 
-							angle = vector.y > 0 ? 90 : 270;
-						else if(vector.y == 0)
-							angle = vector.x > 0 ? 0 : 180;
-						else {
-							f32 a = Magnitude(vector.x);
-							f32 o = Magnitude(vector.y);
-							angle = ArcTan(o / a);
-							if(vector.x < 0 && vector.y > 0)
-								angle = 180 - angle;
-							else if(vector.x < 0 && vector.y < 0)
-								angle += 180;
-							else if(vector.x > 0 && vector.y < 0)
-								angle = 360 - angle;
-						}
-						
-						// Adjust angle to start from the vertical axis (red)
-						angle -= 90;
-						if(angle < 0)
-							angle += 360;
-						
-						// Work out the max colour based on the angle
-						f32 rmax = 0;
-						f32 gmax = 0;
-						f32 bmax = 0;
-						if(angle <= 120) {
-							rmax = LERP(1.0f, 0, angle / 120);
-							gmax = LERP(0, 1.0f, angle / 120);
-						}
-						else if(angle <= 240) {
-							gmax = LERP(1.0f, 0, (angle - 120) / 120);
-							bmax = LERP(0, 1.0f, (angle - 120) / 120);
-						}
-						else {
-							rmax = LERP(0, 1.0f, (angle - 240) / 120);
-							bmax = LERP(1.0f, 0, (angle - 240) / 120);
-						}
-						
-						// Final colour
-						f32 r = LERP(0, rmax, magnitude01);
-						f32 g = LERP(0, gmax, magnitude01);
-						f32 b = LERP(0, bmax, magnitude01);
-						
+						// Draw box with final colour @TODO - Replace with circle
 						f32 middleX = panel->frame.left + (panel->frame.width / 4) * it + panel->frame.width / 8;
 						f32 width = panel->frame.width / 5;
 						f32 middleY = panel->frame.bottom + panel->frame.height / 4;
 						f32 height = panel->frame.height / 5;
-						
-						// Draw rectangle of the chosen colour
 						DrawRectangle(middleX - width / 2, middleY - height / 2, width, height, r * 255, g * 255, b * 255);
 					}
 					
@@ -860,8 +906,10 @@ GUIAppEntryPoint(instance) {
 					f32 middleY = panel->frame.bottom + panel->frame.height / 4;
 					f32 height = panel->frame.height / 5;
 					glLineWidth(1);
-					DrawBorder(middleX - width / 2, middleY - height / 2, width, height, 0, 0, 0);
+					DrawRectangleBorder(middleX - width / 2, middleY - height / 2, width, height, 0, 0, 0);
 				}
+				
+				
 			}
 			
 			// Draw selection on colour wheel
@@ -869,7 +917,7 @@ GUIAppEntryPoint(instance) {
 				// @TODO - Draw a circle instead of a rectangle
 				f32 size = 10;
 				glLineWidth(1);
-				DrawBorder(panel->selection.x - size / 2, panel->selection.y - size / 2, size, size, 255, 255, 255);
+				DrawRectangleBorder(panel->selection.x - size / 2, panel->selection.y - size / 2, size, size, 255, 255, 255);
 			}
 		}
 		
