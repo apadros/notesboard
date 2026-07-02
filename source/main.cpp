@@ -37,7 +37,7 @@ GUIAppEntryPoint(instance) {
 		tb->background.height = TitleBarHeight;
 		tb->background.bottom = state.topMenu.background.bottom - tb->background.height;
 		tb->text = AllocateTextBody(false);
-		InsertText("Title", GetStringLength("Title"), tb->text, 0);
+		InsertString("Title", GetStringLength("Title"), tb->text, 0);
 	}
 
 	// Init toolbar
@@ -166,7 +166,7 @@ GUIAppEntryPoint(instance) {
 								MovePtr(data, GetStringLength(boardTitle) + 1);
 								if(boardTitle[0] != '\0') {
 									ClearTextBody(state.titleBar.text);
-									InsertText(boardTitle, GetStringLength(boardTitle), state.titleBar.text, 0);
+									InsertString(boardTitle, GetStringLength(boardTitle), state.titleBar.text, 0);
 								}
 								
 								ClearMemory(state.notes.memory.memory, state.notes.memory.size);
@@ -220,9 +220,9 @@ GUIAppEntryPoint(instance) {
 			Assert(state.textUpdate.textBody != Null);
 			char* text = GetTextStart(*state.textUpdate.textBody);
 			auto  length = GetStringLength(text);
-			Assert(state.textUpdate.cursorOffset <= length);
-			if(state.textUpdate.cursorOffset == 0 || state.textUpdate.cursorOffset >= 1 && text[state.textUpdate.cursorOffset - 1] != '\b') // If the char at the cursor position is not a bullet point
-				AddText('\b');
+			Assert(state.textUpdate.cursorCharOffset <= length);
+			if(state.textUpdate.cursorCharOffset == 0 || state.textUpdate.cursorCharOffset >= 1 && text[state.textUpdate.cursorCharOffset - 1] != '\b') // If the char at the cursor position is not a bullet point
+				InsertTextAtCursor('\b');
 				
 			goto label_rendering;
 		}
@@ -230,7 +230,7 @@ GUIAppEntryPoint(instance) {
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
 				n->title = AllocateTextBody(false);
-				InsertText("Title", GetStringLength("Title"), n->title, 0);
+				InsertString("Title", GetStringLength("Title"), n->title, 0);
 				n->background.bottom -= NoteTextBorder * 2 + NoteTitleTextHeight;
 				n->background.height += NoteTextBorder * 2 + NoteTitleTextHeight;
 			}
@@ -328,7 +328,7 @@ GUIAppEntryPoint(instance) {
 					f32 offset = (mousePosCanvas.x - renderData.title.left) / (NoteTitleTextHeight * 1.5f); // @TODO - This takes into consideration a small space of length NoteTitleTextHeight * 0.5f at the end of the text
 					offset = RoundToNearestInteger(offset);
 					Clamp(offset, 0, GetTextLength(state.notes.selected->title));
-					state.textUpdate.cursorOffset = offset;
+					state.textUpdate.cursorCharOffset = offset;
 				}
 				else if(MouseOverlapsCanvas(renderData.textContainer) == true) { // Update text
 					auto* n = state.notes.selected;
@@ -353,9 +353,9 @@ GUIAppEntryPoint(instance) {
 								
 							ui16 width = GetTextRenderDimensions(text + it, (ui32)(end - (text + it)), NoteTextHeight).x;
 							if(mousePosCanvas.x <= x + width) // If mouse is within a line
-								state.textUpdate.cursorOffset = it + (mousePosCanvas.x - renderData.text.left) / (NoteTextHeight * 1.5f);
+								state.textUpdate.cursorCharOffset = it + (mousePosCanvas.x - renderData.text.left) / (NoteTextHeight * 1.5f);
 							else
-								state.textUpdate.cursorOffset = end - text; // Place cursor at the end of the line
+								state.textUpdate.cursorCharOffset = end - text; // Place cursor at the end of the line
 							break;
 						}
 						else
@@ -422,20 +422,20 @@ GUIAppEntryPoint(instance) {
 		if(TextIsBeingWritten() == true) {
 			auto* tu = &state.textUpdate;
 			
-			if(osState.keyPressed != Null) // Push text
-				AddText(osState.keyPressed);
+			if(osState.keyPressed != Null) // Insert text
+				InsertTextAtCursor(osState.keyPressed);
 			else if(osState.backspacePressed == true){
-				bool del = tu->cursorOffset > 0; // If the cursor was already at 0, moving down would incorrectly deleted the very first letter
+				bool del = tu->cursorCharOffset > 0; // If the cursor was already at 0, moving down would incorrectly deleted the very first letter
 				MoveCursor(-1);
 				if(del == true)
-					RemoveChar(*tu->textBody, tu->cursorOffset);
+					RemoveChar(*tu->textBody, tu->cursorCharOffset);
 			}
 			else if(osState.enterPressed == true) { // Jump to next line if allowed, otherwise end writing
 				if(tu->textBody->specialCharsAllowed == true) {
 					// Scan back to see if the current line contains a bullet point
 					bool  bulletPoint = false;
 					char* text = GetTextStart(*tu->textBody);
-					FromTo(tu->cursorOffset, 0) {
+					FromTo(tu->cursorCharOffset, 0) {
 						char c = text[it];
 						if(c == '\b') {
 							bulletPoint = true;
@@ -445,16 +445,16 @@ GUIAppEntryPoint(instance) {
 							break;
 					}
 				
-					AddText('\n');
+					InsertTextAtCursor('\n');
 				
 					if(bulletPoint == true)
-						AddText('\b');
+						InsertTextAtCursor('\b');
 				}
 				else
 					EndWriting();
 			}
-			else if(tu->cursorOffset >= 1 && GetTextStart(*tu->textBody)[tu->cursorOffset - 1] == '\b' && osState.tabPressed == true) // Remove bullet point if tab is pressed after it
-				GetTextStart(*tu->textBody)[tu->cursorOffset - 1] = ' ';
+			else if(tu->cursorCharOffset >= 1 && GetTextStart(*tu->textBody)[tu->cursorCharOffset - 1] == '\b' && osState.tabPressed == true) // Remove bullet point if tab is pressed after it
+				GetTextStart(*tu->textBody)[tu->cursorCharOffset - 1] = ' ';
 			else if(osState.escapePressed == true) { // Esc hit, end writing
 				if(NoteIsBeingUpdated() == true)
 					state.notes.selected = Null;
@@ -467,38 +467,38 @@ GUIAppEntryPoint(instance) {
 				if(Overlap(mousePos.x, mousePos.y, UnpackRectangle(*tu->containerBackground)) == false)
 					EndWriting();
 			}
-			else if(osState.leftPressed == true && tu->cursorOffset >= 1)
+			else if(osState.leftPressed == true && tu->cursorCharOffset >= 1)
 				MoveCursor(-1);
-			else if(osState.rightPressed == true && tu->cursorOffset < GetTextLength(*tu->textBody))
+			else if(osState.rightPressed == true && tu->cursorCharOffset < GetTextLength(*tu->textBody))
 				MoveCursor(1);
 			else if(osState.downPressed == true && NoteIsBeingUpdated() == true) {
 				auto* n = GetCurrentNote();
 				
 				if(NoteHasTitle(n) == true && tu->textBody == &n->title) { // If we're updating a title, go to text section
-					auto previousCursorOffset = tu->cursorOffset;
+					auto previouscursorCharOffset = tu->cursorCharOffset;
 					
 					EndWriting();
 					BeginWriting(n->text, n->background, NoteTextHeight, true);
 					
 					auto renderData = GetNoteTextRenderData(n);
-					Assert(previousCursorOffset <= GetTextLength(n->title));
-					f32 cursorX = renderData.title.left + GetTextRenderDimensions(GetTextStart(n->title), previousCursorOffset, NoteTitleTextHeight).x + NoteTitleTextHeight * 0.25f;
+					Assert(previouscursorCharOffset <= GetTextLength(n->title));
+					f32 cursorX = renderData.title.left + GetTextRenderDimensions(GetTextStart(n->title), previouscursorCharOffset, NoteTitleTextHeight).x + NoteTitleTextHeight * 0.25f;
 					f32 cursorIndex = (cursorX - renderData.text.left) / (NoteTextHeight * 1.5f);
 					cursorIndex = RoundToNearestInteger(cursorIndex); // @TODO - Export to APAD API?
 					Assert(cursorIndex > 0);
 					
-					tu->cursorOffset = GetMin(cursorIndex, GetTextLength(n->text));
+					tu->cursorCharOffset = GetMin(cursorIndex, GetTextLength(n->text));
 				}
 				else { // Move down one line within note text
 					// Need to scan behind and in front of the cursor to determine the bounds of the current line
-					char* end = FindChar('\n', tu->cursorOffset, true);
+					char* end = FindChar('\n', tu->cursorCharOffset, true);
 					if(end != Null) {
-						ui32  lineStartOffset = tu->cursorOffset;
-						char* start = FindChar('\n', tu->cursorOffset, false);
+						ui32  lineStartOffset = tu->cursorCharOffset;
+						char* start = FindChar('\n', tu->cursorCharOffset, false);
 						if(start != Null)
 							lineStartOffset -= (ui8*)start + 1 - (ui8*)GetTextStart(*tu->textBody);
 						
-						ui32 delta = (ui32)((ui8*)end + 1 - tu->cursorOffset + lineStartOffset);
+						ui32 delta = (ui32)((ui8*)end + 1 - tu->cursorCharOffset + lineStartOffset);
 						MoveCursor(delta);
 					}
 				}
@@ -506,16 +506,16 @@ GUIAppEntryPoint(instance) {
 			else if(osState.upPressed == true && NoteIsBeingUpdated() == true) {
 				auto* n = GetCurrentNote();
 				
-				char* start = FindChar('\n', tu->cursorOffset, false);
+				char* start = FindChar('\n', tu->cursorCharOffset, false);
 				if(start == Null && NoteHasTitle(n) == true && tu->textBody == &n->text) { // If we're updating the first line of text and note has a title, move to the latter
-					auto previousCursorOffset = tu->cursorOffset;
+					auto previouscursorCharOffset = tu->cursorCharOffset;
 					
 					EndWriting();
 					BeginWriting(n->title, n->background, NoteTitleTextHeight, false);
 					
 					auto renderData = GetNoteTextRenderData(n);
-					Assert(previousCursorOffset <= GetTextLength(n->text));
-					f32 cursorX = renderData.text.left + GetTextRenderDimensions(GetTextStart(n->text), previousCursorOffset, NoteTextHeight).x + NoteTextHeight * 0.25f;
+					Assert(previouscursorCharOffset <= GetTextLength(n->text));
+					f32 cursorX = renderData.text.left + GetTextRenderDimensions(GetTextStart(n->text), previouscursorCharOffset, NoteTextHeight).x + NoteTextHeight * 0.25f;
 					f32 cursorIndex = 0;
 					if(cursorX > renderData.title.left && cursorX < renderData.title.left + renderData.title.width) {
 						cursorIndex = (cursorX - renderData.title.left) / (NoteTitleTextHeight * 1.5f);
@@ -525,7 +525,7 @@ GUIAppEntryPoint(instance) {
 						cursorIndex = GetTextLength(n->title);
 					Assert(cursorIndex >= 0);
 					
-					tu->cursorOffset = GetMin(cursorIndex, GetTextLength(n->title));
+					tu->cursorCharOffset = GetMin(cursorIndex, GetTextLength(n->title));
 				}
 				else if(start != Null) { // Move up one line within note text
 					// Need to scan behind and in front of the cursor to determine the bounds of the current line
@@ -533,19 +533,19 @@ GUIAppEntryPoint(instance) {
 						bool  previousLineIsLonger = false;
 						char* previousLineStart = FindChar('\n', GetCharOffset(start), false);
 						if(previousLineStart == Null) // The line above is the very first one
-							previousLineIsLonger = GetCharOffset(start) > tu->cursorOffset - GetCharOffset(start + 1); 
+							previousLineIsLonger = GetCharOffset(start) > tu->cursorCharOffset - GetCharOffset(start + 1); 
 						else { // The line above is at least the second in the paragraph
 							auto lineLength = GetCharOffset(start) - GetCharOffset(previousLineStart + 1);
-							previousLineIsLonger = lineLength > tu->cursorOffset - GetCharOffset(start + 1);
+							previousLineIsLonger = lineLength > tu->cursorCharOffset - GetCharOffset(start + 1);
 						}
 						
 						if(previousLineIsLonger == true) { // Just move cursor up
-							ui16 cursorOffset = tu->cursorOffset - GetCharOffset(start + 1);
+							ui16 cursorCharOffset = tu->cursorCharOffset - GetCharOffset(start + 1);
 							ui16 lineStartIndex = previousLineStart == Null ? 0 : GetCharOffset(previousLineStart + 1);
-							tu->cursorOffset = lineStartIndex + cursorOffset;
+							tu->cursorCharOffset = lineStartIndex + cursorCharOffset;
 						}
 						else // Place cursor at the end of the previous line
-							MoveCursor(GetCharOffset(start) - tu->cursorOffset);
+							MoveCursor(GetCharOffset(start) - tu->cursorCharOffset);
 					}
 				}
 			}
@@ -554,9 +554,9 @@ GUIAppEntryPoint(instance) {
 			if(TextIsBeingWritten() == true) { // In case EndWriting() was called above
 				vector pos = {};
 				{
-					Assert(tu->cursorOffset <= GetTextLength(*tu->textBody));
+					Assert(tu->cursorCharOffset <= GetTextLength(*tu->textBody));
 					auto* text = GetTextStart(*tu->textBody);
-					ForAll(tu->cursorOffset) {
+					ForAll(tu->cursorCharOffset) {
 						if(text[it] == '\n') {
 							pos.x = 0;
 							pos.y -= tu->textHeight * 1.5f;
@@ -564,7 +564,7 @@ GUIAppEntryPoint(instance) {
 						else
 							pos.x += tu->textHeight * 1.5f;
 					}
-					if(tu->cursorOffset > 0)
+					if(tu->cursorCharOffset > 0)
 						pos.x -= tu->textHeight * 0.25f; // Place half way between 2 glyphs
 				}
 				
@@ -590,7 +590,7 @@ GUIAppEntryPoint(instance) {
 				SetCursorPos(pos.x, pos.y);
 			}
 			
-			// Update cursor blink animation
+			// Update cursor blink animation timeline
 			tu->cursorBlinkTime += osState.lastFrameTime;
 			if(tu->cursorBlinkTime > CursorBlinkFullLength) {
 				// In case we get a frame time >= CursorBlinkFullLength * 2 for whatever reason
@@ -599,12 +599,6 @@ GUIAppEntryPoint(instance) {
 			}
 			Assert(tu->cursorBlinkTime >= 0);
 			Assert(tu->cursorBlinkTime <= CursorBlinkFullLength);
-			if(tu->cursorBlinkTime >= 0 && tu->cursorBlinkTime < CursorBlinkFullLength / 2)
-				tu->cursorAlpha = LERP(1.0f, 0.0f, tu->cursorBlinkTime / (CursorBlinkFullLength / 2));
-			else
-				tu->cursorAlpha = LERP(0.0f, 1.0f, (tu->cursorBlinkTime - CursorBlinkFullLength / 2) / (CursorBlinkFullLength / 2)); 
-			Assert(tu->cursorAlpha >= 0);
-			Assert(tu->cursorAlpha <= 1.0f);
 		}
 		
 		// Update scaling
@@ -732,8 +726,17 @@ GUIAppEntryPoint(instance) {
 			if(TitleIsBeingUpdated() == false)
 				SetCanvasProjetionMatrix();
 			
+			// No need to store this value for now
+			f32 alpha = 0;
+			if(tu->cursorBlinkTime >= 0 && tu->cursorBlinkTime < CursorBlinkFullLength / 2)
+				alpha = LERP(1.0f, 0.0f, tu->cursorBlinkTime / (CursorBlinkFullLength / 2));
+			else
+				alpha = LERP(0.0f, 1.0f, (tu->cursorBlinkTime - CursorBlinkFullLength / 2) / (CursorBlinkFullLength / 2)); 
+			Assert(alpha >= 0);
+			Assert(alpha <= 1.0f);
+			
 			glLineWidth(2);
-			glColor4f(0, 0, 0, tu->cursorAlpha);
+			glColor4f(0, 0, 0, alpha);
 			glBegin(GL_LINES);
 			glVertex2f(tu->cursorPos.x, tu->cursorPos.y);
 			glVertex2f(tu->cursorPos.x, tu->cursorPos.y+ tu->textHeight);

@@ -9,47 +9,31 @@
 
 // ******************** Text ******************** //
 
-// @TODO - Export to APAD API?
-struct text_body {
-	memory_stack memory;
-	bool         specialCharsAllowed; // Bullet points and new lines
-	rectangle    background;
-};
-
-// @TODO - Export to APAD API?
-text_body AllocateTextBody(bool allowSpecialChars, f32 left, f32 bottom, f32 width, f32 height);
-void 			ClearTextBody(text_body& tb);
-void      FreeTextBody(text_body& tb);
-ui32 			GetTextLength(text_body& tb);
-char*     GetTextStart(text_body& tb);
-void 			InsertText(char* string, ui32 length, text_body& tb, ui32 pos);
-bool      TextBodyIsValid(text_body& tb);
-
-void 	BeginWriting(text_body& text, rectangle& containerBackground, f32 textHeight, bool leftAligned /* If false assumed to be centered */); // By default will place cursor offset at the end of the text body
+void 	BeginWriting(text_body& text); // By default will place cursor offset at the end of the text body
 void 	EndWriting();
 
-void 	 AddText(char c); // Will add to current cursor position
 char*  FindChar(char c, ui16 pos, bool scanForward); // Will return Null if not found
 ui16   GetCharOffset(char* c);
-vector GetTextRenderDimensions(char* text, ui32 length, f32 height); // Will return a minimum y of height even if no text present, by x will equal 0
+void 	 InsertTextAtCursor(char c); // Will add to current cursor position
 void 	 MoveCursor(si8 offset);
-void   RemoveChar(text_body& tb, ui32 pos); // Will remove a single char after pos
 bool 	 TextIsBeingWritten();
 
 // ******************** Notes ******************** //
 
 const ui16 NoteMinWidth = 200;
 const ui16 NoteTextHeight = 15;
-const ui16 NoteTextBorder = NoteTextHeight;
+const ui16 NoteTextBorderOffset = NoteTextHeight;
 const ui16 NoteMinHeight = NoteTextHeight + NoteTextBorder * 2;
 
 const ui16 NoteTitleTextHeight = NoteTextHeight * 1.5f;
 
 struct note {
-	rectangle background; // In canvas space
-	text_body title;
-	text_body text;
+	f32       width;
+	text_body title; // Edges in canvas space
+	text_body text;  // Edges in canvas space
 };
+// @TODO - Need a function for overall overlap checks
+// @TODO - Need a function to get a text_body's edges / rectangle based on render dimensions
 
 #define BeginNotesMemoryLoop(_varID) { ForAll(state.notes.memory.size / sizeof(note)) { \
 																		     note* _varID = (note*)state.notes.memory.memory + it;
@@ -63,9 +47,9 @@ note*   GetCurrentNote();
 
 struct note_text_render_data {
 	rectangle title;
-	rectangle titleContainer;
+	rectangle titleEdges;
 	rectangle text;
-	rectangle textContainer;
+	rectangle textEdges;
 }    GetNoteTextRenderData(note* n); // Width == 0 if no text present for both text and title
 bool NoteIsBeingUpdated();
 bool NoteHasTitle(note* n);
@@ -114,13 +98,9 @@ program_unique struct {
 	
 	struct {
 		text_body* textBody;
-		rectangle* containerBackground;
 		vector     cursorPos;
-		ui16       cursorOffset; // 0-based
-		f32        textHeight;
-		b8         leftAligned;
+		ui16       cursorCharOffset; // 0-based
 		f32        cursorBlinkTime;
-		f32        cursorAlpha;
 	} 					 textUpdate;
 	
 	struct {

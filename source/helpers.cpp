@@ -9,16 +9,6 @@
 #include "apad_win32_gui.h"
 #include "helpers.h"
 
-program_local void RenderTextLineHor(ui16 x, ui16 y, ui8 height) {
-	glVertex2f(x, y);
-	glVertex2f(x + height, y);
-}
-
-program_local void RenderTextLineVert(ui16 x, ui16 y, ui8 height) {
-	glVertex2f(x, y);
-	glVertex2f(x, y + height);
-}
-
 program_external void SetCursorPos(f32 x, f32 y) {
 	state.textUpdate.cursorPos.x = x;
 	state.textUpdate.cursorPos.y = y;
@@ -27,9 +17,9 @@ program_external void SetCursorPos(f32 x, f32 y) {
 program_external note* CreateNote(vector pos, const char* title, const char* text) {
 	if(TextIsBeingWritten() == true)
 				EndWriting();
-			
+
 	note* n = Null;
-	
+
 	// Search for a free slot
 	BeginNotesMemoryLoop(t) {
 		if(NoteMemoryIsInUse(t) == false) {
@@ -38,7 +28,7 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 		}
 	}
 	EndNotesMemoryLoop();
-	
+
 	// If not found, allocate more memory
 	if(n == Null) {
 		auto newBlock = AllocateMemory(state.notes.memory.size * 2);
@@ -47,21 +37,27 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 		state.notes.memory = newBlock;
 		n = (note*)((ui8*)state.notes.memory.memory + state.notes.memory.size / 2);
 	}
-	
-	// Init
 	Assert(n != Null);
-	n->background.height = NoteTextHeight * 3;
-	n->background.width = NoteMinWidth;
-	n->background.left = ;
-	n->background.bottom = pos.y;			
-	n->text = AllocateTextBody(true, pos.x, pos.y, NoteMinWidth, NoteTextHeight * 3);
+
+	// Text
+	n->text = AllocateTextBody(pos.x, pos.y,
+														 NoteTextHeight,
+														 Null,
+														 NoteTextBorderOffset
+														 TextBodyFlagLetters | TextBodyFlagBulletPoints | TextBodyFlagTabs | TextBodyFlagNewlines | TextBodyFlagLeftAligned);
 	if(text != Null)
-		InsertText((char*)text, GetStringLength(text), n->text, 0);
+		InsertString((char*)text, GetStringLength(text), n->text, 0);
+	n->edges.width = GetMin(NoteMinWidth, n->text.edges.width);
+
+	// Title
 	if(title != Null) {
-		n->title = AllocateTextBody(false);
-		InsertText((char*)title, GetStringLength(title), n->title, 0);
+		n->title = AllocateTextBody(n->pos.x, n->pos.y + /* @TODO */, Null,
+																NoteTitleTextHeight, Null, NoteTextBorder, TextBodyFlagLetters);
+		InsertString((char*)title, GetStringLength(title), n->title, 0);
+		n->text.boxWidth = GetMax(n->text.boxWidth, n->title.boxWidth);
+		n->title.boxWidth = n->text.boxWidth;
 	}
-	
+
 	return n;
 }
 
@@ -69,29 +65,11 @@ program_external rectangle& GetTextBodyBackground(text_body& tb) {
 	return tb.background;
 }
 
-program_external text_body AllocateTextBody(bool allowSpecialChars, f32 left, f32 bottom, f32 width, f32 height) {
-	text_body ret = {};
-	ret.memory = AllocateStack();
-	ret.specialCharsAllowed = allowSpecialChars;
-	ret.background = CreateRectangle(left, bottom, width, height);
-	return ret;
-}
-
-program_external void BeginWriting(text_body& text, rectangle& containerBackground, f32 textHeight, bool leftAligned) {
-	state.textUpdate.textBody = &text;
-	state.textUpdate.containerBackground = &containerBackground;
-	state.textUpdate.cursorOffset = text.memory.size;
-	state.textUpdate.textHeight = textHeight;
-	state.textUpdate.leftAligned = leftAligned;
-}
-
-program_external bool TextBodyIsValid(text_body& tb) {
-	return IsValid(tb.memory);
-}
-
-program_external void FreeTextBody(text_body& tb) {
-	if(TextBodyIsValid(tb) == true)
-		FreeStack(tb.memory);
+program_external void BeginWriting(text_body& text) {
+	auto* tu = &state.textUpdate;
+	tu->textBody = &text;
+	tu->cursorCharOffset = GetTextLength(text);
+	tu->cursorBlinkTime = 0;
 }
 
 program_external bool NoteMemoryIsInUse(note* n) {
@@ -108,20 +86,20 @@ program_external void DrawRectangleBorder(f32 left, f32 bottom, f32 width, f32 h
 	glLineWidth(2);
 	glBegin(GL_LINES);
 	glColor3f(UI8ColourToF32(r), UI8ColourToF32(g), UI8ColourToF32(b));
-	
+
 	glVertex2f(left, bottom);
 	glVertex2f(left, bottom + height);
-	
+
 	glVertex2f(left, bottom + height);
 	glVertex2f(left + width, bottom + height);
-	
+
 	glVertex2f(left + width, bottom + height);
 	glVertex2f(left + width, bottom);
-	
+
 	glVertex2f(left + width, bottom);
 	glVertex2f(left, bottom);
 	glEnd();
-	AssertOpenGL();	
+	AssertOpenGL();
 }
 
 program_external void DrawCircleBorder(f32 centerX, f32 centerY, f32 radius, ui8 lineWidth, ui8 r, ui8 g, ui8 b) {
@@ -135,7 +113,7 @@ program_external void DrawCircleBorder(f32 centerX, f32 centerY, f32 radius, ui8
 		f32 y = centerY + Cos(angle) * radius;
 		glVertex2f(x, y);
 	}
-	glEnd();	
+	glEnd();
 }
 
 program_external rectangle GetColourPanelWheelRectangle() {
@@ -157,9 +135,9 @@ program_external rectangle GetColourPanelSliderRectangle() {
 
 program_external note_text_render_data GetNoteTextRenderData(note* n) {
 	Assert(n != Null);
-	
+
 	note_text_render_data ret = {};
-	
+
 	// Title
 	f32 textBodyTop = Null;
 	if(NoteHasTitle(n) == true) {
@@ -174,7 +152,7 @@ program_external note_text_render_data GetNoteTextRenderData(note* n) {
 			ret.title.width = 0;
 		}
 		textBodyTop = n->background.bottom + n->background.height - NoteTextBorder - ret.title.height - NoteTextBorder * 2;
-		
+
 		ret.titleContainer.left = n->background.left + NoteTextBorder;
 		ret.titleContainer.width = GetMax(ret.title.width, n->background.width - NoteTextBorder * 2);
 		ret.titleContainer.bottom = ret.title.bottom;
@@ -182,7 +160,7 @@ program_external note_text_render_data GetNoteTextRenderData(note* n) {
 	}
 	else
 		textBodyTop = n->background.bottom + n->background.height - NoteTextBorder;
-	
+
 	// Text
 	ret.text.left = n->background.left + NoteTextBorder;
 	if(GetTextLength(n->text) == 0) {
@@ -202,7 +180,7 @@ program_external note_text_render_data GetNoteTextRenderData(note* n) {
 	ret.textContainer.width = GetMax(n->background.width - NoteTextBorder * 2, ret.text.width);
 	ret.textContainer.bottom = ret.text.bottom;
 	ret.textContainer.height = ret.text.height;
-				
+
 	return ret;
 }
 
@@ -229,24 +207,24 @@ program_external bool TitleIsBeingUpdated() {
 
 program_external void MoveCursor(si8 offset) {
 	Assert(TextIsBeingWritten() == true);
-	
+
 	auto* tu = &state.textUpdate;
 	auto  textLength = GetTextLength(*tu->textBody);
-	Assert(tu->cursorOffset <= textLength);
-	
+	Assert(tu->cursorCharOffset <= textLength);
+
 	if(offset < 0) {
-		if(-offset >= tu->cursorOffset)
-			tu->cursorOffset = 0;
+		if(-offset >= tu->cursorCharOffset)
+			tu->cursorCharOffset = 0;
 		else
-			tu->cursorOffset += offset;
+			tu->cursorCharOffset += offset;
 	}
 	else if(offset > 0) {
-		if(tu->cursorOffset + offset >= textLength)
-			tu->cursorOffset = textLength;
+		if(tu->cursorCharOffset + offset >= textLength)
+			tu->cursorCharOffset = textLength;
 		else
-			tu->cursorOffset += offset;
+			tu->cursorCharOffset += offset;
 	}
-	
+
 	tu->cursorBlinkTime = 0;
 }
 
@@ -259,18 +237,13 @@ program_external ui16 GetCharOffset(char* c) {
 	return (ui16)((ui8*)c - (ui8*)GetTextStart(*state.textUpdate.textBody));
 }
 
-program_external char* GetTextStart(text_body& tb) {
-	Assert(TextBodyIsValid(tb) == true);
-	return (char*)tb.memory.memory;
-}
-
 program_external char* FindChar(char c, ui16 pos, bool scanForward) {
 	Assert(TextIsBeingWritten() == true);
-	
+
 	auto* tu = &state.textUpdate;
 	if(scanForward == false && pos == 0)
 		return Null;
-	
+
 	char* text = GetTextStart(*tu->textBody);
 	ui32  start = scanForward == true ? pos : pos - 1;
 	ui32  end = scanForward == true ? GetTextLength(*tu->textBody) : 0;
@@ -278,14 +251,8 @@ program_external char* FindChar(char c, ui16 pos, bool scanForward) {
 		if(text[it] == c)
 			return text + it;
 	}
-	
-	return Null;
-}
 
-program_external void RemoveChar(text_body& tb, ui32 pos) {
-	Assert(TextBodyIsValid(tb) == true);		
-	if(pos < GetTextLength(tb))
-		Remove(sizeof(char), pos, tb.memory);
+	return Null;
 }
 
 program_external bool NoteIsBeingUpdated() {
@@ -296,25 +263,11 @@ program_external void EndWriting() {
 	ClearStruct(state.textUpdate);
 }
 
-program_external void ClearTextBody(text_body& tb) {
-	ResetStack(tb.memory);
-}
-
-program_external void AddText(char c) {
+program_external void InsertTextAtCursor(char c) {
 	auto* tu = &state.textUpdate;
 	Assert(tu->textBody != Null);
-	InsertText(&c, 1, *tu->textBody, tu->cursorOffset);
-	tu->cursorOffset += 1;
-}
-
-program_external void InsertText(char* string, ui32 length, text_body& tb, ui32 pos) {
-	Assert(string != Null);
-	Assert(length > 0);
-	Assert(TextBodyIsValid(tb) == true);
-	if(pos <= tb.memory.size) {
-		void* mem = Insert(length, pos, tb.memory);
-		CopyMemory((void*)string, length, mem); 
-	}
+	InsertString(&c, 1, *tu->textBody, tu->cursorCharOffset);
+	tu->cursorCharOffset += 1;
 }
 
 program_external bool TextIsBeingWritten() {
@@ -347,11 +300,11 @@ program_external void SetGUIProjectionMatrix() {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	AssertOpenGL();
-		
+
 	auto size = Win32GetProgramWindowClientSize();
 	Assert(size.width > 0 && size.height > 0);
 	glOrtho(0, size.width, 0, size.height, -1, 1);
-	AssertOpenGL();		
+	AssertOpenGL();
 }
 
 #include <windows.h>
@@ -370,358 +323,11 @@ program_external void DrawRectangle(f32 left, f32 bottom, f32 width, f32 height,
 	AssertOpenGL();
 }
 
-program_external ui32 GetTextLength(text_body& tb) {
-	Assert(TextBodyIsValid(tb) == true);
-	return tb.memory.size;
-}
-
 program_external void SetCanvasProjetionMatrix() {
 	SetGUIProjectionMatrix();
 	if(state.canvas.scale != 1.0f)
 		glScalef(state.canvas.scale, state.canvas.scale, 1.0f);
 	if(state.canvas.translation.x != 0 || state.canvas.translation.y != 0)
 		glTranslatef(state.canvas.translation.x / state.canvas.scale, state.canvas.translation.y / state.canvas.scale, Null);
-	AssertOpenGL();		
-}
-
-program_external vector GetTextRenderDimensions(char* text, ui32 length, f32 height) {
-	Assert(text != Null);
-	
-	vector ret = { Null, height };
-	if(length == 0)
-		return ret;
-	
-	f32 xOffset = 0;
-	ForAll(length) {
-		if(text[it] == '\n') {
-			xOffset = 0; 
-			ret.y += height * 1.5f;
-		}
-		else {
-			if(xOffset > 0)
-				xOffset += height * 0.5f; // Space between glyphs
-			xOffset += height;
-			ret.x = GetMax(xOffset, ret.x);
-		}
-	}
-	
-	return ret;
-}
-
-program_external rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32 height, bool center) {
-	Assert(text != Null);
-	Assert(length > 0);
-	
-	rectangle ret = {};
-	ret.left = x;
-	ret.bottom = y;
-	
-	f32 xOffset = 0;
-	if(center == true)
-		xOffset = -GetTextRenderDimensions(text, length, height).x / 2;
-	
-	f32 nextX = x + xOffset;
-	f32 nextY = y;
-	glColor3f(1, 0, 0);
-	glLineWidth(3);
-	glBegin(GL_LINES);
-	ForAll(length) {
-		char c = text[it];
-		switch(c) {
-			case(' '): break;
-			
-			case('\n'): {
-				nextY -= height * 1.5f; 
-				ret.bottom = nextY;
-				nextX = x; 
-			} break;
-			
-			case('\b'): {
-				RenderTextLineVert(nextX + height / 2, nextY + height / 4, height / 2);
-				RenderTextLineHor(nextX + height / 4, nextY + height / 2, height / 2);
-			} break;
-			
-			case('a'):
-			case('A'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineVert(nextX + height, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-			} break;
-			
-			case('b'):
-			case('B'): 
-			case('8'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineVert(nextX + height, nextY, height);
-				
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-				RenderTextLineHor(nextX, nextY, height);
-			} break;
-			
-			case ('c'):
-			case ('C'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY, height);
-			} break;
-			
-			case ('d'):
-			case ('D'): {
-				RenderTextLineVert(nextX, nextY, height);
-				glVertex2f(nextX, nextY + height);
-				glVertex2f(nextX + height, nextY + height / 2);
-				glVertex2f(nextX, nextY);
-				glVertex2f(nextX + height, nextY + height / 2);
-			} break;
-			
-			case ('e'):
-			case ('E'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-				RenderTextLineHor(nextX, nextY, height);
-			} break;
-			
-			case ('f'):
-			case ('F'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-			} break;
-			
-			case ('g'):
-			case ('G'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY, height);
-				glVertex2f(nextX + height, nextY);
-				glVertex2f(nextX + height, nextY + height / 2);
-			} break;
-			
-			case ('h'):
-			case ('H'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineVert(nextX + height, nextY, height);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-			} break;
-			
-			case ('i'):
-			case ('I'): 
-			case ('1'): {
-				RenderTextLineVert(nextX + height / 2, nextY, height);
-			} break;
-			
-			case ('j'):
-			case ('J'): {
-				RenderTextLineVert(nextX + height, nextY, height);
-				RenderTextLineHor(nextX, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-			} break;
-			
-			case ('k'):
-			case ('K'): {
-				RenderTextLineVert(nextX, nextY, height);
-				glVertex2f(nextX, nextY + height / 2);
-				glVertex2f(nextX + height, nextY + height);
-				glVertex2f(nextX, nextY + height / 2);
-				glVertex2f(nextX + height, nextY);
-			} break;
-			
-			case ('l'):
-			case ('L'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineHor(nextX, nextY, height);
-			} break;
-
-			case ('m'):
-			case ('M'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineVert(nextX + height, nextY, height);
-				glVertex2f(nextX, nextY + height);
-				glVertex2f(nextX + height / 2, nextY + height / 2);
-				glVertex2f(nextX + height / 2, nextY + height / 2);
-				glVertex2f(nextX + height, nextY + height);
-			} break;
-			
-			case ('n'):
-			case ('N'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineVert(nextX + height, nextY, height);
-				glVertex2f(nextX, nextY + height);
-				glVertex2f(nextX + height, nextY);
-			} break;
-
-			case ('o'):
-			case ('O'): 
-			case ('0'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineVert(nextX + height, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY, height);
-			} break;
-			
-			case ('p'):
-			case ('P'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-				glVertex2f(nextX + height, nextY + height);
-				glVertex2f(nextX + height, nextY + height / 2);
-			} break;
-			
-			case ('q'):
-			case ('Q'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineVert(nextX + height / 2, nextY, height);
-				glVertex2f(nextX, nextY + height);
-				glVertex2f(nextX + height / 2, nextY + height);
-				glVertex2f(nextX, nextY);
-				glVertex2f(nextX + height / 2, nextY);
-				glVertex2f(nextX + height / 2, nextY + height / 2);
-				glVertex2f(nextX + height, nextY);
-			} break;
-			
-			case ('r'):
-			case ('R'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-				glVertex2f(nextX + height, nextY + height);
-				glVertex2f(nextX + height, nextY + height / 2);
-				glVertex2f(nextX + height / 2, nextY + height / 2);
-				glVertex2f(nextX + height, nextY);
-			} break;
-			
-			case ('s'):
-			case ('S'):
-			case ('5'): {
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-				RenderTextLineHor(nextX, nextY, height);
-				glVertex2f(nextX, nextY + height / 2);
-				glVertex2f(nextX, nextY + height);
-				glVertex2f(nextX + height, nextY);
-				glVertex2f(nextX + height, nextY + height / 2);
-			} break;
-			
-			case ('t'):
-			case ('T'): {
-				RenderTextLineVert(nextX + height / 2, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-			} break;
-			
-			case ('u'):
-			case ('U'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineVert(nextX + height, nextY, height);
-				RenderTextLineHor(nextX, nextY, height);
-			} break;
-			
-			case ('v'):
-			case ('V'): {
-				glVertex2f(nextX + height / 2, nextY);
-				glVertex2f(nextX, nextY + height);
-				glVertex2f(nextX + height / 2, nextY);
-				glVertex2f(nextX + height, nextY + height);
-			} break;
-			
-			case ('w'):
-			case ('W'): {
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineVert(nextX + height, nextY, height);
-				glVertex2f(nextX, nextY);
-				glVertex2f(nextX + height / 2, nextY + height / 2);
-				glVertex2f(nextX + height / 2, nextY + height / 2);
-				glVertex2f(nextX + height, nextY);
-			} break;
-			
-			case ('x'):
-			case ('X'): {
-				glVertex2f(nextX, nextY);
-				glVertex2f(nextX + height, nextY + height);
-				glVertex2f(nextX, nextY + height);
-				glVertex2f(nextX + height, nextY);
-			} break;
-			
-			case ('y'):
-			case ('Y'): {
-				glVertex2f(nextX + height / 2, nextY + height / 2);
-				glVertex2f(nextX + height, nextY + height);
-				glVertex2f(nextX + height / 2, nextY + height / 2);
-				glVertex2f(nextX, nextY + height);
-				glVertex2f(nextX + height / 2, nextY);
-				glVertex2f(nextX + height / 2, nextY + height / 2);
-			} break;
-			
-			case ('z'):
-			case ('Z'): {
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY, height);
-				glVertex2f(nextX, nextY);
-				glVertex2f(nextX + height, nextY + height);
-			} break;
-			
-			case ('2'): {
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineVert(nextX + height, nextY + height / 2, height / 2);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-				RenderTextLineVert(nextX, nextY, height / 2);
-				RenderTextLineHor(nextX, nextY, height);
-				
-			} break;
-			
-			case ('3'): {
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineVert(nextX + height, nextY + height / 2, height / 2);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-				RenderTextLineVert(nextX + height, nextY, height / 2);
-				RenderTextLineHor(nextX, nextY, height);
-			} break;
-			
-			case ('4'): {
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-				RenderTextLineVert(nextX + height, nextY, height);
-				glVertex2f(nextX, nextY + height / 2);
-				glVertex2f(nextX + height, nextY + height);
-			} break;
-			
-			case ('6'): {
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineVert(nextX, nextY, height);
-				RenderTextLineHor(nextX, nextY, height);
-				RenderTextLineVert(nextX + height, nextY, height / 2);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-			} break;
-			
-			case ('7'): {
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineVert(nextX + height, nextY, height);
-			} break;
-			
-			case ('9'): {
-				RenderTextLineVert(nextX, nextY + height / 2, height / 2);
-				RenderTextLineVert(nextX + height, nextY, height);
-				RenderTextLineHor(nextX, nextY + height, height);
-				RenderTextLineHor(nextX, nextY + height / 2, height);
-				RenderTextLineHor(nextX, nextY, height);
-			} break;
-			
-			default: break;
-		}
-		
-		ret.width = GetMax(ret.width, nextX + height - ret.left);
-			
-		if(c != '\n')
-			nextX += height * 1.5f;
-	}
-	glEnd();
 	AssertOpenGL();
-	
-	ret.height = y + height - ret.bottom;
-	Assert(ret.width != 0);
-	Assert(ret.height != 0);
-	
-	return ret;
 }
