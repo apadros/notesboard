@@ -38,7 +38,7 @@ dll_import f32 			 ArcTan(f32 f);
 dll_import f32 			 Cos(f32 degs);
 dll_import rectangle CreateRectangle(f32 left, f32 bottom, f32 width, f32 height);
 dll_import vector 	 CreateVector(f32 x, f32 y);
-dll_import vector    GetMiddle(rectangle r);
+dll_import vector    GetCenter(rectangle r);
 #define 				     GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))
 #define 				     GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
 dll_import vector    GetTopRight(rectangle& r);
@@ -52,5 +52,6 @@ dll_import f32 			 Sine(f32 degs);
 dll_import f32 			 SquareRoot(f32 f);
 dll_import f32 			 Tan(f32 degs);
 #define              UnpackRectangle(_r) (_r).left, (_r).bottom, (_r).width, (_r).height
+#define              UnpackVector(_v) (_v).x, (_v).y
 
 #endif

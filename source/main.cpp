@@ -425,12 +425,10 @@ GUIAppEntryPoint(instance) {
 			if(osState.keyPressed != Null) // Insert text
 				InsertTextAtCursor(osState.keyPressed);
 			else if(osState.backspacePressed == true){
-				bool del = tu->cursorCharOffset > 0; // If the cursor was already at 0, moving down would incorrectly deleted the very first letter
-				MoveCursor(-1);
-				if(del == true)
-					RemoveChar(*tu->textBody, tu->cursorCharOffset);
+				RemoveCharBeforeCursor();
 			}
 			else if(osState.enterPressed == true) { // Jump to next line if allowed, otherwise end writing
+			  // @TODO - Replace with InsertString() taking care of bullet points
 				if(tu->textBody->specialCharsAllowed == true) {
 					// Scan back to see if the current line contains a bullet point
 					bool  bulletPoint = false;

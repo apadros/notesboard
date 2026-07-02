@@ -7,17 +7,6 @@
 #include "apad_memory.h"
 #include "apad_time.h"
 
-// ******************** Text ******************** //
-
-void 	BeginWriting(text_body& text); // By default will place cursor offset at the end of the text body
-void 	EndWriting();
-
-char*  FindChar(char c, ui16 pos, bool scanForward); // Will return Null if not found
-ui16   GetCharOffset(char* c);
-void 	 InsertTextAtCursor(char c); // Will add to current cursor position
-void 	 MoveCursor(si8 offset);
-bool 	 TextIsBeingWritten();
-
 // ******************** Notes ******************** //
 
 const ui16 NoteMinWidth = 200;
@@ -65,8 +54,6 @@ const ui8  ToobalIconWidth = ToolbarWidth * 0.5f;
 const ui8  ToolbarTextHeight = 10;
 const ui8  ToolVerticalSpaceBetweenIcons = ToolbarTextHeight * 2;
 
-const f32  CursorBlinkFullLength = 1.5f;
-
 const ui8  TopMenuHeight = 50;
 const ui16 TopMenuButtonWidth = 200; // In viewport space
 const ui8  TopMenuTextHeight = (f32)TopMenuHeight / 2;
@@ -95,13 +82,6 @@ program_unique struct {
 			const char* text;
 		} 						buttons[3];
 	} 							topMenu;
-	
-	struct {
-		text_body* textBody;
-		vector     cursorPos;
-		ui16       cursorCharOffset; // 0-based
-		f32        cursorBlinkTime;
-	} 					 textUpdate;
 	
 	struct {
 		rectangle background; // In viewport space
@@ -151,9 +131,7 @@ bool    MouseIsWithinToolbar();
 bool    MouseLeftDownThisFrame();
 bool    MouseOverlapsCanvas(rectangle& r);
 bool    MouseOverlapsGUI(rectangle& r);
-void 		SetCursorPos(f32 x, f32 y);
 bool    TitleIsBeingUpdated();
-f32 		UI8ColourToF32(ui8 u);
 
 // Colour panel
 #define 	GetColourPanel() \
@@ -167,12 +145,5 @@ vector  ConvertToCanvasSpace(vector pos);
 vector  ConvertToViewportSpace(vector pos);
 void 		SetGUIProjectionMatrix();
 void 		SetCanvasProjetionMatrix();
-
-
-// Rendering
-void 			DrawRectangleBorder(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
-void 			DrawCircleBorder(f32 centerX, f32 centerY, f32 radius, ui8 lineWidth, ui8 r, ui8 g, ui8 b);
-void 			DrawRectangle(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b);
-rectangle RenderText(char* text, ui32 length, f32 x, f32 y, f32 height, bool center);
 
 #endif

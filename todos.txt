@@ -23,7 +23,7 @@ Functionality
 				- Make into circles
 				- Save to project file
 			- Possibility to manually set rgb numbers - requires text bodies within the colour panel @WIP
-				- Currently moving over text_body and textUpdate stuff to APAD_API, then need to implement the above after tidying everything up
+				- Currently moving over text_body and textUpdate stuff to APAD_API, then need to implement the above after tidying everything up @WIP
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar

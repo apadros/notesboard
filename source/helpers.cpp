@@ -9,11 +9,6 @@
 #include "apad_win32_gui.h"
 #include "helpers.h"
 
-program_external void SetCursorPos(f32 x, f32 y) {
-	state.textUpdate.cursorPos.x = x;
-	state.textUpdate.cursorPos.y = y;
-}
-
 program_external note* CreateNote(vector pos, const char* title, const char* text) {
 	if(TextIsBeingWritten() == true)
 				EndWriting();
@@ -65,13 +60,6 @@ program_external rectangle& GetTextBodyBackground(text_body& tb) {
 	return tb.background;
 }
 
-program_external void BeginWriting(text_body& text) {
-	auto* tu = &state.textUpdate;
-	tu->textBody = &text;
-	tu->cursorCharOffset = GetTextLength(text);
-	tu->cursorBlinkTime = 0;
-}
-
 program_external bool NoteMemoryIsInUse(note* n) {
 	Assert(n != Null);
 	return n->background.width != 0 && n->background.height != 0;
@@ -80,40 +68,6 @@ program_external bool NoteMemoryIsInUse(note* n) {
 program_external bool NoteHasTitle(note* n) {
 	Assert(n != Null);
 	return TextBodyIsValid(n->title);
-}
-
-program_external void DrawRectangleBorder(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b) {
-	glLineWidth(2);
-	glBegin(GL_LINES);
-	glColor3f(UI8ColourToF32(r), UI8ColourToF32(g), UI8ColourToF32(b));
-
-	glVertex2f(left, bottom);
-	glVertex2f(left, bottom + height);
-
-	glVertex2f(left, bottom + height);
-	glVertex2f(left + width, bottom + height);
-
-	glVertex2f(left + width, bottom + height);
-	glVertex2f(left + width, bottom);
-
-	glVertex2f(left + width, bottom);
-	glVertex2f(left, bottom);
-	glEnd();
-	AssertOpenGL();
-}
-
-program_external void DrawCircleBorder(f32 centerX, f32 centerY, f32 radius, ui8 lineWidth, ui8 r, ui8 g, ui8 b) {
-	glLineWidth(lineWidth);
-	glBegin(GL_LINE_LOOP);
-	glColor3f(UI8ColourToF32(r), UI8ColourToF32(g), UI8ColourToF32(b));
-	ui8 vertices = 72;
-	FromToInc(0, vertices + 1) {
-		f32 angle = it * 360 / vertices;
-		f32 x = centerX - Sine(angle) * radius;
-		f32 y = centerY + Cos(angle) * radius;
-		glVertex2f(x, y);
-	}
-	glEnd();
 }
 
 program_external rectangle GetColourPanelWheelRectangle() {
@@ -184,7 +138,7 @@ program_external note_text_render_data GetNoteTextRenderData(note* n) {
 	return ret;
 }
 
-program_external bool MouseLeftDownThisFrame() {
+program_external bool MouseLeftDownThisFrame() { // @TODO - Export to APAD_API apad_win32_gui.cpp, add to os state struct 
 	return state.mouse.lastLeftDown == false && state.mouse.leftDown == true;
 }
 
@@ -205,77 +159,12 @@ program_external bool TitleIsBeingUpdated() {
 	return TextIsBeingWritten() == true && state.textUpdate.textBody->memory.memory == &state.titleBar.text.memory.memory;
 }
 
-program_external void MoveCursor(si8 offset) {
-	Assert(TextIsBeingWritten() == true);
-
-	auto* tu = &state.textUpdate;
-	auto  textLength = GetTextLength(*tu->textBody);
-	Assert(tu->cursorCharOffset <= textLength);
-
-	if(offset < 0) {
-		if(-offset >= tu->cursorCharOffset)
-			tu->cursorCharOffset = 0;
-		else
-			tu->cursorCharOffset += offset;
-	}
-	else if(offset > 0) {
-		if(tu->cursorCharOffset + offset >= textLength)
-			tu->cursorCharOffset = textLength;
-		else
-			tu->cursorCharOffset += offset;
-	}
-
-	tu->cursorBlinkTime = 0;
-}
-
 program_external note* GetCurrentNote() {
 	return state.notes.selected;
 }
 
-program_external ui16 GetCharOffset(char* c) {
-	Assert(TextIsBeingWritten() == true);
-	return (ui16)((ui8*)c - (ui8*)GetTextStart(*state.textUpdate.textBody));
-}
-
-program_external char* FindChar(char c, ui16 pos, bool scanForward) {
-	Assert(TextIsBeingWritten() == true);
-
-	auto* tu = &state.textUpdate;
-	if(scanForward == false && pos == 0)
-		return Null;
-
-	char* text = GetTextStart(*tu->textBody);
-	ui32  start = scanForward == true ? pos : pos - 1;
-	ui32  end = scanForward == true ? GetTextLength(*tu->textBody) : 0;
-	FromTo(start, end) {
-		if(text[it] == c)
-			return text + it;
-	}
-
-	return Null;
-}
-
 program_external bool NoteIsBeingUpdated() {
 	return TextIsBeingWritten() == true && state.notes.selected != Null && state.textUpdate.textBody->memory.memory == &state.notes.selected->text.memory.memory;
-}
-
-program_external void EndWriting() {
-	ClearStruct(state.textUpdate);
-}
-
-program_external void InsertTextAtCursor(char c) {
-	auto* tu = &state.textUpdate;
-	Assert(tu->textBody != Null);
-	InsertString(&c, 1, *tu->textBody, tu->cursorCharOffset);
-	tu->cursorCharOffset += 1;
-}
-
-program_external bool TextIsBeingWritten() {
-	return state.textUpdate.textBody != Null;
-}
-
-program_external f32 UI8ColourToF32(ui8 u) {
-	return (f32)u / 255;
 }
 
 program_external vector ConvertToCanvasSpace(f32 x, f32 y) {
@@ -304,22 +193,6 @@ program_external void SetGUIProjectionMatrix() {
 	auto size = Win32GetProgramWindowClientSize();
 	Assert(size.width > 0 && size.height > 0);
 	glOrtho(0, size.width, 0, size.height, -1, 1);
-	AssertOpenGL();
-}
-
-#include <windows.h>
-#include <gl\gl.h>
-program_external void DrawRectangle(f32 left, f32 bottom, f32 width, f32 height, ui8 r, ui8 g, ui8 b) {
-	f32 rf = UI8ColourToF32(r);
-	f32 gf = UI8ColourToF32(g);
-	f32 bf = UI8ColourToF32(b);
-	glBegin(GL_QUADS);
-	glColor3f(rf, gf, bf);
-	glVertex2f(left, bottom);
-	glVertex2f(left + width, bottom);
-	glVertex2f(left + width, bottom + height);
-	glVertex2f(left, bottom + height);
-	glEnd();
 	AssertOpenGL();
 }
 
