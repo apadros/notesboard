@@ -98,7 +98,7 @@ program_external note_text_render_data GetNoteTextRenderData(note* n) {
 		ret.title.height = NoteTitleTextHeight;
 		ret.title.bottom = n->background.bottom + n->background.height - NoteTextBorder - ret.title.height;
 		if(GetTextLength(n->title) > 0) {
-			ret.title.width = GetTextRenderDimensions(GetTextStart(n->title), GetTextLength(n->title), NoteTitleTextHeight).x;
+			ret.title.width = GetTextBodyTextRenderDimensions(n->title).width;
 			ret.title.left = GetMiddle(n->background).x - ret.title.width / 2;
 		}
 		else {
@@ -123,7 +123,7 @@ program_external note_text_render_data GetNoteTextRenderData(note* n) {
 		ret.text.bottom = textBodyTop - ret.text.height;
 	}
 	else {
-		auto textDimensions = GetTextRenderDimensions(GetTextStart(n->text), GetTextLength(n->text), NoteTextHeight);
+		auto textDimensions = GetTextRenderDimensions(n->text);
 		Assert(textDimensions.x > 0);
 		Assert(textDimensions.y >= NoteTextHeight);
 		ret.text.width = textDimensions.x;
