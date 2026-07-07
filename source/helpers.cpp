@@ -78,7 +78,7 @@ program_external rectangle GetColourPanelSliderRectangle() {
 	return CreateRectangle(middleX - width / 2, middleY - height / 2, width, height);
 }
 
-program_external note_text_vectors GetNoteTextVectors(note* n) {
+program_external note_text_vectors GetNoteRectangles(note* n) {
 	Assert(n != Null);
 	
 	// Text
@@ -91,17 +91,22 @@ program_external note_text_vectors GetNoteTextVectors(note* n) {
 	rectangle titleEdges = {};
 	if(NoteHasTitle(n) == true) {
 		titleEdges.size = GetTextBodyRenderDimensions(n->title);
-		titleContainer = CreateRectangle(textContainer.left, textContainer.bottom + textContainer.height, GetMax(titleEdges.width + NoteTextBorder * 2, textContainer.width), titleEdges.height + NoteTextBorder * 2);
+		titleContainer = CreateRectangle(textContainer.left, textContainer.bottom + textContainer.height, 
+																		 GetMax(titleEdges.width + NoteTextBorder * 2, textContainer.width), titleEdges.height + NoteTextBorder * 2);
 		titleEdges.bottom = titleContainer.bottom + NoteTextBorder;
 		titleEdges.left = GetCenter(titleContainer).x - titleEdges.width / 2;
 	}
+	if(titleContainer.width > textContainer.width)
+		textContainer.width = titleContainer.width;
+	
+	rectangle overall = CreateRectangle(textContainer.left, textContainer.bottom, textContainer.width, textContainer.height + titleContainer.height);
 	
 	note_text_vectors ret = {};
 	ret.titleEdges = titleEdges;
 	ret.titleContainer = titleContainer;
 	ret.textEdges = textEdges;
 	ret.textContainer = textContainer;
-	
+	ret.overall = overall;
 	return ret;
 }
 

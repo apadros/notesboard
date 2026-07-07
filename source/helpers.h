@@ -39,7 +39,8 @@ struct note_text_vectors {
 	rectangle titleContainer; // Will all be Null if no title memory allocated
 	rectangle textEdges; 			// If no text present, height will be valid but width == 0
 	rectangle textContainer;
-}    GetNoteTextVectors(note* n);
+	rectangle overall;
+}    GetNoteRectangles(note* n);
 bool NoteIsBeingUpdated();
 bool NoteHasTitle(note* n);
 bool NoteMemoryIsInUse(note* n);

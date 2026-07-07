@@ -52,6 +52,7 @@ dll_import text_update_pipeline_data RunTextUpdatePipeline(win32_state& osState)
 
 // ******************** Cursor ******************** //
 
+dll_export f32    GetCursorAlphaValue();
 dll_import vector GetCursorPos(); // Will be relative to the bottom-left of the current text body
 dll_import void   MoveCursor(si8 charOffset); // Current offset clamped between 0 and current text_body length
 dll_export void   SetCursorCharOffset(ui16 offset); // Offset clamped to current text_body length
