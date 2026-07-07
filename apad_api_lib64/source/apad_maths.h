@@ -4,13 +4,6 @@
 #include "apad_base_types.h"
 #include "apad_intrinsics.h"
 
-struct rectangle {
-	f32 left;
-	f32 bottom;
-	f32 width;
-	f32 height;
-};
-
 struct vector {
 	union {
 		f32 x;
@@ -30,6 +23,24 @@ struct vector {
 	dll_import vector operator/(f32 f);
 };
 
+struct rectangle {
+	union {
+		struct {
+			f32 left;
+			f32 bottom;
+		};
+		vector pos;
+	};
+	
+	union {
+		struct {
+			f32 width;
+			f32 height;
+		};
+		vector size;
+	};
+};
+
 dll_import f32 			 ArcCos(f32 f);
 dll_import f32 			 ArcSine(f32 f);
 dll_import f32 			 ArcTan(f32 f);
@@ -37,6 +48,7 @@ dll_import f32 			 ArcTan(f32 f);
 								     													   else if((_value) > (_max)) (_value) = (_max); }
 dll_import f32 			 Cos(f32 degs);
 dll_import rectangle CreateRectangle(f32 left, f32 bottom, f32 width, f32 height);
+dll_export rectangle CreateRectangle(vector pos, vector size);
 dll_import vector 	 CreateVector(f32 x, f32 y);
 dll_import vector    GetCenter(rectangle r);
 #define 				     GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))

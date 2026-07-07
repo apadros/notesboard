@@ -4,6 +4,7 @@
 #include "apad_base_types.h"
 #include "apad_error.h"
 #include "apad_file.h"
+#include "apad_gui.h"
 #include "apad_maths.h"
 #include "apad_memory.h"
 #include "apad_opengl.h"
@@ -36,7 +37,7 @@ GUIAppEntryPoint(instance) {
 		tb->background.width = Win32GetProgramWindowClientSize().width;
 		tb->background.height = TitleBarHeight;
 		tb->background.bottom = state.topMenu.background.bottom - tb->background.height;
-		tb->text = AllocateTextBody(false);
+		tb->text = AllocateTextBody(TitleBarTextHeight, TextBodyFlagLetters);
 		InsertString("Title", GetStringLength("Title"), tb->text, 0);
 	}
 
@@ -73,7 +74,7 @@ GUIAppEntryPoint(instance) {
 		// Reset the projection matrix and draw the canvas background
 		{	
 			SetGUIProjectionMatrix();
-			DrawRectangle(0, 0, canvas.width, canvas.height, 230, 230, 230);
+			DrawRectangleFull(0, 0, canvas.width, canvas.height, 230, 230, 230);
 		}
 
 		// Update mouse state
@@ -112,30 +113,26 @@ GUIAppEntryPoint(instance) {
 								auto memory = AllocateStack();
 								
 								// Store board title
-								if(GetTextLength(state.titleBar.text) > 0)
-									PushString(GetTextStart(state.titleBar.text), false, memory);
+								if(GetTextBodyLength(state.titleBar.text) > 0)
+									PushString(GetTextBodyText(state.titleBar.text), false, memory);
 								PushString(Null, true, memory);
 								
 								// Notes
 								BeginNotesLoop(n) {
 									if(NoteMemoryIsInUse(n) == true) {
-										// Store the rectangle
+										// Store the pos
 										f32* f = PushType(f32, memory);
-										*f = n->background.left;
+										*f = n->pos.x;
 										f = PushType(f32, memory);
-										*f = n->background.bottom;
-										f = PushType(f32, memory);
-										*f = n->background.width;
-										f = PushType(f32, memory);
-										*f = n->background.height;
+										*f = n->pos.y;
 										
 										// Text contents
 										if(NoteHasTitle(n) == true)
-											PushString(GetTextStart(n->title), false, memory);
+											PushString(GetTextBodyText(n->title), false, memory);
 										PushString(Null, true, memory);
 										
-										if(GetTextLength(n->text) > 0)
-											PushString(GetTextStart(n->text), false, memory);
+										if(GetTextBodyLength(n->text) > 0)
+											PushString(GetTextBodyText(n->text), false, memory);
 										PushString(Null, true, memory);
 									}
 								}
@@ -173,10 +170,8 @@ GUIAppEntryPoint(instance) {
 								
 								// Extract notes
 								while(data < (ui8*)file.memory + file.size) {
-									f32 left = ReadMemMovePtr(data, f32);
-									f32 bottom = ReadMemMovePtr(data, f32);
-									f32 width = ReadMemMovePtr(data, f32);
-									f32 height = ReadMemMovePtr(data, f32);
+									f32 x = ReadMemMovePtr(data, f32);
+									f32 y = ReadMemMovePtr(data, f32);
 									
 									char* title = (char*)data;
 									MovePtr(data, GetStringLength(title) + 1);
@@ -184,9 +179,7 @@ GUIAppEntryPoint(instance) {
 									char* text = (char*)data;
 									MovePtr(data, GetStringLength(text) + 1);
 									
-									auto* n = CreateNote({left, bottom}, title[0] == '\0' ? Null : title, text[0] == '\0' ? Null : text);
-									n->background.width = width;
-									n->background.height = height;
+									auto* n = CreateNote(CreateVector(x, y), title[0] == '\0' ? Null : title, text[0] == '\0' ? Null : text);
 								}
 							}
 						}
@@ -199,9 +192,9 @@ GUIAppEntryPoint(instance) {
 		
 		// Selection of the title bar
 		if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(state.titleBar.background) == true) {
-			if(TextIsBeingWritten() == true && TitleIsBeingUpdated() == false)
+			if(TextIsBeingUpdated() == true && TitleIsBeingUpdated() == false)
 				EndTextUpdate();
-			state.notes.selected = Null;
+			SetCurrentNote(Null);
 			BeginTextUpdate(state.titleBar.text);
 			goto label_rendering;
 		}
@@ -216,25 +209,16 @@ GUIAppEntryPoint(instance) {
 	
 			goto label_rendering;
 		}
-		else if(TextIsBeingWritten() && MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[1].background) == true && state.textUpdate.textBody->specialCharsAllowed == true) { // Add a bullet point
-			Assert(state.textUpdate.textBody != Null);
-			char* text = GetTextStart(*state.textUpdate.textBody);
-			auto  length = GetStringLength(text);
-			Assert(state.textUpdate.cursorCharOffset <= length);
-			if(state.textUpdate.cursorCharOffset == 0 || state.textUpdate.cursorCharOffset >= 1 && text[state.textUpdate.cursorCharOffset - 1] != '\b') // If the char at the cursor position is not a bullet point
-				InsertTextAtCursor('\b');
-				
+		else if(NoteIsBeingUpdated() == true && MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[1].background) == true) { // Add a bullet point
+			InsertCharAtCursor(BulletPointChar); // Will check viability first	
 			goto label_rendering;
 		}
-		else if(GetCurrentNote() != Null && MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[2].background) == true) { // Add a title to the current note
+		else if(GetCurrentNote() != Null && MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[2].background) == true) { // Add a title to the currently selected note
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
-				n->title = AllocateTextBody(false);
+				n->title = AllocateTextBody(NoteTitleTextHeight, TextBodyFlagLetters);
 				InsertString("Title", GetStringLength("Title"), n->title, 0);
-				n->background.bottom -= NoteTextBorder * 2 + NoteTitleTextHeight;
-				n->background.height += NoteTextBorder * 2 + NoteTitleTextHeight;
 			}
-		
 			goto label_rendering;
 		}
 		else if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[3].background) == true) { // Toggle colour wheel
@@ -244,12 +228,12 @@ GUIAppEntryPoint(instance) {
 				panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
 				panel->frame.width = ColourPanelWidth;
 				panel->frame.height = ColourPanelHeight;
-				panel->frame.bottom = GetMiddle(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
-				panel->selection = GetMiddle(GetColourPanelWheelRectangle());
+				panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
+				panel->selection = GetCenter(GetColourPanelWheelRectangle());
 				panel->sliderCenterY = GetTopRight(GetColourPanelWheelRectangle()).y;
-				panel->red = AllocateTextBody(false);
-				panel->green = AllocateTextBody(false);
-				panel->blue = AllocateTextBody(false);
+				panel->red = AllocateTextBody(NoteTextHeight, Null);
+				panel->green = AllocateTextBody(NoteTextHeight, Null);
+				panel->blue = AllocateTextBody(NoteTextHeight, Null);
 			}
 			else {
 				FreeTextBody(panel->red);
@@ -263,7 +247,7 @@ GUIAppEntryPoint(instance) {
 		if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(GetColourPanel()->frame) == true) {
 			auto* panel = GetColourPanel();
 			auto wheel = GetColourPanelWheelRectangle();
-			if(Overlap(GetMiddle(wheel).x, GetMiddle(wheel).y, state.mouse.pos.x, state.mouse.pos.y, wheel.width / 2) == true) { // Colour wheel
+			if(Overlap(GetCenter(wheel).x, GetCenter(wheel).y, state.mouse.pos.x, state.mouse.pos.y, wheel.width / 2) == true) { // Colour wheel
 				panel->updatingSelection = true;
 				panel->selection = state.mouse.pos;
 			}
@@ -284,7 +268,7 @@ GUIAppEntryPoint(instance) {
 			else {
 				auto newPos = panel->selection + state.mouse.translation;
 				auto wheel = GetColourPanelWheelRectangle();
-				if(Overlap(GetMiddle(wheel).x, GetMiddle(wheel).y, newPos.x, newPos.y, wheel.width / 2) == true) // Check if new position lies within the wheel
+				if(Overlap(GetCenter(wheel).x, GetCenter(wheel).y, newPos.x, newPos.y, wheel.width / 2) == true) // Check if new position lies within the wheel
 					panel->selection += state.mouse.translation;
 			}
 		}
@@ -302,48 +286,47 @@ GUIAppEntryPoint(instance) {
 
 		// Notes
 		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardles of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
-			auto* previouslySelected = state.notes.selected;
-			state.notes.selected = Null;
+			auto* previouslySelected = GetCurrentNote();
+			SetCurrentNote(Null);
 		
 			BeginNotesLoop(n) {
-				if(NoteMemoryIsInUse(n) == true && MouseOverlapsCanvas(n->background) == true) {
-					state.notes.selected = n;
-					state.notes.moving = true;
+				auto vectors = GetNoteTextVectors(n);
+				if(NoteMemoryIsInUse(n) == true && (MouseOverlapsCanvas(vectors.textContainer) == true || MouseOverlapsCanvas(vectors.titleContainer) == true)) {
+					SetCurrentNote(n);
+					state.notes.moving = false;
 					break;
 				}
 			}
 			EndNotesLoop();
 			
 			// If we selected a different note or text was being written elsewhere, end writing first
-			if(TextIsBeingWritten() == true && (state.notes.selected == Null || previouslySelected != state.notes.selected))
+			if(TextIsBeingUpdated() == true && (GetCurrentNote() == Null || previouslySelected != GetCurrentNote()))
 				EndTextUpdate();
 			
-			if(state.notes.selected != Null) {
+			if(GetCurrentNote() != Null) {
 				auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos);
-				auto renderData = GetNoteTextRenderData(state.notes.selected);
-				if(MouseOverlapsCanvas(renderData.titleContainer) == true) { // Update title
-					BeginTextUpdate(state.notes.selected->title);
+				auto vectors = GetNoteTextVectors(GetCurrentNote());
+				if(MouseOverlapsCanvas(vectors.titleContainer) == true) { // Update title
+					BeginTextUpdate(GetCurrentNote()->title);
 					
 					// Position mouse cursor more precisely
-					f32 offset = (mousePosCanvas.x - renderData.title.left) / (NoteTitleTextHeight * 1.5f); // @TODO - This takes into consideration a small space of length NoteTitleTextHeight * 0.5f at the end of the text
-					offset = RoundToNearestInteger(offset);
-					Clamp(offset, 0, GetTextLength(state.notes.selected->title));
-					state.textUpdate.cursorCharOffset = offset;
+					f32 x = mousePosCanvas.x - vectors.titleEdges.left;
+					SetCursor(x, 0);
 				}
-				else if(MouseOverlapsCanvas(renderData.textContainer) == true) { // Update text
-					auto* n = state.notes.selected;
+				else if(MouseOverlapsCanvas(vectors.textContainer) == true) { // Update text
+					auto* n = GetCurrentNote();
 					
 					BeginTextUpdate(n->text);
 					
 					// Loop through the text and check each glyphs's position agains mouse pos to correctly set the cursor
-					auto* text = GetTextStart(n->text);
-					auto  length = GetTextLength(n->text);
-					f32   x = renderData.text.left;
-					f32   y = renderData.text.bottom + renderData.text.height - NoteTextHeight;
+					auto* text = GetTextBodyText(n->text);
+					auto  length = GetTextBodyLength(n->text);
+					f32   x = vectors.textEdges.left;
+					f32   y = vectors.textEdges.bottom + vectors.textEdges.height - NoteTextHeight;
 					ForAll(length) {\
 						if(text[it] == '\n') {
 							y -= NoteTextHeight * 1.5f; 
-							x = renderData.text.left;
+							x = vectors.textEdges.left;
 						}
 						else if(mousePosCanvas.y >= y && mousePosCanvas.y <= y + NoteTextHeight * 1.5f) { // Check for vertical overlap
 							// Get the line end
@@ -353,7 +336,7 @@ GUIAppEntryPoint(instance) {
 								
 							ui16 width = GetTextRenderDimensions(text + it, (ui32)(end - (text + it)), NoteTextHeight).x;
 							if(mousePosCanvas.x <= x + width) // If mouse is within a line
-								state.textUpdate.cursorCharOffset = it + (mousePosCanvas.x - renderData.text.left) / (NoteTextHeight * 1.5f);
+								state.textUpdate.cursorCharOffset = it + (mousePosCanvas.x - vectors.textEdges.left) / (NoteTextHeight * 1.5f);
 							else
 								state.textUpdate.cursorCharOffset = end - text; // Place cursor at the end of the line
 							break;
@@ -365,13 +348,13 @@ GUIAppEntryPoint(instance) {
 			}
 		}
 		else if(MouseLeftDownThisFrame() == true) { // Select
-			auto* previouslySelected = state.notes.selected;
-			state.notes.selected = Null;
+			auto* previouslySelected = GetCurrentNote();
+			SetCurrentNote(Null);
 		
 			auto mousePosCanvas = ConvertToCanvasSpace(state.mouse.pos.x, state.mouse.pos.y);
 			BeginNotesLoop(n) {
 				if(NoteMemoryIsInUse(n) == true && MouseOverlapsCanvas(n->background) == true) {
-					state.notes.selected = n;
+					SetCurrentNote(n);
 					state.notes.moving = true;
 					break;
 				}
@@ -379,15 +362,15 @@ GUIAppEntryPoint(instance) {
 			EndNotesLoop();
 			
 			// If we selected a different note or text was being written elsewhere, end writing
-			if(TextIsBeingWritten() == true && (state.notes.selected == Null || previouslySelected != state.notes.selected))
+			if(TextIsBeingUpdated() == true && (GetCurrentNote() == Null || previouslySelected != GetCurrentNote()))
 				EndTextUpdate();
 		}
 		else if(state.notes.moving == true && state.mouse.leftDown == true) { // Move
 			Assert(state.notes.selected != Null);
 			
 			// Mouse moves in viewport space
-			vector newPosCanvas = { state.notes.selected->background.left + (f32)state.mouse.translation.x / state.canvas.scale, 
-														  state.notes.selected->background.bottom + (f32)state.mouse.translation.y / state.canvas.scale };
+			vector newPosCanvas = { GetCurrentNote()->background.left + (f32)state.mouse.translation.x / state.canvas.scale, 
+														  GetCurrentNote()->background.bottom + (f32)state.mouse.translation.y / state.canvas.scale };
 														 
 			// When moving a new note outside of the toolbar, ensure it can't be moved back in
 			if(state.notes.justCreated == true) {
@@ -396,8 +379,8 @@ GUIAppEntryPoint(instance) {
 					state.notes.justCreated = false;
 			}
 			
-			state.notes.selected->background.left = newPosCanvas.x;
-			state.notes.selected->background.bottom = newPosCanvas.y;
+			GetCurrentNote()->background.left = newPosCanvas.x;
+			GetCurrentNote()->background.bottom = newPosCanvas.y;
 		}
 		else if(state.notes.moving == true && state.mouse.leftDown == false) { // Drop
 			state.notes.moving = false;
@@ -405,25 +388,25 @@ GUIAppEntryPoint(instance) {
 			// If the note was just created, drop it outside of the toolbar
 			Assert(state.notes.selected != Null);
 			f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
-			if(state.notes.selected->background.left < toolbarEdgeCanvas && state.notes.justCreated == true)
-				state.notes.selected->background.left = toolbarEdgeCanvas;
+			if(GetCurrentNote()->background.left < toolbarEdgeCanvas && state.notes.justCreated == true)
+				GetCurrentNote()->background.left = toolbarEdgeCanvas;
 			
 			state.notes.justCreated = false;
 		}
-		else if(state.notes.selected != Null && TextIsBeingWritten() == false && (osState.deletePressed == true || osState.backspacePressed == true)) { // Delete note
-			FreeTextBody(state.notes.selected->text);
-			if(TextBodyIsValid(state.notes.selected->title) == true)
-				FreeTextBody(state.notes.selected->title);
+		else if(state.notes.selected != Null && TextIsBeingUpdated() == false && (osState.deletePressed == true || osState.backspacePressed == true)) { // Delete note
+			FreeTextBody(GetCurrentNote()->text);
+			if(TextBodyIsValid(GetCurrentNote()->title) == true)
+				FreeTextBody(GetCurrentNote()->title);
 			ClearMemory(state.notes.selected, sizeof(note));
-			state.notes.selected = Null;
+			SetCurrentNote(Null);
 		}
 		
 		// Update text somewhere
-		if(TextIsBeingWritten() == true) {
+		if(TextIsBeingUpdated() == true) {
 			auto pipelineUpdate = RunTextUpdatePipeline(osState);
 			
 			if(osState.escPressed == true && NoteIsBeingUpdated() == true)
-				state.notes.selected = Null;
+				SetCurrentNote(Null);
 			else if(osState.mouseLeftClickDown == true && MouseIsWithinToolbar() == false) { // Left mouse click outside of the tool bar, check where and decide
 				vector mousePos = state.mouse.pos;
 				if(TitleIsBeingUpdated() == false) // If it's not the title bar, check for overlap in canvas space
@@ -431,22 +414,35 @@ GUIAppEntryPoint(instance) {
 				if(Overlap(mousePos.x, mousePos.y, UnpackRectangle(*tu->containerBackground)) == false)
 					EndTextUpdate();
 			}
-			else if( // If we're updating a note title, go to the text section
-							pipelineUpdate.wantToExitDown == true && NoteIsBeingUpdated() == true && NoteHasTitle(GetCurrnetNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->title) 
+			else if( // If we're updating a note title and want to move down, go to the text section
+							pipelineUpdate.wantToLeaveTextBodyDown == true && NoteIsBeingUpdated() == true && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->title) 
 			{				
-				auto previouscursorCharOffset = tu->cursorCharOffset;
+				auto* n = GetCurrentNote();
+				auto  noteVectors = GetNoteTextVectors(n);
+				f32   cursorXAbs = noteVectors.titleEdges.left + GetCursorPos().x - NoteTitleTextHeight * 0.25f; // @TODO - The 0.25f will probably change for each font
 				
 				EndTextUpdate();
 				BeginTextUpdate(n->text);
 				
-				auto renderData = GetNoteTextRenderData(n);
-				Assert(previouscursorCharOffset <= GetTextLength(n->title));
-				f32 cursorX = renderData.title.left + GetTextRenderDimensions(GetTextStart(n->title), previouscursorCharOffset, NoteTitleTextHeight).x + NoteTitleTextHeight * 0.25f;
-				f32 cursorIndex = (cursorX - renderData.text.left) / (NoteTextHeight * 1.5f);
+				f32 xRel = cursorXAbs - noteVectors.textEdges.left;
+				f32 yRel = noteVectors.textEdges.height;
+				SetCursorPos(xRel, yRel);
+				
+				#if 0
+				ui16 charOffset = cursorX / n->text.textHeight * 1.5f; // @TODO - For other fonts won't know the expect width of each glyph, which will change anyway for each one.
+				
+				
+				f32 offset = GetTextRenderDimensions(GetTextBodyLength(n->text), 
+				
+				auto vectors = GetNoteTextVectors(n);
+				Assert(previouscursorCharOffset <= GetTextBodyLength(n->title));
+				f32 cursorX = GetCursorPos().x;
+				f32 cursorIndex = cursorX / (NoteTextHeight * 1.5f);
 				cursorIndex = RoundToNearestInteger(cursorIndex);
 				Assert(cursorIndex > 0);
 				
-				tu->cursorCharOffset = GetMin(cursorIndex, GetTextLength(n->text));
+				tu->cursorCharOffset = GetMin(cursorIndex, GetTextBodyLength(n->text));
+				#endif
 			}
 			else if(osState.upPressed == true && NoteIsBeingUpdated() == true) {
 				auto* n = GetCurrentNote();
@@ -458,45 +454,20 @@ GUIAppEntryPoint(instance) {
 					EndTextUpdate();
 					BeginTextUpdate(n->title);
 					
-					auto renderData = GetNoteTextRenderData(n);
-					Assert(previouscursorCharOffset <= GetTextLength(n->text));
-					f32 cursorX = renderData.text.left + GetTextRenderDimensions(GetTextStart(n->text), previouscursorCharOffset, NoteTextHeight).x + NoteTextHeight * 0.25f;
+					auto vectors = GetNoteTextVectors(n);
+					Assert(previouscursorCharOffset <= GetTextBodyLength(n->text));
+					f32 cursorX = vectors.textEdges.left + GetTextRenderDimensions(GetTextBodyText(n->text), previouscursorCharOffset, NoteTextHeight).x + NoteTextHeight * 0.25f;
 					f32 cursorIndex = 0;
-					if(cursorX > renderData.title.left && cursorX < renderData.title.left + renderData.title.width) {
-						cursorIndex = (cursorX - renderData.title.left) / (NoteTitleTextHeight * 1.5f);
+					if(cursorX > vectors.titleEdges.left && cursorX < vectors.titleEdges.left + vectors.titleEdges.width) {
+						cursorIndex = (cursorX - vectors.titleEdges.left) / (NoteTitleTextHeight * 1.5f);
 						cursorIndex = RoundToNearestInteger(cursorIndex);
 					}
-					else if(cursorX >= renderData.title.left + renderData.title.width)
-						cursorIndex = GetTextLength(n->title);
+					else if(cursorX >= vectors.titleEdges.left + vectors.titleEdges.width)
+						cursorIndex = GetTextBodyLength(n->title);
 					Assert(cursorIndex >= 0);
 					
-					tu->cursorCharOffset = GetMin(cursorIndex, GetTextLength(n->title));
+					tu->cursorCharOffset = GetMin(cursorIndex, GetTextBodyLength(n->title));
 				}
-			}
-			
-			// Update cursor position
-			if(TextIsBeingWritten() == true) { // In case EndTextUpdate() was called above
-				
-				// @TODO - Move all of this down to rendering section
-				if(TitleIsBeingUpdated() == true) { // Writing on the title bar
-					auto fullLength = GetTextRenderDimensions(GetTextStart(*tu->textBody), GetTextLength(*tu->textBody), TitleBarTextHeight).x;
-					pos.x += GetMiddle(state.titleBar.background).x - fullLength / 2;
-					pos.y += GetMiddle(state.titleBar.background).y - TitleBarTextHeight / 2;
-				}
-				else { // Writing on a note
-					Assert(NoteIsBeingUpdated() == true);
-					auto* n = GetCurrentNote();
-					auto  renderData = GetNoteTextRenderData(n);
-					if(NoteHasTitle(n) == true && tu->textBody == &n->title) { // Updating title
-						pos.x += renderData.title.left;
-						pos.y += renderData.title.bottom;
-					}
-					else { // Update text
-						pos.x += renderData.text.left;
-						pos.y += renderData.textContainer.bottom + renderData.textContainer.height - NoteTextHeight; // Starts at the top
-					}
-				}
-				
 			}
 		}
 		
@@ -530,14 +501,14 @@ GUIAppEntryPoint(instance) {
 					draw = false;
 					
 				if(draw == true)
-					DrawRectangle(UnpackRectangle(n->background), 255, 255, 255);
+					DrawRectangleFull(UnpackRectangle(n->background), 255, 255, 255);
 			}
 		}
 		EndNotesMemoryLoop();
 
 		// Draw border on a selected note
 		if(state.notes.selected != Null && state.notes.justCreated == false)
-			DrawRectangleBorder(UnpackRectangle(state.notes.selected->background), 0, 0, 0);
+			DrawRectangleBorder(UnpackRectangle(GetCurrentNote()->background), 0, 0, 0);
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
@@ -546,14 +517,14 @@ GUIAppEntryPoint(instance) {
 			if(NoteMemoryIsInUse(n) == true) {
 				rectangle textBox = {};
 				rectangle titleBox = {};
-				auto      renderData = GetNoteTextRenderData(n);
-				if(GetTextLength(n->text) > 0) // Note has text
-					textBox = RenderText(GetTextStart(n->text), GetTextLength(n->text), renderData.text.left, renderData.text.bottom + renderData.text.height - NoteTextHeight, NoteTextHeight, false);
-				if(NoteHasTitle(n) == true && GetTextLength(n->title) > 0)
-					titleBox = RenderText(GetTextStart(n->title), GetTextLength(n->title), renderData.title.left, renderData.title.bottom, NoteTitleTextHeight, false);
+				auto      vectors = GetNoteTextVectors(n);
+				if(GetTextBodyLength(n->text) > 0) // Note has text
+					textBox = RenderText(GetTextBodyText(n->text), GetTextBodyLength(n->text), vectors.textEdges.left, vectors.textEdges.bottom + vectors.textEdges.height - NoteTextHeight, NoteTextHeight, false);
+				if(NoteHasTitle(n) == true && GetTextBodyLength(n->title) > 0)
+					titleBox = RenderText(GetTextBodyText(n->title), GetTextBodyLength(n->title), vectors.titleEdges.left, vectors.titleEdges.bottom, NoteTitleTextHeight, false);
 				
 				// Resize note
-				if(TextIsBeingWritten() == true && state.textUpdate.containerBackground == &n->background) {
+				if(TextIsBeingUpdated() == true && state.textUpdate.containerBackground == &n->background) {
 					n->background.width = GetMax(NoteMinWidth, textBox.width + NoteTextBorder * 2);
 					f32 top = n->background.bottom + n->background.height;
 					n->background.height = GetMax(NoteMinHeight, textBox.height + NoteTextBorder * 2);
@@ -573,12 +544,12 @@ GUIAppEntryPoint(instance) {
 		// Toolbar
 		{
 			auto* tb = &state.toolBar;
-			DrawRectangle(UnpackRectangle(state.toolBar.background), 255, 255, 255); // Background
+			DrawRectangleFull(UnpackRectangle(state.toolBar.background), 255, 255, 255); // Background
 	
 			ForAll(GetArrayLength(tb->buttons)) { // Buttons
 				auto* b = tb->buttons + it;
-				DrawRectangle(UnpackRectangle(b->background), 255, 0, 0);
-				RenderText((char*)b->text, GetStringLength(b->text), GetMiddle(b->background).x, b->textBottom, tb->textHeight, true);
+				DrawRectangleFull(UnpackRectangle(b->background), 255, 0, 0);
+				RenderText((char*)b->text, GetStringLength(b->text), GetCenter(b->background).x, b->textBottom, tb->textHeight, true);
 			}
 	
 			// Draw separator
@@ -594,10 +565,10 @@ GUIAppEntryPoint(instance) {
 		// Title bar
 		{
 			auto* tb = &state.titleBar;
-			DrawRectangle(UnpackRectangle(tb->background), 255, 255, 255);
-			if(GetTextLength(tb->text) > 1) {
-				auto middle = GetMiddle(tb->background);
-				RenderText(GetTextStart(tb->text), GetTextLength(tb->text), middle.x, middle.y - TitleBarTextHeight / 2, TitleBarTextHeight, true);
+			DrawRectangleFull(UnpackRectangle(tb->background), 255, 255, 255);
+			if(GetTextBodyLength(tb->text) > 1) {
+				auto middle = GetCenter(tb->background);
+				RenderText(GetTextBodyText(tb->text), GetTextBodyLength(tb->text), middle.x, middle.y - TitleBarTextHeight / 2, TitleBarTextHeight, true);
 			}
 			
 			// Draw separator
@@ -613,8 +584,8 @@ GUIAppEntryPoint(instance) {
 		// If a note was just created, draw in front of the tool bar
 		if(state.notes.selected != Null && state.notes.justCreated == true) {
 			SetCanvasProjetionMatrix();
-			DrawRectangle(UnpackRectangle(state.notes.selected->background), 255, 255, 255);
-			DrawRectangleBorder(UnpackRectangle(state.notes.selected->background), 0, 0, 0);
+			DrawRectangleFull(UnpackRectangle(GetCurrentNote()->background), 255, 255, 255);
+			DrawRectangleBorder(UnpackRectangle(GetCurrentNote()->background), 0, 0, 0);
 		}
 		
 		// Draw cursor if needed
@@ -648,13 +619,13 @@ GUIAppEntryPoint(instance) {
 			SetGUIProjectionMatrix();
 			
 			auto* m = &state.topMenu;
-			DrawRectangle(UnpackRectangle(m->background), 146, 139, 183);
+			DrawRectangleFull(UnpackRectangle(m->background), 146, 139, 183);
 		
 			// Potentially highlight selected option
 			if(MouseOverlapsGUI(m->background) == true) {
 				FromToInc(GetArrayLength(m->buttons) - 1, 0) {
 					if(state.mouse.pos.x >= m->buttons[it].left && state.mouse.pos.x < m->buttons[it].left + TopMenuButtonWidth) {
-						DrawRectangle(m->buttons[it].left, m->background.bottom, TopMenuButtonWidth, m->background.height, 0, 0, 0);
+						DrawRectangleFull(m->buttons[it].left, m->background.bottom, TopMenuButtonWidth, m->background.height, 0, 0, 0);
 						OutputDebugString(Concatenate(2, "\n ", ToString(state.mouse.pos.y)));
 						break;
 					}
@@ -663,15 +634,15 @@ GUIAppEntryPoint(instance) {
 			
 			ForAll(GetArrayLength(m->buttons)) {
 				auto* b = m->buttons + it;
-				RenderText((char*)b->text, GetStringLength(b->text), b->left + TopMenuButtonWidth / 2, GetMiddle(m->background).y - TopMenuTextHeight / 2, TopMenuTextHeight, true);
+				RenderText((char*)b->text, GetStringLength(b->text), b->left + TopMenuButtonWidth / 2, GetCenter(m->background).y - TopMenuTextHeight / 2, TopMenuTextHeight, true);
 				
 				// Draw separator
 				if(it < GetArrayLength(m->buttons) - 1) {
 					glColor3f(1, 1, 1);
 					glLineWidth(2);
 					glBegin(GL_LINES);
-					glVertex2f(b->left + TopMenuButtonWidth, GetMiddle(m->background).y - TopMenuTextHeight / 2);
-					glVertex2f(b->left + TopMenuButtonWidth, GetMiddle(m->background).y + TopMenuTextHeight / 2);
+					glVertex2f(b->left + TopMenuButtonWidth, GetCenter(m->background).y - TopMenuTextHeight / 2);
+					glVertex2f(b->left + TopMenuButtonWidth, GetCenter(m->background).y + TopMenuTextHeight / 2);
 					glEnd();
 					AssertOpenGL();
 				}
@@ -683,7 +654,7 @@ GUIAppEntryPoint(instance) {
 			auto* panel = GetColourPanel();
 			
 			SetGUIProjectionMatrix();
-			DrawRectangle(UnpackRectangle(panel->frame), 255, 255, 255); // Draw the frame
+			DrawRectangleFull(UnpackRectangle(panel->frame), 255, 255, 255); // Draw the frame
 			glLineWidth(2);
 			DrawRectangleBorder(UnpackRectangle(panel->frame), 0, 0, 0);
 			
@@ -694,7 +665,7 @@ GUIAppEntryPoint(instance) {
 				
 				// Center
 				glColor3f(1.0f, 1.0f, 1.0f);
-				glVertex2f(GetMiddle(r).x, GetMiddle(r).y);
+				glVertex2f(GetCenter(r).x, GetCenter(r).y);
 				
 				// Draw the wheel itself
 				FromToInc(0, ColourWheelVertices + 1) {
@@ -705,14 +676,14 @@ GUIAppEntryPoint(instance) {
 						glColor3f(0, LERP(1.0f, 0, (angle - 120) / 120), LERP(0, 1.0f, (angle - 120) / 120));
 					else
 						glColor3f(LERP(0, 1.0f, (angle - 240) / 120), 0, LERP(1.0f, 0, (angle - 240) / 120));
-					f32 x = GetMiddle(r).x - Sine(angle) * r.width / 2;
-					f32 y = GetMiddle(r).y + Cos(angle) * r.height / 2;
+					f32 x = GetCenter(r).x - Sine(angle) * r.width / 2;
+					f32 y = GetCenter(r).y + Cos(angle) * r.height / 2;
 					glVertex2f(x, y);
 				}
 				glEnd();
 				
 				// Draw outer edges
-				DrawCircleBorder(GetMiddle(r).x, GetMiddle(r).y, r.width / 2, 2, 0, 0, 0);
+				DrawCircleBorder(GetCenter(r).x, GetCenter(r).y, r.width / 2, 2, 0, 0, 0);
 				
 				// Draw selection
 				{
@@ -731,7 +702,7 @@ GUIAppEntryPoint(instance) {
 			f32 wheelBlue = 0;
 			{
 				auto wheelRec = GetColourPanelWheelRectangle();
-				auto vector = panel->selection - GetMiddle(wheelRec);
+				auto vector = panel->selection - GetCenter(wheelRec);
 				
 				// Scale magnitude
 				f32 magnitude01 = Magnitude(vector) / (wheelRec.width / 2); // 0 -> 1 between circle center and outer edges

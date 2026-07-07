@@ -10,16 +10,16 @@
 
 // ******************** Generic ******************** //
 
-#define 							 KiB(value) ((value) * 1024)
-#define 							 MiB(value) (KiB(value) * 1024)
-#define 							 GiB(value) (MiB(value) * 1024)
+#define 				KiB(value) ((value) * 1024)
+#define 				MiB(value) (KiB(value) * 1024)
+#define 				GiB(value) (MiB(value) * 1024)
 
-#define 							 MovePtr(_ptr, _bytes) (_ptr) = (decltype(_ptr))((ui8*)(_ptr) + (_bytes))
-#define 							 CastMemMovePtr(_mem, _dataType) ((_dataType*)(_mem)); MovePtr(_mem, sizeof(_dataType))
-#define 							 ReadMemMovePtr(_mem, _dataType) *CastMemMovePtr(_mem, _dataType)
+#define 				MovePtr(_ptr, _bytes) (_ptr) = (decltype(_ptr))((ui8*)(_ptr) + (_bytes))
+#define 				CastMemMovePtr(_mem, _dataType) ((_dataType*)(_mem)); MovePtr(_mem, sizeof(_dataType))
+#define 				ReadMemMovePtr(_mem, _dataType) *CastMemMovePtr(_mem, _dataType)
 
 dll_import void ClearMemory(void* memory, ui32 size);
-#define 							 ClearStruct(_s) ClearMemory(&(_s), sizeof(_s))
+#define 				ClearStruct(_s) ClearMemory(&(_s), sizeof(_s))
 dll_import void CopyMemory(void* source, ui32 size, void* destination);
 
 // ******************** Memory blocks ******************** //

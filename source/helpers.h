@@ -2,6 +2,7 @@
 #define TEXT_H
 
 #include "apad_base_types.h"
+#include "apad_gui.h"
 #include "apad_intrinsics.h."
 #include "apad_maths.h"
 #include "apad_memory.h"
@@ -11,18 +12,16 @@
 
 const ui16 NoteMinWidth = 200;
 const ui16 NoteTextHeight = 15;
-const ui16 NoteTextBorderOffset = NoteTextHeight;
+const ui16 NoteTextBorder = NoteTextHeight;
 const ui16 NoteMinHeight = NoteTextHeight + NoteTextBorder * 2;
 
 const ui16 NoteTitleTextHeight = NoteTextHeight * 1.5f;
 
 struct note {
-	f32       width;
+	vector    pos; // Size determined by contents
 	text_body title; // Edges in canvas space
 	text_body text;  // Edges in canvas space
 };
-// @TODO - Need a function for overall overlap checks
-// @TODO - Need a function to get a text_body's edges / rectangle based on render dimensions
 
 #define BeginNotesMemoryLoop(_varID) { ForAll(state.notes.memory.size / sizeof(note)) { \
 																		     note* _varID = (note*)state.notes.memory.memory + it;
@@ -33,13 +32,14 @@ struct note {
 
 note*   CreateNote(vector pos, const char* title, const char* text);
 note*   GetCurrentNote();
+note* 	SetCurrentNote(note* n);
 
-struct note_text_render_data {
-	rectangle title;
-	rectangle titleEdges;
-	rectangle text;
-	rectangle textEdges;
-}    GetNoteTextRenderData(note* n); // Width == 0 if no text present for both text and title
+struct note_text_vectors {
+	rectangle titleEdges; 		// Will all be Null if no title memory allocated. If no text present, height will be valid but width == 0
+	rectangle titleContainer; // Will all be Null if no title memory allocated
+	rectangle textEdges; 			// If no text present, height will be valid but width == 0
+	rectangle textContainer;
+}    GetNoteTextVectors(note* n);
 bool NoteIsBeingUpdated();
 bool NoteHasTitle(note* n);
 bool NoteMemoryIsInUse(note* n);
@@ -68,7 +68,7 @@ program_unique struct {
 	struct {
 		vector translation; // In viewport space, applied post scaling, therefore must be scaled
 		f32    scale = 1.0f;
-	} canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
+	} 			 canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
 	
 	struct {
 		rectangle background; // In viewport space

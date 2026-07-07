@@ -53,8 +53,7 @@
 #define forward_declared_enum struct
 
 // Bit fields. 
-// Dot not test for true or false, instead use > 0 or == 0
-#define BitIsSet(_bitIndex, _field) (((_field) & (1 << (_bitIndex))) > 0)
+#define BitIsSet(_bitIndex, _field) (((_field) & (1 << (_bitIndex))) > 0) // Returns true or false
 #define ClearBit(_bitIndex, _field) (_field = decltype(_field)((_field) & (~(1 << _bitIndex))))
 #define SetBit(_bitIndex, _field) (_field = decltype(_field)((_field) | (1 << _bitIndex)))
 
