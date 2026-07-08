@@ -82,9 +82,13 @@ program_external note_text_vectors GetNoteRectangles(note* n) {
 	Assert(n != Null);
 	
 	// Text
-	rectangle textContainer = CreateRectangle(n->pos, vector());
-	rectangle textEdges = CreateRectangle(textContainer.pos + CreateVector(NoteTextBorder, NoteTextBorder), GetTextBodyRenderDimensions(n->text));
+	rectangle textContainer = {};
+	textContainer.pos = n->pos;
+	rectangle textEdges = {};
+	textEdges.pos = textContainer.pos + CreateVector(NoteTextBorder, NoteTextBorder);
+	textEdges.size = GetTextBodyRenderDimensions(n->text);
 	textContainer.size = textEdges.size + CreateVector(NoteTextBorder * 2, NoteTextBorder * 2);
+	textContainer.width = GetMax(textContainer.width, NoteMinWidth);
 	
 	// Title
 	rectangle titleContainer = {};

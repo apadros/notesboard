@@ -53,9 +53,9 @@
 #define forward_declared_enum struct
 
 // Bit fields. 
-#define BitIsSet(_bitIndex, _field) (((_field) & (1 << (_bitIndex))) > 0) // Returns true or false
-#define ClearBit(_bitIndex, _field) (_field = decltype(_field)((_field) & (~(1 << _bitIndex))))
-#define SetBit(_bitIndex, _field) (_field = decltype(_field)((_field) | (1 << _bitIndex)))
+#define BitIsSet(_bitIndex /* 0-based */, _field) (((_field) & (1 << (_bitIndex))) > 0) // Returns true or false
+#define ClearBit(_bitIndex /* 0-based */, _field) (_field = decltype(_field)((_field) & (~(1 << _bitIndex))))
+#define SetBit(_bitIndex /* 0-based */, _field) (_field = decltype(_field)((_field) | (1 << _bitIndex)))
 
 // Linking
 #define dll_import __declspec( dllimport )

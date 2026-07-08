@@ -56,7 +56,9 @@ dll_export f32    GetCursorAlphaValue();
 dll_import vector GetCursorPos(); // Will be relative to the bottom-left of the current text body
 dll_import void   MoveCursor(si8 charOffset); // Current offset clamped between 0 and current text_body length
 dll_export void   SetCursorCharOffset(ui16 offset); // Offset clamped to current text_body length
-dll_export void 	SetCursor(f32 x, f32 y); // Coords are relative to text_body origin, will be clamped to within its boundaries.
+
+dll_export void 	_SetCursorPos(f32 x, f32 y); // Coords are relative to text_body origin, will be clamped to within its boundaries.
+#define           SetCursorPos _SetCursorPos // Windows already has a SetCursorPos function
 
 // ******************** Rendering ******************** //
 

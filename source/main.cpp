@@ -33,7 +33,7 @@ GUIAppEntryPoint(instance) {
 	
 	// Init title bar
 	{
-		auto* tb = &state.titleBar;
+		auto* tb = GetTitleBar();
 		tb->background.width = Win32GetProgramWindowClientSize().width;
 		tb->background.height = TitleBarHeight;
 		tb->background.bottom = state.topMenu.background.bottom - tb->background.height;
@@ -47,7 +47,7 @@ GUIAppEntryPoint(instance) {
 		tb->background.left = 0;
 		tb->background.bottom = 0;
 		tb->background.width = ToolbarWidth;
-		tb->background.height = state.topMenu.background.bottom - state.titleBar.background.height;
+		tb->background.height = state.topMenu.background.bottom - GetTitleBar()->background.height;
 
 		// Init buttons, starting at the top
 		tb->textHeight = ToolbarTextHeight;
@@ -113,8 +113,8 @@ GUIAppEntryPoint(instance) {
 								auto memory = AllocateStack();
 								
 								// Store board title
-								if(GetTextBodyLength(state.titleBar.text) > 0)
-									PushString(GetTextBodyText(state.titleBar.text), false, memory);
+								if(GetTextBodyLength(GetTitleBar()->text) > 0)
+									PushString(GetTextBodyText(GetTitleBar()->text), false, memory);
 								PushString(Null, true, memory);
 								
 								// Notes
@@ -162,8 +162,8 @@ GUIAppEntryPoint(instance) {
 								char* boardTitle = (char*)data;
 								MovePtr(data, GetStringLength(boardTitle) + 1);
 								if(boardTitle[0] != '\0') {
-									ClearTextBody(state.titleBar.text);
-									InsertString(boardTitle, GetStringLength(boardTitle), state.titleBar.text, 0);
+									ClearTextBody(GetTitleBar()->text);
+									InsertString(boardTitle, GetStringLength(boardTitle), GetTitleBar()->text, 0);
 								}
 								
 								ClearMemory(state.notes.memory.memory, state.notes.memory.size);
@@ -191,11 +191,17 @@ GUIAppEntryPoint(instance) {
 		}
 		
 		// Selection of the title bar
-		if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(state.titleBar.background) == true) {
+		if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(GetTitleBar()->background) == true) {
+			auto* tb = GetTitleBar();
+			
 			if(TextIsBeingUpdated() == true && TitleIsBeingUpdated() == false)
 				EndTextUpdate();
 			SetCurrentNote(Null);
-			BeginTextUpdate(state.titleBar.text);
+			BeginTextUpdate(tb->text);
+			
+			auto titleBarTextPos = GetCenter(tb->background) - GetTextBodyRenderDimensions(tb->text) / 2;
+			SetCursorPos(UnpackVector(state.mouse.pos - titleBarTextPos));
+			
 			goto label_rendering;
 		}
 		
@@ -311,7 +317,7 @@ GUIAppEntryPoint(instance) {
 					
 					// Position mouse cursor more precisely
 					f32 x = mousePosCanvas.x - recs.titleEdges.left;
-					SetCursor(x, 0);
+					SetCursorPos(x, 0);
 				}
 				else if(MouseOverlapsCanvas(recs.textContainer) == true) { // Update text
 					auto* n = GetCurrentNote();
@@ -319,7 +325,7 @@ GUIAppEntryPoint(instance) {
 					BeginTextUpdate(n->text);
 					
 					vector pos = mousePosCanvas - recs.textEdges.pos;
-					SetCursor(pos.x, pos.y);
+					SetCursorPos(pos.x, pos.y);
 				}
 			}
 		}
@@ -517,11 +523,11 @@ GUIAppEntryPoint(instance) {
 		
 		// Title bar
 		{
-			auto* tb = &state.titleBar;
+			auto* tb = GetTitleBar();
 			DrawRectangleFull(UnpackRectangle(tb->background), 255, 255, 255);
 			if(GetTextBodyLength(tb->text) > 1) {
 				auto middle = GetCenter(tb->background);
-				RenderText(GetTextBodyText(tb->text), GetTextBodyLength(tb->text), middle.x, middle.y - TitleBarTextHeight / 2, TitleBarTextHeight, true);
+				RenderText(GetTextBodyText(tb->text), GetTextBodyLength(tb->text), middle.x, middle.y - tb->text.textHeight / 2, tb->text.textHeight, true);
 			}
 			
 			// Draw separator
@@ -548,8 +554,8 @@ GUIAppEntryPoint(instance) {
 			if(TitleIsBeingUpdated() == false)
 				SetCanvasProjetionMatrix();
 			
-			f32  alpha = GetCursorAlphaValue();
-			vector cursorPos;
+			f32 alpha = GetCursorAlphaValue();
+			vector cursorPos = {};
 			if(TitleIsBeingUpdated() == true) {
 				auto center = GetCenter(GetTitleBar()->background);
 				auto textSize = GetTextBodyRenderDimensions(GetTitleBar()->text);
