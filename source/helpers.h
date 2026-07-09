@@ -41,7 +41,7 @@ struct note_text_vectors {
 	rectangle textContainer;
 	rectangle overall;
 }    GetNoteRectangles(note* n);
-bool NoteIsBeingUpdated();
+bool NoteTextIsBeingUpdated();
 bool NoteHasTitle(note* n);
 bool NoteMemoryIsInUse(note* n);
 

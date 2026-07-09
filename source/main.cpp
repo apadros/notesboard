@@ -215,7 +215,7 @@ GUIAppEntryPoint(instance) {
 	
 			goto label_rendering;
 		}
-		else if(NoteIsBeingUpdated() == true && MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[1].background) == true) { // Add a bullet point
+		else if(NoteTextIsBeingUpdated() == true && MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[1].background) == true) { // Add a bullet point
 			InsertCharAtCursor(BulletPointChar); // Will check viability first	
 			goto label_rendering;
 		}
@@ -383,21 +383,33 @@ GUIAppEntryPoint(instance) {
 			ClearMemory(state.notes.selected, sizeof(note));
 			SetCurrentNote(Null);
 		}
+		else if(NoteTextIsBeingUpdated() == true && GetCurrentTextBody() == &GetCurrentNote()->text) { // Modify note position based on enter and backspace
+			auto* n = GetCurrentNote();
+			if(osState.enterPressed == true)
+				n->pos.y -= GetTextLineHeight(n->text.textHeight);
+			else if(osState.backspacePressed == true) {
+				auto& tb = *GetCurrentTextBody();
+				auto* text = GetTextBodyText(tb);
+				auto  offset = GetCursorCharOffset();
+				if(offset > 0 && text[offset - 1] == NewlineChar) // If we're removing a newline
+					n->pos.y += GetTextLineHeight(n->text.textHeight);
+			}
+		}
 		
 		// Update text somewhere
 		if(TextIsBeingUpdated() == true) {
 			auto pipelineUpdate = RunTextUpdatePipeline(osState);
 			
-			if(osState.escapePressed == true && NoteIsBeingUpdated() == true)
+			if(osState.escapePressed == true && NoteTextIsBeingUpdated() == true)
 				SetCurrentNote(Null);
 			else if(osState.mouseLeftClickDown == true && MouseIsWithinToolbar() == false) { // Left mouse click outside of the tool bar, check where and decide
-				Assert(TitleIsBeingUpdated() == true || NoteIsBeingUpdated() == true);
+				Assert(TitleIsBeingUpdated() == true || GetCurrentNote() != Null);
 				if(TitleIsBeingUpdated() == true && MouseOverlapsGUI(GetTitleBar()->background) == false ||
 				   MouseOverlapsCanvas(GetNoteRectangles(GetCurrentNote()).overall) == false)
 					EndTextUpdate();
 			}
 			else if( // If we're updating a note title and want to move down, go to the text section
-							pipelineUpdate.wantToLeaveTextBodyDown == true && NoteIsBeingUpdated() == true && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->title) 
+							pipelineUpdate.wantToLeaveTextBodyDown == true && NoteTextIsBeingUpdated() == true && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->title) 
 			{				
 				auto* n = GetCurrentNote();
 				auto  recs = GetNoteRectangles(n);
@@ -427,7 +439,7 @@ GUIAppEntryPoint(instance) {
 				#endif
 			}
 			else if( // If we're updating a note title and want to move down, go to the text section
-							pipelineUpdate.wantToLeaveTextBodyUp == true && NoteIsBeingUpdated() == true && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->text)
+							pipelineUpdate.wantToLeaveTextBodyUp == true && NoteTextIsBeingUpdated() == true && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->text)
 			{
 				auto* n = GetCurrentNote();
 				auto  recs = GetNoteRectangles(n);
@@ -561,10 +573,17 @@ GUIAppEntryPoint(instance) {
 				auto textSize = GetTextBodyRenderDimensions(GetTitleBar()->text);
 				cursorPos = center - textSize / 2 + GetCursorPos();
 			}
-			else {
-				Assert(NoteIsBeingUpdated() == true);
+			else if (NoteTextIsBeingUpdated() == true) {
 				auto recs = GetNoteRectangles(GetCurrentNote());
 				cursorPos = recs.textEdges.pos + GetCursorPos();
+			}
+			else { // Note title
+				auto* n = GetCurrentNote();
+				Assert(n != Null);
+				Assert(NoteHasTitle(n) == true);
+				Assert(GetCurrentTextBody() == &n->title);
+				auto recs = GetNoteRectangles(GetCurrentNote());
+				cursorPos = recs.titleEdges.pos + GetCursorPos();
 			}
 			
 			glLineWidth(2);

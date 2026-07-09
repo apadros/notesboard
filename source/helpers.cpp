@@ -143,8 +143,8 @@ program_external note* SetCurrentNote(note* n) {
 	return state.notes.selected = n;
 }
 
-program_external bool NoteIsBeingUpdated() {
-	return TextIsBeingUpdated() == true && state.notes.selected != Null && GetCurrentTextBody() == &state.notes.selected->text;
+program_external bool NoteTextIsBeingUpdated() {
+	return TextIsBeingUpdated() == true && GetCurrentNote() != Null && GetCurrentTextBody() == &GetCurrentNote()->text;
 }
 
 program_external vector ConvertToCanvasSpace(f32 x, f32 y) {
