@@ -229,7 +229,7 @@ GUIAppEntryPoint(instance) {
 		}
 		else if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[3].background) == true) { // Toggle colour wheel
 			auto* panel = GetColourPanel();
-			panel->display = !panel->display;
+			Toggle(panel->display);
 			if(panel->display == true) {
 				panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
 				panel->frame.width = ColourPanelWidth;
@@ -636,7 +636,6 @@ GUIAppEntryPoint(instance) {
 			
 			SetGUIProjectionMatrix();
 			DrawRectangleFull(UnpackRectangle(panel->frame), 255, 255, 255); // Draw the frame
-			glLineWidth(2);
 			DrawRectangleBorder(UnpackRectangle(panel->frame), 2, 0, 0, 0);
 			
 			// Draw colour wheel
@@ -668,7 +667,6 @@ GUIAppEntryPoint(instance) {
 				
 				// Draw selection
 				{
-					// @TODO - Draw a circle instead of a rectangle
 					f32 size = 10;
 					glLineWidth(1);
 					DrawRectangleBorder(panel->selection.x - size / 2, panel->selection.y - size / 2, size, size, 2, 255, 255, 255);
@@ -756,43 +754,82 @@ GUIAppEntryPoint(instance) {
 			{
 				auto* panel = GetColourPanel();
 				
-				// For now just draw 1 circle and 3 boxes
-				ForAll(4) {
-					if(it == 0) { // Final colour selection
-						auto rec = GetColourPanelSliderRectangle();
-						f32 sliderScale = (panel->sliderCenterY - rec.bottom) / rec.height;
-						f32 r = wheelRed * sliderScale;
-						f32 g = wheelGreen * sliderScale;
-						f32 b = wheelBlue * sliderScale;
-						
-						f32 centerX = panel->frame.left + (panel->frame.width / 4) * it + panel->frame.width / 8;
-						f32 centerY = panel->frame.bottom + panel->frame.height / 4;
-						f32 radius = panel->frame.width / 5 / 2;
-						
-						//  Colour circle
-						glBegin(GL_TRIANGLE_FAN);
-						glColor3f(r, g, b);
-						ui8 vertices = 36;
-						FromToInc(0, vertices + 1) {
-							f32 angle = it * 360 / vertices;
-							f32 x = centerX - Sine(angle) * radius;
-							f32 y = centerY + Cos(angle) * radius;
-							glVertex2f(x, y);
-						}
-						glEnd();
-						
-						// Frame
-						DrawCircleBorder(centerX, centerY, radius, 2, 0, 0, 0);
+				// Final colour
+				f32 finalRed = 255;
+				f32 finalGreen = 255;
+				f32 finalBlue = 255;
+				{
+					auto rec = GetColourPanelSliderRectangle();
+					f32 sliderScale = (panel->sliderCenterY - rec.bottom) / rec.height;
+					finalRed = wheelRed * sliderScale;
+					finalGreen = wheelGreen * sliderScale;
+					finalBlue = wheelBlue * sliderScale;
+					
+					f32 centerX = panel->frame.left + panel->frame.width / 8;
+					f32 centerY = panel->frame.bottom + panel->frame.height / 4;
+					f32 radius = panel->frame.width / 5 / 2;
+					
+					//  Colour circle
+					glBegin(GL_TRIANGLE_FAN);
+					glColor3f(finalRed, finalGreen, finalBlue);
+					ui8 vertices = 36;
+					FromToInc(0, vertices + 1) {
+						f32 angle = it * 360 / vertices;
+						f32 x = centerX - Sine(angle) * radius;
+						f32 y = centerY + Cos(angle) * radius;
+						glVertex2f(x, y);
 					}
-					else { // RGB text boxes
-						f32 middleX = panel->frame.left + (panel->frame.width / 4) * it + panel->frame.width / 8;
-						f32 width = panel->frame.width / 5;
-						f32 middleY = panel->frame.bottom + panel->frame.height / 4;
-						f32 height = panel->frame.height / 5;
-						glLineWidth(1);
-						DrawRectangleBorder(middleX - width / 2, middleY - height / 2, width, height, 2, 0, 0, 0);
-					}
+					glEnd();
+					
+					// Frame
+					DrawCircleBorder(centerX, centerY, radius, 2, 0, 0, 0);
 				}
+				
+				// RGB panels
+				auto recs = GetColourPanelRGBRectantles();
+				DrawRectangleBorder(UnpackRectangle(recs.r), 1, 0, 0, 0);
+				DrawRectangleBorder(UnpackRectangle(recs.g), 1, 0, 0, 0);
+				DrawRectangleBorder(UnpackRectangle(recs.b), 1, 0, 0, 0);
+					
+				ForAll(3) {
+					// Box
+					f32 middleX = panel->frame.left + (panel->frame.width / 4) * (it + 1) + panel->frame.width / 8;
+					f32 middleY = panel->frame.bottom + panel->frame.height / 4;
+					f32 height = panel->frame.height / 5;
+					
+					// Text fields
+					f32 textHeight = height / 5;
+					if(it == 0) {
+						ClearTextBody(panel->red);
+						char* string = ToString((ui8)(finalRed * 255));
+						if(GetStringLength(string) == 1)
+							string = Concatenate(2, "00", string);
+						else if(GetStringLength(string) == 2)
+							string = Concatenate(2, "0", string);
+						InsertString(string, 3, panel->red, 0);
+						RenderText(GetTextBodyText(panel->red), GetTextBodyLength(panel->red), middleX, middleY - textHeight / 2, textHeight, true);
+					}
+					else if(it == 1) {
+						ClearTextBody(panel->green);
+						char* string = ToString((ui8)(finalGreen * 255));
+						if(GetStringLength(string) == 1)
+							string = Concatenate(2, "00", string);
+						else if(GetStringLength(string) == 2)
+							string = Concatenate(2, "0", string);
+						InsertString(string, 3, panel->green, 0);
+						RenderText(GetTextBodyText(panel->green), GetTextBodyLength(panel->green), middleX, middleY - textHeight / 2, textHeight, true);
+					}
+					else {
+						ClearTextBody(panel->blue);
+						char* string = ToString((ui8)(finalBlue * 255));
+						if(GetStringLength(string) == 1)
+							string = Concatenate(2, "00", string);
+						else if(GetStringLength(string) == 2)
+							string = Concatenate(2, "0", string);
+						InsertString(string, 3, panel->blue, 0);
+						RenderText(GetTextBodyText(panel->blue), GetTextBodyLength(panel->blue), middleX, middleY - textHeight / 2, textHeight, true);
+					}	
+				}				
 			}
 		}
 		

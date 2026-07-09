@@ -125,9 +125,9 @@ program_unique struct {
 } state;
 
 // Misc
-#define GetTitleBar()    (&state.titleBar)
-#define GetToolBar() 		 (&state.toolBar)
-#define GetTopMenu() 		 (&state.topMenu)
+#define GetTitleBar() (&state.titleBar)
+#define GetToolBar() 	(&state.toolBar)
+#define GetTopMenu() 	(&state.topMenu)
 bool    MouseIsWithinToolbar();
 bool    MouseLeftDownThisFrame();
 bool    MouseOverlapsCanvas(rectangle& r);
@@ -135,10 +135,16 @@ bool    MouseOverlapsGUI(rectangle& r);
 bool    TitleIsBeingUpdated();
 
 // Colour panel
-#define 	GetColourPanel() \
-						(&state.colourPanel)
-rectangle GetColourPanelSliderRectangle();
-rectangle GetColourPanelWheelRectangle();
+struct rgb_rectangles {
+	rectangle r;
+	rectangle g;
+	rectangle b;
+};
+bool 					 ColourPanelIsVisible();
+#define 			 GetColourPanel() (&state.colourPanel)
+rgb_rectangles GetColourPanelRGBRectantles();
+rectangle 		 GetColourPanelSliderRectangle();
+rectangle 		 GetColourPanelWheelRectangle();
 
 // Space and projection matrix stuff
 vector  ConvertToCanvasSpace(f32 x, f32 y);

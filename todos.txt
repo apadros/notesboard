@@ -16,14 +16,13 @@ Functionality
 	- Position mouse cursor more accurately on text body when double clicking it - currently works but is somewhat inaccurate
 		- Change the mouse image to the cursor and back
 	- Setting a custom colour for the note background
-		- Colour pane @WIP
+		- Colour pane
 			- Ok / cancel buttons
 			- Saving of custom colours
 				- Place between the colour wheel itself and the text pane underneath
 				- Make into circles
 				- Save to project file
-			- Possibility to manually set rgb numbers - requires text bodies within the colour panel @WIP
-				- Currently moving over text_body and textUpdate stuff to APAD_API, then need to implement the above after tidying everything up @WIP
+			- Possibility to manually set rgb numbers @WIP
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar

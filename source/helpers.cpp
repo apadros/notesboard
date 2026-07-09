@@ -147,6 +147,31 @@ program_external bool NoteTextIsBeingUpdated() {
 	return TextIsBeingUpdated() == true && GetCurrentNote() != Null && GetCurrentTextBody() == &GetCurrentNote()->text;
 }
 
+program_external bool ColourPanelIsVisible() {
+	return GetColourPanel()->display;
+}
+
+program_external rgb_rectangles GetColourPanelRGBRectantles() {
+	Assert(ColourPanelIsVisible() == true);
+	
+	rectangles recs[3] = {};
+	
+	auto* panel = GetColourPanel();
+	ForAll(3) {
+		f32 middleX = panel->frame.left + (panel->frame.width / 4) * (it + 1) + panel->frame.width / 8;
+		f32 width = panel->frame.width / 5;
+		f32 middleY = panel->frame.bottom + panel->frame.height / 4;
+		f32 height = panel->frame.height / 5;
+		recs[it] = CreateRectangle(middleX - width / 2, middleY - height / 2, width, height);
+	}
+	
+	rgb_rectangles ret = {};
+	ret.r = recs[0];
+	ret.g = recs[1];
+	ret.b = recs[2];
+	return ret;
+}
+
 program_external vector ConvertToCanvasSpace(f32 x, f32 y) {
 	vector p = {};
 	p.x = (x - state.canvas.translation.x) / state.canvas.scale;
