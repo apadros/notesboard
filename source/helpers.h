@@ -18,7 +18,6 @@ const ui16 NoteMinHeight = NoteTextHeight + NoteTextBorder * 2;
 const ui16 NoteTitleTextHeight = NoteTextHeight * 1.5f;
 
 struct note {
-	vector    pos; // Size determined by contents
 	text_body title; // Edges in canvas space
 	text_body text;  // Edges in canvas space
 };
@@ -34,16 +33,11 @@ note*   CreateNote(vector pos, const char* title, const char* text);
 note*   GetCurrentNote();
 note* 	SetCurrentNote(note* n);
 
-struct note_text_vectors {
-	rectangle titleEdges; 		// Will all be Null if no title memory allocated. If no text present, height will be valid but width == 0
-	rectangle titleContainer; // Will all be Null if no title memory allocated
-	rectangle textEdges; 			// If no text present, height will be valid but width == 0
-	rectangle textContainer;
-	rectangle overall;
-}    GetNoteRectangles(note* n);
-bool NoteTextIsBeingUpdated();
-bool NoteHasTitle(note* n);
-bool NoteMemoryIsInUse(note* n);
+rectangle GetNoteOverallRectangle(note* n);
+bool 		  NoteTextIsBeingUpdated();
+bool 		  NoteHasTitle(note* n);
+bool 		  NoteMemoryIsInUse(note* n);
+void 		  UpdateNoteContainers(note* n); // Call after any updates to either text_body
 
 // ******************** Misc ******************** //
 
@@ -65,16 +59,15 @@ const f32  ColourWheelSizeMult = 0.5f;
 const f32  ColourWheelVerticalCenterMult = 0.7f;
 const ui8  ColourWheelVertices = 36;
 
+const ui8  UIBorderThickness = 2;
+
 program_unique struct {
 	struct {
 		vector translation; // In viewport space, applied post scaling, therefore must be scaled
 		f32    scale = 1.0f;
 	} 			 canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
 	
-	struct {
-		rectangle background; // In viewport space
-		text_body text;
-	} 					titleBar;
+	text_body titleBar; // Coords in viewport space
 	
 	struct {
 		rectangle 		background;
@@ -102,9 +95,9 @@ program_unique struct {
 		bool      updatingSelection;
 		f32       sliderCenterY;
 		bool      updatingSlider;
-		text_body red;
-		text_body green;
-		text_body blue;
+		text_body red;	 // Coords in viewport space
+		text_body green; // Coords in viewport space
+		text_body blue;  // Coords in viewport space 
 	} 					colourPanel;
 
 	struct {
@@ -135,16 +128,10 @@ bool    MouseOverlapsGUI(rectangle& r);
 bool    TitleIsBeingUpdated();
 
 // Colour panel
-struct rgb_rectangles {
-	rectangle r;
-	rectangle g;
-	rectangle b;
-};
-bool 					 ColourPanelIsVisible();
-#define 			 GetColourPanel() (&state.colourPanel)
-rgb_rectangles GetColourPanelRGBRectantles();
-rectangle 		 GetColourPanelSliderRectangle();
-rectangle 		 GetColourPanelWheelRectangle();
+bool 			ColourPanelIsVisible();
+#define 	GetColourPanel() (&state.colourPanel)
+rectangle GetColourPanelSliderRectangle();
+rectangle GetColourPanelWheelRectangle();
 
 // Space and projection matrix stuff
 vector  ConvertToCanvasSpace(f32 x, f32 y);

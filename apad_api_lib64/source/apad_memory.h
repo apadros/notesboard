@@ -1,7 +1,3 @@
-#ifdef CopyMemory
-#undef CopyMemory
-#endif
-
 #ifndef APAD_MEMORY_H
 #define APAD_MEMORY_H
 
@@ -18,9 +14,9 @@
 #define 				CastMemMovePtr(_mem, _dataType) ((_dataType*)(_mem)); MovePtr(_mem, sizeof(_dataType))
 #define 				ReadMemMovePtr(_mem, _dataType) *CastMemMovePtr(_mem, _dataType)
 
-dll_import void ClearMemory(void* memory, ui32 size);
-#define 				ClearStruct(_s) ClearMemory(&(_s), sizeof(_s))
-dll_import void CopyMemory(void* source, ui32 size, void* destination);
+dll_import void Clear(void* memory, ui32 size);
+#define 				ClearStruct(_s) Clear(&(_s), sizeof(_s))
+dll_import void Copy(void* source, ui32 size, void* destination);
 
 // ******************** Memory blocks ******************** //
 
@@ -35,14 +31,14 @@ typedef memory_block memory_stack;
 
 dll_import memory_block AllocateMemory(ui32 size);
 dll_import void*        GetMemory(memory_block block);
-dll_import void         FreeMemory(memory_block& block); // Clears block afterwards
+dll_import void         Free(memory_block& block); // Clears block afterwards
 dll_import bool         IsValid(memory_block block);
 dll_import void         SetInvalid(memory_block& block);
 
 // ******************** Stack functionality ******************** //
 
 dll_import memory_stack AllocateStack(ui32 capacity = Null);
-dll_import void 				FreeStack(memory_stack& stack);
+dll_import void 				Free(memory_stack& stack);
 dll_import void* 				Insert(ui32 size, ui32 offset, memory_stack& stack);
 
 // All of these will allocate a new stack with a minimum of 2x capacity if not enough space is available for the push.
@@ -55,6 +51,6 @@ dll_import void*			  Push(void* memory, ui32 size, memory_stack& stack);
 													(_type*)Push(sizeof(_type), (_stack))
 
 dll_import void  				Remove(ui32 size, ui32 offset, memory_stack& stack); // Will move contents beyond offset + size down to offset
-dll_import void 				ResetStack(memory_stack& stack);
+dll_import void 				Reset(memory_stack& stack);
 
 #endif

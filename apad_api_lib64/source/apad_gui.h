@@ -14,20 +14,23 @@ const ui8 TextBodyFlagLeftAligned =  1 << 3; // If not present text is assumed t
 
 struct text_body {
 	memory_stack memory;
+	rectangle    container;
+	f32          textBorderOffset;
 	f32          textHeight;
 	ui8          flags;
 };
 
-dll_import text_body AllocateTextBody(f32 textHeight, ui8 flags);
-dll_import void 		 ClearTextBody(text_body& tb);
-dll_import void 		 FreeTextBody(text_body& tb);
-dll_import char* 		 FindTextBodyChar(char c, ui16 pos, bool scanForward, text_body& tb);
-dll_import ui32 		 GetTextBodyLength(text_body& tb);
-dll_import char* 		 GetTextBodyText(text_body& tb);
-dll_export vector 	 GetTextBodyRenderDimensions(text_body& tb); // Will have a min height of tb.textHeight, width will be 0 if it doesn't contain any text
-dll_import ui16      InsertString(char* string, ui32 length, text_body& tb, ui32 pos); // Returns chars inserted
+dll_import text_body AllocateTextBody(f32 left, f32 bottom, f32 width, f32 textBorderOffset, f32 textHeight, ui8 flags);
+dll_import void 		 ClearText(text_body& tb);
+dll_import void 		 FreeText(text_body& tb);
+dll_import char* 		 FindChar(char c, ui16 pos, bool scanForward, text_body& tb);
+dll_import char* 		 GetText(text_body& tb);
+dll_import ui32 		 GetTextLength(text_body& tb);
+dll_export rectangle GetTextRectangle(text_body& tb); // Will have a min height of tb.textHeight, width will be 0 if it doesn't contain any text
+																			 
+dll_import ui16      Insert(char* string, ui32 length, text_body& tb, ui32 pos); // Returns chars inserted
+dll_import bool 		 IsValid(text_body& tb);
 dll_import void 		 RemoveChar(text_body& tb, ui32 pos);
-dll_import bool 		 TextBodyIsValid(text_body& tb);
 
 // ******************** Text update ******************** //
 
@@ -41,15 +44,14 @@ dll_import bool  TextIsBeingUpdated();
 
 // The following functions are only valid if text is being updated
 struct win32_state;
-dll_import ui16  			GetCharOffsetFromStart(char* c);
-dll_export text_body* GetCurrentTextBody();
-dll_export ui16       GetCursorCharOffset();
-dll_import void  			InsertCharAtCursor(char c);
-
 struct text_update_pipeline_data {
 	bool wantToLeaveTextBodyUp; 	// When pressing up at the top edge of a text_body
 	bool wantToLeaveTextBodyDown; // When pressing down at the bottom edge of a text_body
 };
+dll_import ui16  										 GetCharOffsetFromStart(char* c);
+dll_export text_body* 							 GetCurrentTextBody();
+dll_export ui16       							 GetCursorCharOffset();
+dll_import void  										 InsertCharAtCursor(char c);
 dll_import text_update_pipeline_data RunTextUpdatePipeline(win32_state& osState);
 
 // ******************** Cursor ******************** //

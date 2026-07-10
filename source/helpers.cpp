@@ -27,38 +27,56 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 	// If not found, allocate more memory
 	if(n == Null) {
 		auto newBlock = AllocateMemory(state.notes.memory.size * 2);
-		CopyMemory(state.notes.memory.memory, state.notes.memory.size, newBlock.memory);
-		FreeMemory(state.notes.memory);
+		Copy(state.notes.memory.memory, state.notes.memory.size, newBlock.memory);
+		Free(state.notes.memory);
 		state.notes.memory = newBlock;
 		n = (note*)((ui8*)state.notes.memory.memory + state.notes.memory.size / 2);
 	}
 	Assert(n != Null);
 
 	// Text
-	n->text = AllocateTextBody(NoteTextHeight,
+	n->text = AllocateTextBody(pos.x, pos.y, NoteMinWidth, NoteTextBorder, NoteTextHeight,
 														 TextBodyFlagLetters | TextBodyFlagBulletPoints | TextBodyFlagNewlines | TextBodyFlagLeftAligned);
-	if(text != Null)
-		InsertString((char*)text, GetStringLength(text), n->text, 0);
+	if(text != Null) {
+		Insert((char*)text, GetLength(text), n->text, 0);
+		UpdateNoteContainers(n);
+	}		
 
 	// Title
 	if(title != Null) {
-		n->title = AllocateTextBody(NoteTitleTextHeight, TextBodyFlagLetters);
-		InsertString((char*)title, GetStringLength(title), n->title, 0);
+		auto textRec = GetTextRectangle(n->text);
+		n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, textRec.width, NoteTextBorder, NoteTitleTextHeight, TextBodyFlagLetters);
+		Insert((char*)title, GetLength(title), n->title, 0);
+		UpdateNoteContainers(n);
 	}
-	
-	n->pos = pos;
 	
 	return n;
 }
 
+program_external void UpdateNoteContainers(note* n) {
+	Assert(n != Null);
+	
+	f32 width = GetTextRectangle(n->text).width + n->text.textBorderOffset * 2;
+	
+	if(NoteHasTitle(n) == true)
+		width = GetMax(width, GetTextRectangle(n->text).width + n->title.textBorderOffset * 2);
+	
+	if(width < NoteMinWidth)
+		width = NoteMinWidth;
+	
+	n->text.container.width = width;
+	if(NoteHasTitle(n) == true)
+		n->title.container.width = width;
+}
+
 program_external bool NoteMemoryIsInUse(note* n) {
 	Assert(n != Null);
-	return TextBodyIsValid(n->text);
+	return IsValid(n->text);
 }
 
 program_external bool NoteHasTitle(note* n) {
 	Assert(n != Null);
-	return TextBodyIsValid(n->title);
+	return IsValid(n->title);
 }
 
 program_external rectangle GetColourPanelWheelRectangle() {
@@ -78,39 +96,13 @@ program_external rectangle GetColourPanelSliderRectangle() {
 	return CreateRectangle(middleX - width / 2, middleY - height / 2, width, height);
 }
 
-program_external note_text_vectors GetNoteRectangles(note* n) {
+program_external rectangle GetNoteOverallRectangle(note* n) {
 	Assert(n != Null);
 	
-	// Text
-	rectangle textContainer = {};
-	textContainer.pos = n->pos;
-	rectangle textEdges = {};
-	textEdges.pos = textContainer.pos + CreateVector(NoteTextBorder, NoteTextBorder);
-	textEdges.size = GetTextBodyRenderDimensions(n->text);
-	textContainer.size = textEdges.size + CreateVector(NoteTextBorder * 2, NoteTextBorder * 2);
-	textContainer.width = GetMax(textContainer.width, NoteMinWidth);
+	rectangle ret = n->text.container;
+	if(NoteHasTitle(n) == true)
+		ret.height += n->title.container.height;
 	
-	// Title
-	rectangle titleContainer = {};
-	rectangle titleEdges = {};
-	if(NoteHasTitle(n) == true) {
-		titleEdges.size = GetTextBodyRenderDimensions(n->title);
-		titleContainer = CreateRectangle(textContainer.left, textContainer.bottom + textContainer.height, 
-																		 GetMax(titleEdges.width + NoteTextBorder * 2, textContainer.width), titleEdges.height + NoteTextBorder * 2);
-		titleEdges.bottom = titleContainer.bottom + NoteTextBorder;
-		titleEdges.left = GetCenter(titleContainer).x - titleEdges.width / 2;
-	}
-	if(titleContainer.width > textContainer.width)
-		textContainer.width = titleContainer.width;
-	
-	rectangle overall = CreateRectangle(textContainer.left, textContainer.bottom, textContainer.width, textContainer.height + titleContainer.height);
-	
-	note_text_vectors ret = {};
-	ret.titleEdges = titleEdges;
-	ret.titleContainer = titleContainer;
-	ret.textEdges = textEdges;
-	ret.textContainer = textContainer;
-	ret.overall = overall;
 	return ret;
 }
 
@@ -132,7 +124,7 @@ program_external bool MouseOverlapsCanvas(rectangle& r) {
 }
 
 program_external bool TitleIsBeingUpdated() {
-	return TextIsBeingUpdated() == true && GetCurrentTextBody() == &state.titleBar.text;
+	return TextIsBeingUpdated() == true && GetCurrentTextBody() == GetTitleBar();
 }
 
 program_external note* GetCurrentNote() {
@@ -149,27 +141,6 @@ program_external bool NoteTextIsBeingUpdated() {
 
 program_external bool ColourPanelIsVisible() {
 	return GetColourPanel()->display;
-}
-
-program_external rgb_rectangles GetColourPanelRGBRectantles() {
-	Assert(ColourPanelIsVisible() == true);
-	
-	rectangles recs[3] = {};
-	
-	auto* panel = GetColourPanel();
-	ForAll(3) {
-		f32 middleX = panel->frame.left + (panel->frame.width / 4) * (it + 1) + panel->frame.width / 8;
-		f32 width = panel->frame.width / 5;
-		f32 middleY = panel->frame.bottom + panel->frame.height / 4;
-		f32 height = panel->frame.height / 5;
-		recs[it] = CreateRectangle(middleX - width / 2, middleY - height / 2, width, height);
-	}
-	
-	rgb_rectangles ret = {};
-	ret.r = recs[0];
-	ret.g = recs[1];
-	ret.b = recs[2];
-	return ret;
 }
 
 program_external vector ConvertToCanvasSpace(f32 x, f32 y) {

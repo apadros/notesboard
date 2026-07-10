@@ -20,7 +20,7 @@ typedef memory_block file;
 // For some reason can't declare these function pointers as dll_import
 program_unique void 			(*DeleteFile)(const char* path) = Win32DeleteFile; // FileExists() must be called first
 program_unique bool 			(*FileExists)(const char* path) = Win32FileExists;
-program_unique void 			(*FreeFile)(file& f) = FreeMemory;
+program_unique void 			(*FreeFile)(file& f) = Free;
 program_unique file 			(*LoadFile)(const char* path) = Win32LoadFile; // FileExists() must be called first
 program_unique char*      (*OpenFileGUI)(const char* directory, // Directory to open the GUI at, folders must separated by '\\'. Can be Null.
 																				 const char* filters)   // List of file types and extensions in format [type_string]\0[*.extension]\0...\0. E.g. "All\0*.*\0Text files\0*.txt\0\0" 

@@ -23,7 +23,7 @@
 																					}
 
 #define ClearArray(_ar) \
-												ClearMemory(&(_ar), sizeof(_ar))
+												Clear(&(_ar), sizeof(_ar))
 #define	GetArrayLength(_ar) \
 														(sizeof(_ar) / sizeof((_ar)[0]))
 
