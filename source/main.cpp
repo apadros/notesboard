@@ -227,16 +227,22 @@ GUIAppEntryPoint(instance) {
 			Toggle(panel->display);
 			if(panel->display == true) {
 				panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
-				panel->frame.width = ColourPanelWidth;
 				panel->frame.height = ColourPanelHeight;
 				panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
+				
+				auto wheel = GetColourPanelWheelRectangle();
+				panel->frame.width = wheel.width + ColourPanelSliderWidth + ColourPanelRGBBoxWidth + ColourPanelEdgeOffset * 4;
+				
 				panel->selection = GetCenter(GetColourPanelWheelRectangle());
 				panel->sliderCenterY = GetTopRight(GetColourPanelWheelRectangle()).y;
 				
-				f32 bodyWidth = panel->frame.width / 5;
-				panel->red = AllocateTextBody(panel->frame.left + panel->frame.width / 4 - bodyWidth / 2, panel->frame.bottom + panel->frame.height / 5, bodyWidth, NoteTextBorder, NoteTextHeight, Null);
-				panel->green = AllocateTextBody(panel->frame.left + panel->frame.width / 2 - bodyWidth / 2, panel->frame.bottom + panel->frame.height / 5, bodyWidth, NoteTextBorder, NoteTextHeight, Null);
-				panel->blue = AllocateTextBody(panel->frame.left + panel->frame.width * 0.75f - bodyWidth / 2, panel->frame.bottom + panel->frame.height / 5, bodyWidth, NoteTextBorder, NoteTextHeight, Null);
+				f32 left = panel->frame.left + panel->frame.width - ColourPanelEdgeOffset - ColourPanelRGBBoxWidth;
+				f32 height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
+				f32 offset = (wheel.height - height * 4) / 3;
+				panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, ColourPanelRGBBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+				panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, ColourPanelRGBBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+				panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, ColourPanelRGBBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+				panel->hex = AllocateTextBody(left, wheel.bottom, ColourPanelRGBBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
 			}
 			else {
 				FreeText(panel->red);
@@ -473,14 +479,10 @@ GUIAppEntryPoint(instance) {
 		// Render notes text and title if it has one, then update note background rectangle
 		BeginNotesLoop(n) {
 			if(NoteMemoryIsInUse(n) == true) {
-				if(GetTextLength(n->text) > 0) {
-					auto rec = GetTextRectangle(n->text);
-					RenderText(GetText(n->text), GetTextLength(n->text), rec.left, rec.bottom + rec.height - NoteTextHeight, NoteTextHeight, false);
-				}
-				if(NoteHasTitle(n) == true && GetTextLength(n->title) > 0) {
-					auto rec = GetTextRectangle(n->title);
-					RenderText(GetText(n->title), GetTextLength(n->title), rec.left, rec.bottom, NoteTitleTextHeight, false);
-				}
+				if(GetTextLength(n->text) > 0)
+					Render(n->text);
+				if(NoteHasTitle(n) == true && GetTextLength(n->title) > 0)
+					Render(n->title);
 			}
 		}
 		EndNotesLoop();
@@ -513,10 +515,8 @@ GUIAppEntryPoint(instance) {
 		{
 			auto* tb = GetTitleBar();
 			DrawRectangleFull(UnpackRectangle(tb->container), 255, 255, 255);
-			if(GetTextLength(*tb) > 1) {
-				auto middle = GetCenter(tb->container);
-				RenderText(GetText(*tb), GetTextLength(*tb), middle.x, middle.y - tb->textHeight / 2, tb->textHeight, true);
-			}
+			if(GetTextLength(*tb) > 1)
+				Render(*tb);
 			
 			// Draw separator
 			glLineWidth(3);
@@ -715,7 +715,7 @@ GUIAppEntryPoint(instance) {
 				DrawRectangleBorder(rec.left - 3, panel->sliderCenterY - 5, rec.width + 6, 10, UIBorderThickness, 0, 0, 0);
 			}
 			
-			// Bottom half - sample colour and rgb text boxes
+			// Sample colour and RGB text bodies
 			{
 				auto* panel = GetColourPanel();
 				
@@ -754,6 +754,7 @@ GUIAppEntryPoint(instance) {
 				DrawRectangleBorder(UnpackRectangle(panel->red.container), UIBorderThickness, 0, 0, 0);
 				DrawRectangleBorder(UnpackRectangle(panel->green.container), UIBorderThickness, 0, 0, 0);
 				DrawRectangleBorder(UnpackRectangle(panel->blue.container), UIBorderThickness, 0, 0, 0);
+				DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
 					
 				ForAll(3) {
 					// Box
@@ -762,7 +763,6 @@ GUIAppEntryPoint(instance) {
 					f32 height = panel->frame.height / 5;
 					
 					// Text fields
-					f32 textHeight = height / 5;
 					if(it == 0) {
 						ClearText(panel->red);
 						char* string = ToString((ui8)(finalRed * 255));
@@ -771,7 +771,7 @@ GUIAppEntryPoint(instance) {
 						else if(GetLength(string) == 2)
 							string = Concatenate(2, "0", string);
 						Insert(string, 3, panel->red, 0);
-						RenderText(GetText(panel->red), GetTextLength(panel->red), middleX, middleY - textHeight / 2, textHeight, true);
+						Render(panel->red);
 						Free(string);
 					}
 					else if(it == 1) {
@@ -782,7 +782,7 @@ GUIAppEntryPoint(instance) {
 						else if(GetLength(string) == 2)
 							string = Concatenate(2, "0", string);
 						Insert(string, 3, panel->green, 0);
-						RenderText(GetText(panel->green), GetTextLength(panel->green), middleX, middleY - textHeight / 2, textHeight, true);
+						Render(panel->green);
 						Free(string);
 					}
 					else {
@@ -793,10 +793,19 @@ GUIAppEntryPoint(instance) {
 						else if(GetLength(string) == 2)
 							string = Concatenate(2, "0", string);
 						Insert(string, 3, panel->blue, 0);
-						RenderText(GetText(panel->blue), GetTextLength(panel->blue), middleX, middleY - textHeight / 2, textHeight, true);
+						Render(panel->blue);
 						Free(string);
 					}	
-				}				
+				}
+				
+				// Display RGB as a single number in hexadecimal
+				{
+					ClearText(panel->hex);
+					ui8  r = finalRed * 255;
+					ui8  g = finalGreen * 255;
+					ui8  b = finalBlue * 255;
+					ui32 h = r << 16 | g << 8 | r; // @WIP
+				}
 			}
 		}
 		

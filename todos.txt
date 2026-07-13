@@ -23,6 +23,7 @@ Functionality
 				- Make into circles
 				- Save to project file
 			- Possibility to manually set rgb numbers @WIP
+				- Currently adding a text field for rgb converions in hex @WIP
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar

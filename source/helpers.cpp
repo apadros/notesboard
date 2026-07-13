@@ -90,20 +90,18 @@ program_external bool NoteHasTitle(note* n) {
 }
 
 program_external rectangle GetColourPanelWheelRectangle() {
-	auto* panel = GetColourPanel();
-	f32 middleX = panel->frame.left + panel->frame.width / 3;
-	f32 middleY = panel->frame.bottom + panel->frame.height * ColourWheelVerticalCenterMult;
-	f32 size = ColourWheelSizeMult * panel->frame.width;
-	return CreateRectangle(middleX - size / 2, middleY - size / 2, size, size);
+	auto* panel = GetColourPanel();	
+	f32 left = panel->frame.left + ColourPanelEdgeOffset;
+	f32 top = GetTopRight(panel->frame).y - ColourPanelEdgeOffset;
+	f32 height = (ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2) * 4 + ColourPanelRGBBoxOffset * 3;
+	return CreateRectangle(left, top - height, height, height);
 }
 
 program_external rectangle GetColourPanelSliderRectangle() {
 	auto* panel = GetColourPanel();
-	f32 middleX = panel->frame.left + panel->frame.width * 0.75f;
-	f32 middleY = GetCenter(GetColourPanelWheelRectangle()).y;
-	f32 width = 25;
-	f32 height = ColourWheelSizeMult * panel->frame.width;
-	return CreateRectangle(middleX - width / 2, middleY - height / 2, width, height);
+	auto  wheel = GetColourPanelWheelRectangle();
+	f32 left = GetTopRight(wheel).x + ColourPanelEdgeOffset;
+	return CreateRectangle(left, wheel.bottom, ColourPanelSliderWidth, wheel.height);
 }
 
 program_external rectangle GetNoteOverallRectangle(note* n) {

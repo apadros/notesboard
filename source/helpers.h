@@ -53,11 +53,13 @@ const ui8  TopMenuHeight = 50;
 const ui16 TopMenuButtonWidth = 200; // In viewport space
 const ui8  TopMenuTextHeight = (f32)TopMenuHeight / 2;
 
-const ui16 ColourPanelWidth = 400;  // In viewport space
 const ui16 ColourPanelHeight = 400; // In viewport space
-const f32  ColourWheelSizeMult = 0.5f;
-const f32  ColourWheelVerticalCenterMult = 0.7f;
+const ui16 ColourPanelEdgeOffset = 25;
 const ui8  ColourWheelVertices = 36;
+const ui8  ColourPanelSliderWidth = 25;
+const ui8  ColourPanelRGBBoxWidth = 80;
+const ui8  ColourPanelRGBBoxTextHeight = NoteTextHeight;
+const ui8  ColourPanelRGBBoxOffset = NoteTextBorder;
 
 const ui8  UIBorderThickness = 2;
 
@@ -98,6 +100,7 @@ program_unique struct {
 		text_body red;	 // Coords in viewport space
 		text_body green; // Coords in viewport space
 		text_body blue;  // Coords in viewport space 
+		text_body hex;  // Coords in viewport space 
 	} 					colourPanel;
 
 	struct {

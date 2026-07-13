@@ -26,11 +26,11 @@ dll_import void 		 FreeText(text_body& tb);
 dll_import char* 		 FindChar(char c, ui16 pos, bool scanForward, text_body& tb);
 dll_import char* 		 GetText(text_body& tb);
 dll_import ui32 		 GetTextLength(text_body& tb);
-dll_export rectangle GetTextRectangle(text_body& tb); // Will have a min height of tb.textHeight, width will be 0 if it doesn't contain any text
-																			 
+dll_export rectangle GetTextRectangle(text_body& tb); // Will have a min height of tb.textHeight, width will be 0 if it doesn't contain any text																 
 dll_import ui16      Insert(char* string, ui32 length, text_body& tb, ui32 pos); // Returns chars inserted
 dll_import bool 		 IsValid(text_body& tb);
 dll_import void 		 RemoveChar(text_body& tb, ui32 pos);
+dll_import void 		 Render(text_body& tb);
 
 // ******************** Text update ******************** //
 
