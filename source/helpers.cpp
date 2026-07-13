@@ -56,17 +56,27 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 program_external void UpdateNoteContainers(note* n) {
 	Assert(n != Null);
 	
+	// Update widths as needed
 	f32 width = GetTextRectangle(n->text).width + n->text.textBorderOffset * 2;
-	
 	if(NoteHasTitle(n) == true)
 		width = GetMax(width, GetTextRectangle(n->text).width + n->title.textBorderOffset * 2);
-	
 	if(width < NoteMinWidth)
 		width = NoteMinWidth;
-	
 	n->text.container.width = width;
-	if(NoteHasTitle(n) == true)
+	if(NoteHasTitle(n) == true) {
 		n->title.container.width = width;
+		n->title.container.left = n->text.container.left;
+	}
+	
+	// Update positions as needed in case of a change of text height
+	auto heightPre = n->text.container.height;
+	auto heightPost = GetTextRectangle(n->text).height + n->text.textBorderOffset * 2;
+	if(heightPre != heightPost) {
+		n->text.container.height = heightPost;
+		n->text.container.bottom -= heightPost - heightPre;
+	}
+	if(NoteHasTitle(n) == true) // Regardless of updated text
+		n->title.container.bottom = GetTopRight(n->text.container).y;
 }
 
 program_external bool NoteMemoryIsInUse(note* n) {

@@ -216,7 +216,7 @@ GUIAppEntryPoint(instance) {
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
 				auto textRec = GetTextRectangle(n->text);
-				n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, textRec.width, NoteTextBorder, NoteTitleTextHeight, TextBodyFlagLetters);
+				n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, NoteMinWidth, NoteTextBorder, NoteTitleTextHeight, TextBodyFlagLetters);
 				Insert("Title", GetLength("Title"), n->title, 0);
 				UpdateNoteContainers(n);
 			}
@@ -359,8 +359,11 @@ GUIAppEntryPoint(instance) {
 					state.notes.justCreated = false;
 			}
 			
-			n->text.container.pos.x = newPosCanvas.x;
-			n->text.container.pos.y = newPosCanvas.y;
+			n->text.container.pos = newPosCanvas;
+			if(NoteHasTitle(n) == true) {
+				n->title.container.left = n->text.container.left;
+				n->title.container.bottom = GetTopRight(n->text.container).y;
+			}
 		}
 		else if(state.notes.moving == true && state.mouse.leftDown == false) { // Drop
 			state.notes.moving = false;
@@ -380,22 +383,12 @@ GUIAppEntryPoint(instance) {
 			Clear(state.notes.selected, sizeof(note));
 			SetCurrentNote(Null);
 		}
-		else if(NoteTextIsBeingUpdated() == true && GetCurrentTextBody() == &GetCurrentNote()->text) { // Modify note position based on enter and backspace
-			auto* n = GetCurrentNote();
-			if(osState.enterPressed == true)
-				n->text.container.pos.y -= GetTextLineHeight(n->text.textHeight);
-			else if(osState.backspacePressed == true) {
-				auto& tb = *GetCurrentTextBody();
-				auto* text = GetText(tb);
-				auto  offset = GetCursorCharOffset();
-				if(offset > 0 && text[offset - 1] == NewlineChar) // If we're removing a newline
-					n->text.container.pos.y += GetTextLineHeight(n->text.textHeight);
-			}
-		}
 		
 		// Update text somewhere
 		if(TextIsBeingUpdated() == true) {
 			auto pipelineUpdate = RunTextUpdatePipeline(osState);
+			if(NoteTextIsBeingUpdated() == true)
+				UpdateNoteContainers(GetCurrentNote());
 			
 			if(osState.escapePressed == true && NoteTextIsBeingUpdated() == true)
 				SetCurrentNote(Null);
@@ -406,7 +399,7 @@ GUIAppEntryPoint(instance) {
 					EndTextUpdate();
 			}
 			else if( // If we're updating a note title and want to move down, go to the text section
-							pipelineUpdate.wantToLeaveTextBodyDown == true && NoteTextIsBeingUpdated() == true && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->title) 
+							pipelineUpdate.wantToLeaveTextBodyDown == true && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->title) 
 			{				
 				auto* n = GetCurrentNote();
 				
@@ -417,7 +410,7 @@ GUIAppEntryPoint(instance) {
 				
 				auto textRec = GetTextRectangle(n->text);
 				f32 xRel = cursorXAbs - textRec.left;
-				f32 yRel = textRec.height;
+				f32 yRel = textRec.height - n->text.textHeight;
 				SetCursorPos(xRel, yRel);
 			}
 			else if( // If we're updating a note title and want to move down, go to the text section
@@ -480,7 +473,7 @@ GUIAppEntryPoint(instance) {
 		// Render notes text and title if it has one, then update note background rectangle
 		BeginNotesLoop(n) {
 			if(NoteMemoryIsInUse(n) == true) {
-				if(GetTextLength(n->text) > 0) { // Note has text
+				if(GetTextLength(n->text) > 0) {
 					auto rec = GetTextRectangle(n->text);
 					RenderText(GetText(n->text), GetTextLength(n->text), rec.left, rec.bottom + rec.height - NoteTextHeight, NoteTextHeight, false);
 				}
@@ -584,7 +577,6 @@ GUIAppEntryPoint(instance) {
 				FromToInc(GetArrayLength(m->buttons) - 1, 0) {
 					if(state.mouse.pos.x >= m->buttons[it].left && state.mouse.pos.x < m->buttons[it].left + TopMenuButtonWidth) {
 						DrawRectangleFull(m->buttons[it].left, m->background.bottom, TopMenuButtonWidth, m->background.height, 0, 0, 0);
-						OutputDebugString(Concatenate(2, "\n ", ToString(state.mouse.pos.y)));
 						break;
 					}
 				}
@@ -780,6 +772,7 @@ GUIAppEntryPoint(instance) {
 							string = Concatenate(2, "0", string);
 						Insert(string, 3, panel->red, 0);
 						RenderText(GetText(panel->red), GetTextLength(panel->red), middleX, middleY - textHeight / 2, textHeight, true);
+						Free(string);
 					}
 					else if(it == 1) {
 						ClearText(panel->green);
@@ -790,6 +783,7 @@ GUIAppEntryPoint(instance) {
 							string = Concatenate(2, "0", string);
 						Insert(string, 3, panel->green, 0);
 						RenderText(GetText(panel->green), GetTextLength(panel->green), middleX, middleY - textHeight / 2, textHeight, true);
+						Free(string);
 					}
 					else {
 						ClearText(panel->blue);
@@ -800,6 +794,7 @@ GUIAppEntryPoint(instance) {
 							string = Concatenate(2, "0", string);
 						Insert(string, 3, panel->blue, 0);
 						RenderText(GetText(panel->blue), GetTextLength(panel->blue), middleX, middleY - textHeight / 2, textHeight, true);
+						Free(string);
 					}	
 				}				
 			}
