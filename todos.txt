@@ -16,17 +16,15 @@ Functionality
 	- Position mouse cursor more accurately on text body when double clicking it - currently works but is somewhat inaccurate
 		- Change the mouse image to the cursor and back
 	- Setting a custom colour for the note background
-		- Colour pane
-			- Ok / cancel buttons
-			- Saving of custom colours
-				- Place between the colour wheel itself and the text pane underneath
-				- Make into circles
-				- Save to project file
-			- Possibility to manually set rgb numbers @WIP
-				- Currently adding a text field for rgb converions in hex @WIP
+	- Colour panel
+		- Ok / cancel buttons
+		- Saving of custom colours
+			- Save to project file
+		- Possibility to manually set rgb & hex numbers
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar
+		- Replace placeholders with new gui buttons @WIP
 		- Bug where option continues to be highlighted when moving the mouse to the window title
 			- Mouse pos isn't updated when moving beyond the client area, so same value continues to be used in overlap checks
 		- Back button - go back to previous board

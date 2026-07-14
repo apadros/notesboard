@@ -80,19 +80,19 @@ GUIAppEntryPoint(instance) {
 			state.mouse.pos.x = osState.mouseX;
 			state.mouse.pos.y = osState.mouseY;
 		}
-		if(osState.mouseLeftClickDown == true)
+		if(osState.mouseLeftDown == true)
 			state.mouse.leftDown = true;
-		else if(osState.mouseLeftClickUp == true)
+		else if(osState.mouseLeftUp == true)
 			state.mouse.leftDown = false;
-		if(osState.mouseRightClickDown == true)
+		if(osState.mouseRightDown == true)
 			state.mouse.rightDown = true;
-		else if(osState.mouseRightClickUp == true)
+		else if(osState.mouseRightUp == true)
 			state.mouse.rightDown = false;
 		
 		// Top menu
 		if(MouseOverlapsGUI(state.topMenu.background) == true) {
 			auto* m = &state.topMenu;
-			if(MouseLeftDownThisFrame() == true) {
+			if(Win32MouseLeftClickedThisFrame(osState) == true) {
 				ForAll(GetArrayLength(m->buttons)) {
 					if(state.mouse.pos.x >= m->buttons[it].left && state.mouse.pos.x < m->buttons[it].left + TopMenuButtonWidth) {
 						if(it == 0) { // Save
@@ -200,7 +200,7 @@ GUIAppEntryPoint(instance) {
 		}
 		
 		// Toolbar
-		if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[0].background) == true) { // Create new note
+		if(Win32MouseLeftClickedThisFrame(osState) == true && MouseOverlapsGUI(state.toolBar.buttons[0].background) == true) { // Create new note
 			auto pos = ConvertToCanvasSpace(0, osState.mouseY - NoteMinHeight / 2);
 			auto* n = CreateNote(pos, Null, Null);
 			state.notes.selected = n;
@@ -209,11 +209,11 @@ GUIAppEntryPoint(instance) {
 	
 			goto label_rendering;
 		}
-		else if(NoteTextIsBeingUpdated() == true && MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[1].background) == true) { // Add a bullet point
+		else if(NoteTextIsBeingUpdated() == true && Win32MouseLeftClickedThisFrame(osState) == true && MouseOverlapsGUI(state.toolBar.buttons[1].background) == true) { // Add a bullet point
 			InsertCharAtCursor(BulletPointChar); // Will check viability first	
 			goto label_rendering;
 		}
-		else if(GetCurrentNote() != Null && MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[2].background) == true) { // Add a title to the currently selected note
+		else if(GetCurrentNote() != Null && Win32MouseLeftClickedThisFrame(osState) == true && MouseOverlapsGUI(state.toolBar.buttons[2].background) == true) { // Add a title to the currently selected note
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
 				auto textRec = GetTextRectangle(n->text);
@@ -223,12 +223,12 @@ GUIAppEntryPoint(instance) {
 			}
 			goto label_rendering;
 		}
-		else if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(state.toolBar.buttons[3].background) == true) { // Toggle colour wheel
+		else if(Win32MouseLeftClickedThisFrame(osState) == true && MouseOverlapsGUI(state.toolBar.buttons[3].background) == true) { // Toggle colour wheel
 			auto* panel = GetColourPanel();
 			Toggle(panel->display);
 			if(panel->display == true) {
 				panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
-				panel->frame.height = ColourPanelHeight;
+				panel->frame.height = ColourPanelEdgeOffset + ColourPanelWheelHeight + ColourPanelEdgeOffset + ColourPanelFavouritesLayerHeight + ColourPanelEdgeOffset + ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2 + ColourPanelEdgeOffset;
 				panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
 				
 				auto wheel = GetColourPanelWheelRectangle();
@@ -236,17 +236,29 @@ GUIAppEntryPoint(instance) {
 				panel->sliderCenterY = GetTopRight(GetColourPanelWheelRectangle()).y;
 				
 				// RGB & hex boxes
-				auto slider = GetColourPanelSliderRectangle();
-				f32  rgbBoxWidth = GetTextRenderDimensions("000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2;
-				f32  left = GetTopRight(slider).x + ColourPanelEdgeOffset;
-				f32  height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
-				f32  offset = (wheel.height - height * 4) / 3;
-				panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-				panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-				panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-				panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderDimensions("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, TextBodyFlagLetters | TextBodyFlagLeftAligned);
+				{
+					auto slider = GetColourPanelSliderRectangle();
+					f32  rgbBoxWidth = GetTextRenderSize("000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2;
+					f32  left = GetTopRight(slider).x + ColourPanelEdgeOffset;
+					f32  height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
+					f32  offset = (wheel.height - height * 4) / 3;
+					panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+					panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+					panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+					panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderSize("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, TextBodyFlagLetters | TextBodyFlagLeftAligned);
+				}
 				
-				panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderDimensions("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);
+				panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderSize("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);
+				
+				// Ok and cancel buttons
+				{
+					f32 width = GetTextRenderSize("Cancel", Null, NoteTextHeight).width + ColourPanelEdgeOffset * 2;
+					f32 height = ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2;
+					f32 bottom = wheel.bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight - ColourPanelEdgeOffset - height;
+					f32 offset = (panel->frame.width - width * 2) / 3;
+					panel->ok = AllocateButton(panel->frame.left + offset, bottom, width, height, "OK", NoteTextHeight);
+					panel->cancel = AllocateButton(panel->frame.left + offset + width + offset, bottom, width, height, "Cancel", NoteTextHeight);
+				}
 			}
 			else {
 				FreeText(panel->red);
@@ -257,7 +269,7 @@ GUIAppEntryPoint(instance) {
 		}
 		
 		// Colour panel
-		if(MouseLeftDownThisFrame() == true && MouseOverlapsGUI(GetColourPanel()->frame) == true) {
+		if(Win32MouseLeftClickedThisFrame(osState) == true && MouseOverlapsGUI(GetColourPanel()->frame) == true) {
 			auto* panel = GetColourPanel();
 			auto wheel = GetColourPanelWheelRectangle();
 			if(Overlap(GetCenter(wheel).x, GetCenter(wheel).y, state.mouse.pos.x, state.mouse.pos.y, wheel.width / 2) == true) { // Colour wheel
@@ -276,7 +288,7 @@ GUIAppEntryPoint(instance) {
 		}
 		else if(GetColourPanel()->updatingSelection == true) { // Update selection position
 			auto* panel = GetColourPanel();
-			if(osState.mouseLeftClickUp == true)
+			if(osState.mouseLeftUp == true)
 				panel->updatingSelection = false;
 			else {
 				auto newPos = panel->selection + state.mouse.translation;
@@ -287,7 +299,7 @@ GUIAppEntryPoint(instance) {
 		}
 		else if(GetColourPanel()->updatingSlider == true) { // Update slider position
 			auto* panel = GetColourPanel();
-			if(osState.mouseLeftClickUp == true)
+			if(osState.mouseLeftUp == true)
 				panel->updatingSlider = false;
 			else {
 				auto newPos = panel->selection + state.mouse.translation;
@@ -336,7 +348,7 @@ GUIAppEntryPoint(instance) {
 				}
 			}
 		}
-		else if(MouseLeftDownThisFrame() == true) { // Select
+		else if(Win32MouseLeftClickedThisFrame(osState) == true) { // Select
 			auto* previouslySelected = GetCurrentNote();
 			SetCurrentNote(Null);
 		
@@ -402,7 +414,7 @@ GUIAppEntryPoint(instance) {
 			
 			if(osState.escapePressed == true && NoteTextIsBeingUpdated() == true)
 				SetCurrentNote(Null);
-			else if(osState.mouseLeftClickDown == true && MouseIsWithinToolbar() == false) { // Left mouse click outside of the tool bar, check where and decide
+			else if(osState.mouseLeftDown == true && MouseIsWithinToolbar() == false) { // Left mouse click outside of the tool bar, check where and decide
 				Assert(TitleIsBeingUpdated() == true || GetCurrentNote() != Null);
 				if(TitleIsBeingUpdated() == true && MouseOverlapsGUI(GetTitleBar()->container) == false ||
 				   MouseOverlapsCanvas(GetNoteOverallRectangle(GetCurrentNote())) == false)
@@ -729,25 +741,6 @@ GUIAppEntryPoint(instance) {
 				finalRed = wheelRed * sliderScale;
 				finalGreen = wheelGreen * sliderScale;
 				finalBlue = wheelBlue * sliderScale;
-				
-				f32 centerX = panel->frame.left + panel->frame.width / 8;
-				f32 centerY = panel->frame.bottom + panel->frame.height / 4;
-				f32 radius = panel->frame.width / 5 / 2;
-				
-				//  Colour circle
-				glBegin(GL_TRIANGLE_FAN);
-				glColor3f(finalRed, finalGreen, finalBlue);
-				ui8 vertices = 36;
-				FromToInc(0, vertices + 1) {
-					f32 angle = it * 360 / vertices;
-					f32 x = centerX - Sine(angle) * radius;
-					f32 y = centerY + Cos(angle) * radius;
-					glVertex2f(x, y);
-				}
-				glEnd();
-				
-				// Frame
-				DrawCircleBorder(centerX, centerY, radius, UIBorderThickness, 0, 0, 0);
 			}
 			
 			// RGB panels
@@ -800,20 +793,48 @@ GUIAppEntryPoint(instance) {
 				
 				// Hex
 				char buffer[7] = { '#' };
-				sprintf(buffer + 1, "%x", r);
-				sprintf(buffer + 3, "%x", g);
-				sprintf(buffer + 5, "%x", b);
+				sprintf(buffer + 1, "%02x", r);
+				sprintf(buffer + 3, "%02x", g);
+				sprintf(buffer + 5, "%02x", b);
 				
 				ClearText(panel->hex);
 				Insert(buffer, 7, panel->hex, 0);
 				DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->hex);
 			}
+			
+			// Display final colour
+			{
+				auto wheel = GetColourPanelWheelRectangle();
+				f32  radius = ColourPanelFavouritesLayerHeight / 2;
+				f32  centerX = wheel.left + radius;
+				f32  centerY = wheel.bottom - ColourPanelEdgeOffset - radius;
+				
+				//  Colour circle
+				glBegin(GL_TRIANGLE_FAN);
+				glColor3f(finalRed, finalGreen, finalBlue);
+				ui8 vertices = 36;
+				FromToInc(0, vertices + 1) {
+					f32 angle = it * 360 / vertices;
+					f32 x = centerX - Sine(angle) * radius;
+					f32 y = centerY + Cos(angle) * radius;
+					glVertex2f(x, y);
+				}
+				glEnd();
+				
+				// Frame
+				DrawCircleBorder(centerX, centerY, radius, UIBorderThickness, 0, 0, 0);
+			}
+			
+			// OK & cancel buttons
+			{
+				DrawRectangleBorder(UnpackRectangle(panel->ok.rectangle), UIBorderThickness, 0, 0, 0);
+				DrawRectangleBorder(UnpackRectangle(panel->cancel.rectangle), UIBorderThickness, 0, 0, 0);
+				Render(panel->ok);
+				Render(panel->cancel);
+			}
 		}
 		
-		// Store state before next frame
-		state.mouse.lastLeftDown = state.mouse.leftDown;
-
 		Win32EndGUIUpdateLoop();
 	}
 	

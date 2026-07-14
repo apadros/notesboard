@@ -93,8 +93,7 @@ program_external rectangle GetColourPanelWheelRectangle() {
 	auto* panel = GetColourPanel();	
 	f32 left = panel->frame.left + ColourPanelEdgeOffset;
 	f32 top = GetTopRight(panel->frame).y - ColourPanelEdgeOffset;
-	f32 height = (ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2) * 4 + ColourPanelRGBBoxOffset * 3;
-	return CreateRectangle(left, top - height, height, height);
+	return CreateRectangle(left, top - ColourPanelWheelHeight, ColourPanelWheelHeight, ColourPanelWheelHeight);
 }
 
 program_external rectangle GetColourPanelSliderRectangle() {
@@ -112,10 +111,6 @@ program_external rectangle GetNoteOverallRectangle(note* n) {
 		ret.height += n->title.container.height;
 	
 	return ret;
-}
-
-program_external bool MouseLeftDownThisFrame() { // @TODO - Export to APAD_API apad_win32_gui.cpp, add to os state struct 
-	return state.mouse.lastLeftDown == false && state.mouse.leftDown == true;
 }
 
 program_external bool MouseIsWithinToolbar() {

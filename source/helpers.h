@@ -53,12 +53,15 @@ const ui8  TopMenuHeight = 50;
 const ui16 TopMenuButtonWidth = 200; // In viewport space
 const ui8  TopMenuTextHeight = (f32)TopMenuHeight / 2;
 
-const ui16 ColourPanelHeight = 400; // In viewport space
 const ui16 ColourPanelEdgeOffset = 25;
 const ui8  ColourWheelVertices = 36;
 const ui8  ColourPanelSliderWidth = 25;
 const ui8  ColourPanelRGBBoxTextHeight = NoteTextHeight;
 const ui8  ColourPanelRGBBoxOffset = NoteTextBorder;
+const f32  ColourPanelWheelHeight = (ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2) * 4 + ColourPanelRGBBoxOffset * 3;
+const f32  ColourPanelFavouritesLayerHeight = ColourPanelWheelHeight / 3;
+const f32  ColourPanelOKCancelTextHeight = NoteTextHeight;
+const f32  ColourPanelOKCancelTextOffset = NoteTextBorder;
 
 const ui8  UIBorderThickness = 2;
 
@@ -100,6 +103,8 @@ program_unique struct {
 		text_body green; // Coords in viewport space
 		text_body blue;  // Coords in viewport space 
 		text_body hex;  // Coords in viewport space 
+		button    ok;
+		button    cancel;
 	} 					colourPanel;
 
 	struct {
@@ -113,8 +118,7 @@ program_unique struct {
 		vector pos;
 		vector translation;
 		bool   leftDown;
-		bool   lastLeftDown;
-	  bool   rightDown;
+		bool   rightDown;
 	} 			 mouse;
 	
 } state;
@@ -124,7 +128,6 @@ program_unique struct {
 #define GetToolBar() 	(&state.toolBar)
 #define GetTopMenu() 	(&state.topMenu)
 bool    MouseIsWithinToolbar();
-bool    MouseLeftDownThisFrame();
 bool    MouseOverlapsCanvas(rectangle& r);
 bool    MouseOverlapsGUI(rectangle& r);
 bool    TitleIsBeingUpdated();
