@@ -57,7 +57,6 @@ const ui16 ColourPanelHeight = 400; // In viewport space
 const ui16 ColourPanelEdgeOffset = 25;
 const ui8  ColourWheelVertices = 36;
 const ui8  ColourPanelSliderWidth = 25;
-const ui8  ColourPanelRGBBoxWidth = 80;
 const ui8  ColourPanelRGBBoxTextHeight = NoteTextHeight;
 const ui8  ColourPanelRGBBoxOffset = NoteTextBorder;
 

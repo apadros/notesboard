@@ -75,7 +75,9 @@ dll_import void      DrawCircleBorder(f32 centerX, f32 centerY, f32 radius,
 dll_import void      DrawRectangleFull(f32 left, f32 bottom, f32 width, f32 height, 
 																			 ui8 r, ui8 g, ui8 b);
 dll_import vector    GetTextRenderDimensions( // Will return a minimum y of height even if no text present, but x will equal 0
-									   											   char* text, ui32 length, f32 height); 
+									   											   char* text, 
+																						 ui32 length, // Set to Null to read the entire string
+																						 f32 height); 
 dll_import rectangle RenderText(char* text, ui32 length, 
 																f32 	x, f32 y, f32 height, 
 																bool  center);

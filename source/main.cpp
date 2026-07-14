@@ -12,7 +12,8 @@
 #include "apad_win32_gui.h"
 #include "helpers.h"
 
-#include <math.h>
+// #include <math.h> // @TODO - Check if this are still
+#include <stdio.h> // For conversion to hex
 
 GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", instance);
@@ -231,18 +232,21 @@ GUIAppEntryPoint(instance) {
 				panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
 				
 				auto wheel = GetColourPanelWheelRectangle();
-				panel->frame.width = wheel.width + ColourPanelSliderWidth + ColourPanelRGBBoxWidth + ColourPanelEdgeOffset * 4;
-				
-				panel->selection = GetCenter(GetColourPanelWheelRectangle());
+				panel->selection = GetCenter(wheel);
 				panel->sliderCenterY = GetTopRight(GetColourPanelWheelRectangle()).y;
 				
-				f32 left = panel->frame.left + panel->frame.width - ColourPanelEdgeOffset - ColourPanelRGBBoxWidth;
-				f32 height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
-				f32 offset = (wheel.height - height * 4) / 3;
-				panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, ColourPanelRGBBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-				panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, ColourPanelRGBBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-				panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, ColourPanelRGBBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-				panel->hex = AllocateTextBody(left, wheel.bottom, ColourPanelRGBBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+				// RGB & hex boxes
+				auto slider = GetColourPanelSliderRectangle();
+				f32  rgbBoxWidth = GetTextRenderDimensions("000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2;
+				f32  left = GetTopRight(slider).x + ColourPanelEdgeOffset;
+				f32  height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
+				f32  offset = (wheel.height - height * 4) / 3;
+				panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+				panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+				panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+				panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderDimensions("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, TextBodyFlagLetters | TextBodyFlagLeftAligned);
+				
+				panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderDimensions("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);
 			}
 			else {
 				FreeText(panel->red);
@@ -715,97 +719,95 @@ GUIAppEntryPoint(instance) {
 				DrawRectangleBorder(rec.left - 3, panel->sliderCenterY - 5, rec.width + 6, 10, UIBorderThickness, 0, 0, 0);
 			}
 			
-			// Sample colour and RGB text bodies
+			// Final sample colour
+			f32 finalRed = 255;
+			f32 finalGreen = 255;
+			f32 finalBlue = 255;
 			{
-				auto* panel = GetColourPanel();
+				auto rec = GetColourPanelSliderRectangle();
+				f32 sliderScale = (panel->sliderCenterY - rec.bottom) / rec.height;
+				finalRed = wheelRed * sliderScale;
+				finalGreen = wheelGreen * sliderScale;
+				finalBlue = wheelBlue * sliderScale;
 				
-				// Final colour
-				f32 finalRed = 255;
-				f32 finalGreen = 255;
-				f32 finalBlue = 255;
-				{
-					auto rec = GetColourPanelSliderRectangle();
-					f32 sliderScale = (panel->sliderCenterY - rec.bottom) / rec.height;
-					finalRed = wheelRed * sliderScale;
-					finalGreen = wheelGreen * sliderScale;
-					finalBlue = wheelBlue * sliderScale;
-					
-					f32 centerX = panel->frame.left + panel->frame.width / 8;
-					f32 centerY = panel->frame.bottom + panel->frame.height / 4;
-					f32 radius = panel->frame.width / 5 / 2;
-					
-					//  Colour circle
-					glBegin(GL_TRIANGLE_FAN);
-					glColor3f(finalRed, finalGreen, finalBlue);
-					ui8 vertices = 36;
-					FromToInc(0, vertices + 1) {
-						f32 angle = it * 360 / vertices;
-						f32 x = centerX - Sine(angle) * radius;
-						f32 y = centerY + Cos(angle) * radius;
-						glVertex2f(x, y);
-					}
-					glEnd();
-					
-					// Frame
-					DrawCircleBorder(centerX, centerY, radius, UIBorderThickness, 0, 0, 0);
+				f32 centerX = panel->frame.left + panel->frame.width / 8;
+				f32 centerY = panel->frame.bottom + panel->frame.height / 4;
+				f32 radius = panel->frame.width / 5 / 2;
+				
+				//  Colour circle
+				glBegin(GL_TRIANGLE_FAN);
+				glColor3f(finalRed, finalGreen, finalBlue);
+				ui8 vertices = 36;
+				FromToInc(0, vertices + 1) {
+					f32 angle = it * 360 / vertices;
+					f32 x = centerX - Sine(angle) * radius;
+					f32 y = centerY + Cos(angle) * radius;
+					glVertex2f(x, y);
 				}
+				glEnd();
 				
-				// RGB panels
+				// Frame
+				DrawCircleBorder(centerX, centerY, radius, UIBorderThickness, 0, 0, 0);
+			}
+			
+			// RGB panels
+			{
+				// Red
+				char* string = ToString((ui8)(finalRed * 255));
+				if(GetLength(string) == 1)
+					string = Concatenate(2, "00", string);
+				else if(GetLength(string) == 2)
+					string = Concatenate(2, "0", string);
+				ClearText(panel->red);
+				Insert(string, 3, panel->red, 0);
+				Free(string);
 				DrawRectangleBorder(UnpackRectangle(panel->red.container), UIBorderThickness, 0, 0, 0);
-				DrawRectangleBorder(UnpackRectangle(panel->green.container), UIBorderThickness, 0, 0, 0);
-				DrawRectangleBorder(UnpackRectangle(panel->blue.container), UIBorderThickness, 0, 0, 0);
-				DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
-					
-				ForAll(3) {
-					// Box
-					f32 middleX = panel->frame.left + (panel->frame.width / 4) * (it + 1) + panel->frame.width / 8;
-					f32 middleY = panel->frame.bottom + panel->frame.height / 4;
-					f32 height = panel->frame.height / 5;
-					
-					// Text fields
-					if(it == 0) {
-						ClearText(panel->red);
-						char* string = ToString((ui8)(finalRed * 255));
-						if(GetLength(string) == 1)
-							string = Concatenate(2, "00", string);
-						else if(GetLength(string) == 2)
-							string = Concatenate(2, "0", string);
-						Insert(string, 3, panel->red, 0);
-						Render(panel->red);
-						Free(string);
-					}
-					else if(it == 1) {
-						ClearText(panel->green);
-						char* string = ToString((ui8)(finalGreen * 255));
-						if(GetLength(string) == 1)
-							string = Concatenate(2, "00", string);
-						else if(GetLength(string) == 2)
-							string = Concatenate(2, "0", string);
-						Insert(string, 3, panel->green, 0);
-						Render(panel->green);
-						Free(string);
-					}
-					else {
-						ClearText(panel->blue);
-						char* string = ToString((ui8)(finalBlue * 255));
-						if(GetLength(string) == 1)
-							string = Concatenate(2, "00", string);
-						else if(GetLength(string) == 2)
-							string = Concatenate(2, "0", string);
-						Insert(string, 3, panel->blue, 0);
-						Render(panel->blue);
-						Free(string);
-					}	
-				}
+				Render(panel->red);
+				RenderText("Red", Null, GetTopRight(panel->red.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->red).bottom, panel->red.textHeight, false);
 				
-				// Display RGB as a single number in hexadecimal
-				{
-					ClearText(panel->hex);
-					ui8  r = finalRed * 255;
-					ui8  g = finalGreen * 255;
-					ui8  b = finalBlue * 255;
-					ui32 h = r << 16 | g << 8 | r; // @WIP
-				}
+				// Green 
+				string = ToString((ui8)(finalGreen * 255));
+				if(GetLength(string) == 1)
+					string = Concatenate(2, "00", string);
+				else if(GetLength(string) == 2)
+					string = Concatenate(2, "0", string);
+				ClearText(panel->green);
+				Insert(string, 3, panel->green, 0);
+				Free(string);
+				DrawRectangleBorder(UnpackRectangle(panel->green.container), UIBorderThickness, 0, 0, 0);
+				Render(panel->green);
+				RenderText("Green", Null, GetTopRight(panel->green.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->green).bottom, panel->green.textHeight, false);
+				
+				// Blue
+				string = ToString((ui8)(finalBlue * 255));
+				if(GetLength(string) == 1)
+					string = Concatenate(2, "00", string);
+				else if(GetLength(string) == 2)
+					string = Concatenate(2, "0", string);
+				ClearText(panel->blue);
+				Insert(string, 3, panel->blue, 0);
+				Free(string);
+				DrawRectangleBorder(UnpackRectangle(panel->blue.container), UIBorderThickness, 0, 0, 0);
+				Render(panel->blue);
+				RenderText("Blue", Null, GetTopRight(panel->blue.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->blue).bottom, panel->blue.textHeight, false);
+			}
+			
+			// Display RGB as a single number in hexadecimal
+			{
+				ui8  r = finalRed * 255;
+				ui8  g = finalGreen * 255;
+				ui8  b = finalBlue * 255;
+				
+				// Hex
+				char buffer[7] = { '#' };
+				sprintf(buffer + 1, "%x", r);
+				sprintf(buffer + 3, "%x", g);
+				sprintf(buffer + 5, "%x", b);
+				
+				ClearText(panel->hex);
+				Insert(buffer, 7, panel->hex, 0);
+				DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
+				Render(panel->hex);
 			}
 		}
 		
