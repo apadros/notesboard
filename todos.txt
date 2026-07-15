@@ -24,7 +24,6 @@ Functionality
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar
-		- Replace placeholders with new gui buttons @WIP
 		- Bug where option continues to be highlighted when moving the mouse to the window title
 			- Mouse pos isn't updated when moving beyond the client area, so same value continues to be used in overlap checks
 		- Back button - go back to previous board

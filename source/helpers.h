@@ -51,7 +51,7 @@ const ui8  ToolVerticalSpaceBetweenIcons = ToolbarTextHeight * 2;
 
 const ui8  TopMenuHeight = 50;
 const ui16 TopMenuButtonWidth = 200; // In viewport space
-const ui8  TopMenuTextHeight = (f32)TopMenuHeight / 2;
+const ui8  TopMenuTextHeight = NoteTextHeight;
 
 const ui16 ColourPanelEdgeOffset = 25;
 const ui8  ColourWheelVertices = 36;
@@ -74,16 +74,13 @@ program_unique struct {
 	text_body titleBar; // Coords in viewport space
 	
 	struct {
-		rectangle 		background;
-		struct {
-			f32         left;
-			const char* text;
-		} 						buttons[3];
-	} 							topMenu;
+		rectangle background;
+		button    save;
+		button    load;
+	} 					topMenu;
 	
 	struct {
 		rectangle background; // In viewport space
-
 		struct {
 			rectangle 	background;
 			const char* text;

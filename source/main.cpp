@@ -20,20 +20,17 @@ GUIAppEntryPoint(instance) {
 	
 	// Init top menu
 	{
-		auto* m = &state.topMenu;
+		auto* m = GetTopMenu();
 		m->background.left = 0;
 		m->background.width = Win32GetProgramWindowClientSize().x;
 		m->background.height = TopMenuHeight;
 		m->background.bottom = Win32GetProgramWindowClientSize().y - m->background.height;
-		ForAll(GetArrayLength(m->buttons))
-			m->buttons[it].left = TopMenuButtonWidth * it;
-		m->buttons[0].text = AllocateString("Save");
-		m->buttons[1].text = AllocateString("Load");
-		m->buttons[2].text = AllocateString("Back");
+		m->save = AllocateButton(0, m->background.bottom, TopMenuButtonWidth, TopMenuHeight, "Save", TopMenuTextHeight, 0, 0, 0, 1);
+		m->load = AllocateButton(TopMenuButtonWidth, m->background.bottom, TopMenuButtonWidth, TopMenuHeight, "Load", TopMenuTextHeight, 0, 0, 0, 1);
 	}
 	
 	// Init title bar
-	state.titleBar = AllocateTextBody(0, state.topMenu.background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, (TitleBarHeight - TitleBarTextHeight) / 2, TitleBarTextHeight, TextBodyFlagLetters);
+	state.titleBar = AllocateTextBody(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, (TitleBarHeight - TitleBarTextHeight) / 2, TitleBarTextHeight, TextBodyFlagLetters);
 	Insert("Title", GetLength("Title"), state.titleBar, 0);
 	
 	// Init toolbar
@@ -42,7 +39,7 @@ GUIAppEntryPoint(instance) {
 		tb->background.left = 0;
 		tb->background.bottom = 0;
 		tb->background.width = ToolbarWidth;
-		tb->background.height = state.topMenu.background.bottom - GetTitleBar()->container.height;
+		tb->background.height = GetTopMenu()->background.bottom - GetTitleBar()->container.height;
 
 		// Init buttons, starting at the top
 		tb->textHeight = ToolbarTextHeight;
@@ -69,7 +66,7 @@ GUIAppEntryPoint(instance) {
 		// Reset the projection matrix and draw the canvas background
 		{	
 			SetGUIProjectionMatrix();
-			DrawRectangleFull(0, 0, canvas.width, canvas.height, 230, 230, 230);
+			DrawRectangleFull(0, 0, canvas.width, canvas.height, 230, 230, 230, 1);
 		}
 
 		// Update mouse state
@@ -90,99 +87,93 @@ GUIAppEntryPoint(instance) {
 			state.mouse.rightDown = false;
 		
 		// Top menu
-		if(MouseOverlapsGUI(state.topMenu.background) == true) {
-			auto* m = &state.topMenu;
-			if(Win32MouseLeftClickedThisFrame(osState) == true) {
-				ForAll(GetArrayLength(m->buttons)) {
-					if(state.mouse.pos.x >= m->buttons[it].left && state.mouse.pos.x < m->buttons[it].left + TopMenuButtonWidth) {
-						if(it == 0) { // Save
-							// Set correct directory
-							if(AreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
-								if(Win32DirectoryExists("Boards") == false)
-									Win32CreateDirectory("Boards");
-								Win32SetCurrentDirectory("Boards");
-							}
+		if(MouseOverlapsGUI(GetTopMenu()->background) == true) {
+			auto* m = GetTopMenu();
+			if(ButtonClicked(m->save, osState) == true) {
+				// Set correct directory
+				if(AreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
+					if(Win32DirectoryExists("Boards") == false)
+						Win32CreateDirectory("Boards");
+					Win32SetCurrentDirectory("Boards");
+				}
+				
+				char* path = SaveFileAsGUI(Null, "Bola boards\0*.bb\0\0"); // Get save file path
+				if(path != Null) {
+					auto memory = AllocateStack();
+					
+					// Store board title
+					if(GetTextLength(*GetTitleBar()) > 0)
+						Push(GetText(*GetTitleBar()), false, memory);
+					Push(Null, true, memory);
+					
+					// Notes
+					BeginNotesLoop(n) {
+						if(NoteMemoryIsInUse(n) == true) {
+							// Store the pos
+							f32* f = PushType(f32, memory);
+							*f = n->text.container.pos.x;
+							f = PushType(f32, memory);
+							*f = n->text.container.pos.y;
 							
-							char* path = SaveFileAsGUI(Null, "Bola boards\0*.bb\0\0"); // Get save file path
-							if(path != Null) {
-								auto memory = AllocateStack();
-								
-								// Store board title
-								if(GetTextLength(*GetTitleBar()) > 0)
-									Push(GetText(*GetTitleBar()), false, memory);
-								Push(Null, true, memory);
-								
-								// Notes
-								BeginNotesLoop(n) {
-									if(NoteMemoryIsInUse(n) == true) {
-										// Store the pos
-										f32* f = PushType(f32, memory);
-										*f = n->text.container.pos.x;
-										f = PushType(f32, memory);
-										*f = n->text.container.pos.y;
-										
-										// Text contents
-										if(NoteHasTitle(n) == true)
-											Push(GetText(n->title), false, memory);
-										Push(Null, true, memory);
-										
-										if(GetTextLength(n->text) > 0)
-											Push(GetText(n->text), false, memory);
-										Push(Null, true, memory);
-									}
-								}
-								EndNotesLoop();
+							// Text contents
+							if(NoteHasTitle(n) == true)
+								Push(GetText(n->title), false, memory);
+							Push(Null, true, memory);
 							
-								SaveFile(memory.memory, memory.size, path);
-								Win32DisplayInfoBox("File saved!", false);
-								
-								Free(memory);
-							}
+							if(GetTextLength(n->text) > 0)
+								Push(GetText(n->text), false, memory);
+							Push(Null, true, memory);
 						}
-						else if(it == 1) { // Load
-							// Set correct directory
-							if(AreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
-								if(Win32DirectoryExists("Boards") == false) {
-									Win32DisplayInfoBox("No files to load yet", false);
-									goto label_rendering; // Nothing to open if the directory didn't even exist
-								}
-								Win32SetCurrentDirectory("Boards");
-							}
-							
-							char* path = OpenFileGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Get open file path
-							if(path != Null && FileExists(path) == true) {
-								auto file = LoadFile(path);
-								void* data = file.memory;
-								
-								char* boardTitle = (char*)data;
-								MovePtr(data, GetLength(boardTitle) + 1);
-								if(boardTitle[0] != '\0') {
-									ClearText(*GetTitleBar());
-									Insert(boardTitle, GetLength(boardTitle), *GetTitleBar(), 0);
-								}
-								
-								Clear(state.notes.memory.memory, state.notes.memory.size);
-								
-								// Extract notes
-								while(data < (ui8*)file.memory + file.size) {
-									f32 x = ReadMemMovePtr(data, f32);
-									f32 y = ReadMemMovePtr(data, f32);
-									
-									char* title = (char*)data;
-									MovePtr(data, GetLength(title) + 1);
-									
-									char* text = (char*)data;
-									MovePtr(data, GetLength(text) + 1);
-									
-									auto* n = CreateNote(CreateVector(x, y), title[0] == '\0' ? Null : title, text[0] == '\0' ? Null : text);
-								}
-							}
-						}
+					}
+					EndNotesLoop();
+				
+					SaveFile(memory.memory, memory.size, path);
+					Win32DisplayInfoBox("File saved!", false);
+					
+					Free(memory);
+				}
+			}
+			else if(ButtonClicked(m->load, osState) == true) {
+				// Set correct directory
+				if(AreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
+					if(Win32DirectoryExists("Boards") == false) {
+						Win32DisplayInfoBox("No files to load yet", false);
+						goto label_rendering; // Nothing to open if the directory didn't even exist
+					}
+					Win32SetCurrentDirectory("Boards");
+				}
+				
+				char* path = OpenFileGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Get open file path
+				if(path != Null && FileExists(path) == true) {
+					auto file = LoadFile(path);
+					void* data = file.memory;
+					
+					char* boardTitle = (char*)data;
+					MovePtr(data, GetLength(boardTitle) + 1);
+					if(boardTitle[0] != '\0') {
+						ClearText(*GetTitleBar());
+						Insert(boardTitle, GetLength(boardTitle), *GetTitleBar(), 0);
+					}
+					
+					Clear(state.notes.memory.memory, state.notes.memory.size);
+					
+					// Extract notes
+					while(data < (ui8*)file.memory + file.size) {
+						f32 x = ReadMemMovePtr(data, f32);
+						f32 y = ReadMemMovePtr(data, f32);
 						
-						goto label_rendering;
+						char* title = (char*)data;
+						MovePtr(data, GetLength(title) + 1);
+						
+						char* text = (char*)data;
+						MovePtr(data, GetLength(text) + 1);
+						
+						auto* n = CreateNote(CreateVector(x, y), title[0] == '\0' ? Null : title, text[0] == '\0' ? Null : text);
 					}
 				}
 			}
+			
+			goto label_rendering;
 		}
 		
 		// Selection of the title bar
@@ -256,8 +247,8 @@ GUIAppEntryPoint(instance) {
 					f32 height = ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2;
 					f32 bottom = wheel.bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight - ColourPanelEdgeOffset - height;
 					f32 offset = (panel->frame.width - width * 2) / 3;
-					panel->ok = AllocateButton(panel->frame.left + offset, bottom, width, height, "OK", NoteTextHeight);
-					panel->cancel = AllocateButton(panel->frame.left + offset + width + offset, bottom, width, height, "Cancel", NoteTextHeight);
+					panel->ok = AllocateButton(panel->frame.left + offset, bottom, width, height, "OK", NoteTextHeight, 200, 200, 200, 0.5f);
+					panel->cancel = AllocateButton(panel->frame.left + offset + width + offset, bottom, width, height, "Cancel", NoteTextHeight, 200, 200, 200, 0.5f);
 				}
 			}
 			else {
@@ -481,7 +472,7 @@ GUIAppEntryPoint(instance) {
 					draw = false;
 					
 				if(draw == true)
-					DrawRectangleFull(UnpackRectangle(GetNoteOverallRectangle(n)), 255, 255, 255);
+					DrawRectangleFull(UnpackRectangle(GetNoteOverallRectangle(n)), 255, 255, 255, 1);
 			}
 		}
 		EndNotesMemoryLoop();
@@ -509,11 +500,11 @@ GUIAppEntryPoint(instance) {
 		// Toolbar
 		{
 			auto* tb = &state.toolBar;
-			DrawRectangleFull(UnpackRectangle(state.toolBar.background), 255, 255, 255); // Background
+			DrawRectangleFull(UnpackRectangle(state.toolBar.background), 255, 255, 255, 1); // Background
 	
 			ForAll(GetArrayLength(tb->buttons)) { // Buttons
 				auto* b = tb->buttons + it;
-				DrawRectangleFull(UnpackRectangle(b->background), 255, 0, 0);
+				DrawRectangleFull(UnpackRectangle(b->background), 255, 0, 0, 1);
 				RenderText((char*)b->text, GetLength(b->text), GetCenter(b->background).x, b->textBottom, tb->textHeight, true);
 			}
 	
@@ -530,7 +521,7 @@ GUIAppEntryPoint(instance) {
 		// Title bar
 		{
 			auto* tb = GetTitleBar();
-			DrawRectangleFull(UnpackRectangle(tb->container), 255, 255, 255);
+			DrawRectangleFull(UnpackRectangle(tb->container), 255, 255, 255, 1);
 			if(GetTextLength(*tb) > 1)
 				Render(*tb);
 			
@@ -548,7 +539,7 @@ GUIAppEntryPoint(instance) {
 		if(state.notes.selected != Null && state.notes.justCreated == true) {
 			SetCanvasProjetionMatrix();
 			auto rec = GetNoteOverallRectangle(GetCurrentNote());
-			DrawRectangleFull(UnpackRectangle(rec), 255, 255, 255);
+			DrawRectangleFull(UnpackRectangle(rec), 255, 255, 255, 1);
 			DrawRectangleBorder(UnpackRectangle(rec), UIBorderThickness, 0, 0, 0);
 		}
 		
@@ -585,34 +576,21 @@ GUIAppEntryPoint(instance) {
 		{
 			SetGUIProjectionMatrix();
 			
-			auto* m = &state.topMenu;
-			DrawRectangleFull(UnpackRectangle(m->background), 146, 139, 183);
-		
-			// Potentially highlight selected option
-			if(MouseOverlapsGUI(m->background) == true) {
-				FromToInc(GetArrayLength(m->buttons) - 1, 0) {
-					if(state.mouse.pos.x >= m->buttons[it].left && state.mouse.pos.x < m->buttons[it].left + TopMenuButtonWidth) {
-						DrawRectangleFull(m->buttons[it].left, m->background.bottom, TopMenuButtonWidth, m->background.height, 0, 0, 0);
-						break;
-					}
-				}
-			}
+			auto* m = GetTopMenu();
+			DrawRectangleFull(UnpackRectangle(m->background), 146, 139, 183, 1);
 			
-			ForAll(GetArrayLength(m->buttons)) {
-				auto* b = m->buttons + it;
-				RenderText((char*)b->text, GetLength(b->text), b->left + TopMenuButtonWidth / 2, GetCenter(m->background).y - TopMenuTextHeight / 2, TopMenuTextHeight, true);
-				
-				// Draw separator
-				if(it < GetArrayLength(m->buttons) - 1) {
-					glColor3f(1, 1, 1);
-					glLineWidth(2);
-					glBegin(GL_LINES);
-					glVertex2f(b->left + TopMenuButtonWidth, GetCenter(m->background).y - TopMenuTextHeight / 2);
-					glVertex2f(b->left + TopMenuButtonWidth, GetCenter(m->background).y + TopMenuTextHeight / 2);
-					glEnd();
-					AssertOpenGL();
-				}
-			}
+			// Render text
+			Render(m->save, UnpackVector(state.mouse.pos));
+			Render(m->load, UnpackVector(state.mouse.pos));
+			
+			// Draw separator
+			glColor3f(1, 1, 1);
+			glLineWidth(UIBorderThickness);
+			glBegin(GL_LINES);
+			glVertex2f(GetTopRight(m->save.rectangle).x, m->save.rectangle.bottom + m->save.rectangle.height / 4);
+			glVertex2f(GetTopRight(m->save.rectangle).x, m->save.rectangle.bottom + m->save.rectangle.height * 3 / 4);
+			glEnd();
+			AssertOpenGL();
 		}
 		
 		// Colour panel
@@ -620,7 +598,7 @@ GUIAppEntryPoint(instance) {
 			auto* panel = GetColourPanel();
 			
 			SetGUIProjectionMatrix();
-			DrawRectangleFull(UnpackRectangle(panel->frame), 255, 255, 255); // Draw the frame
+			DrawRectangleFull(UnpackRectangle(panel->frame), 255, 255, 255, 1); // Draw the frame
 			DrawRectangleBorder(UnpackRectangle(panel->frame), UIBorderThickness, 0, 0, 0);
 			
 			// Draw colour wheel
@@ -830,8 +808,8 @@ GUIAppEntryPoint(instance) {
 			{
 				DrawRectangleBorder(UnpackRectangle(panel->ok.rectangle), UIBorderThickness, 0, 0, 0);
 				DrawRectangleBorder(UnpackRectangle(panel->cancel.rectangle), UIBorderThickness, 0, 0, 0);
-				Render(panel->ok);
-				Render(panel->cancel);
+				Render(panel->ok, UnpackVector(state.mouse.pos));
+				Render(panel->cancel, UnpackVector(state.mouse.pos));
 			}
 		}
 		
