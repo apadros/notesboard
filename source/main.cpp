@@ -223,8 +223,14 @@ GUIAppEntryPoint(instance) {
 				panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
 				
 				auto wheel = GetColourPanelWheelRectangle();
-				panel->selection = GetCenter(wheel);
-				panel->sliderCenterY = GetTopRight(GetColourPanelWheelRectangle()).y;
+				if(panel->currentColour.wheelSelection.x != 0 && panel->currentColour.wheelSelection.y != 0) { // If we have a colour already selected
+					panel->selection = panel->currentColour.wheelSelection;
+					panel->sliderCenterY = panel->currentColour.sliderCenterY;
+				}
+				else {
+					panel->selection = GetCenter(wheel);
+					panel->sliderCenterY = GetTopRight(GetColourPanelWheelRectangle()).y;
+				}
 				
 				// RGB & hex boxes
 				{
@@ -691,7 +697,7 @@ GUIAppEntryPoint(instance) {
 				wheelBlue = LERP(1.0f, bmax, magnitude01);
 			}
 			
-			// Draw colour slider to the right of the wheel
+			// Draw colour slider
 			{
 				auto rec = GetColourPanelSliderRectangle();
 				glBegin(GL_QUADS);
@@ -765,9 +771,9 @@ GUIAppEntryPoint(instance) {
 			
 			// Display RGB as a single number in hexadecimal
 			{
-				ui8  r = finalRed * 255;
-				ui8  g = finalGreen * 255;
-				ui8  b = finalBlue * 255;
+				ui8 r = finalRed * 255;
+				ui8 g = finalGreen * 255;
+				ui8 b = finalBlue * 255;
 				
 				// Hex
 				char buffer[7] = { '#' };
@@ -782,35 +788,42 @@ GUIAppEntryPoint(instance) {
 			}
 			
 			// Display final colour
+			f32 finalColourRight = Null;
 			{
 				auto wheel = GetColourPanelWheelRectangle();
 				f32  radius = ColourPanelFavouritesLayerHeight / 2;
 				f32  centerX = wheel.left + radius;
 				f32  centerY = wheel.bottom - ColourPanelEdgeOffset - radius;
 				
-				//  Colour circle
-				glBegin(GL_TRIANGLE_FAN);
-				glColor3f(finalRed, finalGreen, finalBlue);
-				ui8 vertices = 36;
-				FromToInc(0, vertices + 1) {
-					f32 angle = it * 360 / vertices;
-					f32 x = centerX - Sine(angle) * radius;
-					f32 y = centerY + Cos(angle) * radius;
-					glVertex2f(x, y);
-				}
-				glEnd();
-				
-				// Frame
+				DrawCircleFull(centerX, centerY, radius, finalRed * 255, finalGreen * 255, finalBlue * 255, 1.0f);
 				DrawCircleBorder(centerX, centerY, radius, UIBorderThickness, 0, 0, 0);
+				
+				finalColourRight = centerX + radius;
+			}
+			
+			// Favourites
+			{
+				f32 start = finalColourRight + ColourPanelEdgeOffset;
+				f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
+				f32 diameter = ColourPanelFavouritesLayerHeight / 2;
+				ForAll(GetArrayLength(panel->favourites)) {
+					DrawCircleBorder(start + diameter / 2 + it * (diameter + ColourPanelEdgeOffset), centerY, diameter / 2, UIBorderThickness, 0, 0, 0);
+					
+				}
 			}
 			
 			// OK & cancel buttons
-			{
-				DrawRectangleBorder(UnpackRectangle(panel->ok.rectangle), UIBorderThickness, 0, 0, 0);
-				DrawRectangleBorder(UnpackRectangle(panel->cancel.rectangle), UIBorderThickness, 0, 0, 0);
-				Render(panel->ok, UnpackVector(state.mouse.pos));
-				Render(panel->cancel, UnpackVector(state.mouse.pos));
+			DrawRectangleBorder(UnpackRectangle(panel->ok.rectangle), UIBorderThickness, 0, 0, 0);
+			DrawRectangleBorder(UnpackRectangle(panel->cancel.rectangle), UIBorderThickness, 0, 0, 0);
+			Render(panel->ok, UnpackVector(state.mouse.pos));
+			Render(panel->cancel, UnpackVector(state.mouse.pos));
+			if(ButtonClicked(panel->ok, osState) == true) {
+				panel->currentColour.wheelSelection = panel->selection;
+				panel->currentColour.sliderCenterY = panel->sliderCenterY;
+				panel->display = false;
 			}
+			else if(ButtonClicked(panel->cancel, osState) == true)
+				panel->display = false;
 		}
 		
 		Win32EndGUIUpdateLoop();

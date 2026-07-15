@@ -102,6 +102,12 @@ program_unique struct {
 		text_body hex;  // Coords in viewport space 
 		button    ok;
 		button    cancel;
+		
+		struct {
+			vector  wheelSelection;
+			f32     sliderCenterY;
+		} 			  currentColour, favourites[6];
+		
 	} 					colourPanel;
 
 	struct {
