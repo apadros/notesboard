@@ -5,6 +5,23 @@
 #include "apad_memory.h"
 #include "apad_maths.h"
 
+// ******************** Layouts ******************** //
+
+struct ui_element_layout {
+	f32 start;
+	f32 size;
+	f32 end;
+	f32 center;
+};
+
+dll_import void 						  FreeUIElementLayouts(ui_element_layout* layouts);
+dll_import ui_element_layout* // Will contain count number of elements
+															GetUIElementLayouts( // Will place first and last elements against start and end respectively and will leave the same space between each element regardless of size
+																									 f32 start, // Min boundary
+																									 f32 end, 	// Max boundary
+																									 ui8 count, // Number of sizes supplied
+																									 ...);			// Sizes of each element
+
 // ******************** Colours ******************** //
 
 struct colour {
@@ -17,7 +34,6 @@ dll_import colour CreateColour(ui8 r, ui8 g, ui8 b);
 #define           UnpackColourUI8(_colour) (ui8)((_colour).red * 255), (ui8)((_colour).green * 255), (ui8)((_colour).blue * 255)
 #define           UnpackColourF32(_colour) (_colour).red, (_colour).green, (_colour).blue
 dll_import f32    UI8ColourToF32(ui8 u);
-
 
 // ******************** Buttons ******************** //
 

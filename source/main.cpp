@@ -223,13 +223,18 @@ GUIAppEntryPoint(instance) {
 				panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
 				
 				auto wheel = GetColourPanelWheelRectangle();
-				if(panel->currentColour.wheelSelection.x != 0 && panel->currentColour.wheelSelection.y != 0) { // If we have a colour already selected
+				if(panel->currentColour.wheelSelection.x == 0 && panel->currentColour.wheelSelection.y == 0) { // Init
+					panel->selection = GetCenter(wheel);
+					panel->sliderCenterY = GetTopRight(wheel).y;
+					
+					ForAll(GetArrayLength(panel->favourites)) {
+						panel->favourites[it].wheelSelection = panel->selection;
+						panel->favourites[it].sliderCenterY = panel->sliderCenterY;
+					}
+				}
+				else { // We have a colour already selected
 					panel->selection = panel->currentColour.wheelSelection;
 					panel->sliderCenterY = panel->currentColour.sliderCenterY;
-				}
-				else {
-					panel->selection = GetCenter(wheel);
-					panel->sliderCenterY = GetTopRight(GetColourPanelWheelRectangle()).y;
 				}
 				
 				// RGB & hex boxes
@@ -644,9 +649,17 @@ GUIAppEntryPoint(instance) {
 			f32 wheelRed = 0;
 			f32 wheelGreen = 0;
 			f32 wheelBlue = 0;
-			{
+			f32 favouritesWheelRed[GetArrayLength(panel->favourites)];
+			f32 favouritesWheelGreen[GetArrayLength(panel->favourites)];
+			f32 favouritesWheelBlue[GetArrayLength(panel->favourites)];
+			ForAll(GetArrayLength(panel->favourites) + 1) {
 				auto wheelRec = GetColourPanelWheelRectangle();
-				auto vector = panel->selection - GetCenter(wheelRec);
+				
+				vector vector;
+				if(it == 0)
+					vector = panel->selection - GetCenter(wheelRec);
+				else
+					vector = panel->favourites[it - 1].wheelSelection - GetCenter(wheelRec);
 				
 				// Scale magnitude
 				f32 magnitude01 = Magnitude(vector) / (wheelRec.width / 2); // 0 -> 1 between circle center and outer edges
@@ -692,9 +705,16 @@ GUIAppEntryPoint(instance) {
 				}
 				
 				// Final colour
-				wheelRed = LERP(1.0f, rmax, magnitude01);
-				wheelGreen = LERP(1.0f, gmax, magnitude01);
-				wheelBlue = LERP(1.0f, bmax, magnitude01);
+				if(it == 0) {
+					wheelRed = LERP(1.0f, rmax, magnitude01);
+					wheelGreen = LERP(1.0f, gmax, magnitude01);
+					wheelBlue = LERP(1.0f, bmax, magnitude01);
+				}
+				else {
+					favouritesWheelRed[it - 1] = LERP(1.0f, rmax, magnitude01);
+					favouritesWheelGreen[it - 1] = LERP(1.0f, gmax, magnitude01);
+					favouritesWheelBlue[it - 1] = LERP(1.0f, bmax, magnitude01);
+				}
 			}
 			
 			// Draw colour slider
@@ -715,16 +735,26 @@ GUIAppEntryPoint(instance) {
 				DrawRectangleBorder(rec.left - 3, panel->sliderCenterY - 5, rec.width + 6, 10, UIBorderThickness, 0, 0, 0);
 			}
 			
-			// Final sample colour
+			// Final sample colours including favourites
 			f32 finalRed = 255;
 			f32 finalGreen = 255;
 			f32 finalBlue = 255;
+			f32 favouritesFinalRed[GetArrayLength(panel->favourites)];
+			f32 favouritesFinalGreen[GetArrayLength(panel->favourites)];
+			f32 favouritesFinalBlue[GetArrayLength(panel->favourites)];
 			{
 				auto rec = GetColourPanelSliderRectangle();
 				f32 sliderScale = (panel->sliderCenterY - rec.bottom) / rec.height;
 				finalRed = wheelRed * sliderScale;
 				finalGreen = wheelGreen * sliderScale;
 				finalBlue = wheelBlue * sliderScale;
+				
+				ForAll(GetArrayLength(panel->favourites)) {
+					f32 sliderScale = (panel->favourites[it].sliderCenterY - rec.bottom) / rec.height;
+					favouritesFinalRed[it] = favouritesWheelRed[it] * sliderScale;
+					favouritesFinalGreen[it] = favouritesWheelGreen[it] * sliderScale;
+					favouritesFinalBlue[it] = favouritesWheelBlue[it] * sliderScale;
+				}
 			}
 			
 			// RGB panels
@@ -803,13 +833,20 @@ GUIAppEntryPoint(instance) {
 			
 			// Favourites
 			{
-				f32 start = finalColourRight + ColourPanelEdgeOffset;
+				f32 start = panel->frame.left + ColourPanelEdgeOffset;
+				f32 end = GetTopRight(panel->frame).x - ColourPanelEdgeOffset;
+				ui8 count = 7;
+				f32 f = 5.0f;
+				auto* layouts = GetUIElementLayouts(start, end, count, ColourPanelFavouritesLayerHeight, 
+																						ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2, 
+																						ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2);
 				f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
-				f32 diameter = ColourPanelFavouritesLayerHeight / 2;
-				ForAll(GetArrayLength(panel->favourites)) {
-					DrawCircleBorder(start + diameter / 2 + it * (diameter + ColourPanelEdgeOffset), centerY, diameter / 2, UIBorderThickness, 0, 0, 0);
-					
+				FromTo(1, count) {
+					auto* l = layouts + it;
+					DrawCircleFull(l->center, centerY, l->size / 2, favouritesFinalRed[it] * 255, favouritesFinalGreen[it] * 255, favouritesFinalBlue[it] * 255, 1);
+					DrawCircleBorder(l->center, centerY, l->size / 2, UIBorderThickness, 0, 0, 0);
 				}
+				FreeUIElementLayouts(layouts);
 			}
 			
 			// OK & cancel buttons
