@@ -62,6 +62,7 @@ const f32  ColourPanelWheelHeight = (ColourPanelRGBBoxTextHeight + ColourPanelRG
 const f32  ColourPanelFavouritesLayerHeight = ColourPanelWheelHeight / 3;
 const f32  ColourPanelOKCancelTextHeight = NoteTextHeight;
 const f32  ColourPanelOKCancelTextOffset = NoteTextBorder;
+#define    ColourPanelButtonsHighlightRGBA 200, 200, 200, 0.5f
 
 const ui8  UIBorderThickness = 2;
 
@@ -89,25 +90,25 @@ program_unique struct {
 		ui16          textHeight;
 	} 							toolBar;
 	
-	struct {
+	struct { // All cords in UI viewport space
 		bool 			display;
 		rectangle frame;
 		vector    selection;
 		bool      updatingSelection;
 		f32       sliderCenterY;
 		bool      updatingSlider;
-		text_body red;	 // Coords in viewport space
-		text_body green; // Coords in viewport space
-		text_body blue;  // Coords in viewport space 
-		text_body hex;  // Coords in viewport space 
-		button    ok;
-		button    cancel;
-		
+		text_body red;
+		text_body green;
+		text_body blue;
+		text_body hex; 
 		struct {
 			vector  wheelSelection;
 			f32     sliderCenterY;
 		} 			  currentColour, favourites[6];
-		
+		ui8       favouriteSelected; // 1 -> favourites array length
+		button    save;
+		button    ok;
+		button    cancel;
 	} 					colourPanel;
 
 	struct {

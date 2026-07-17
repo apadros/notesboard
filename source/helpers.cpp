@@ -183,3 +183,30 @@ program_external void SetCanvasProjetionMatrix() {
 		glTranslatef(state.canvas.translation.x / state.canvas.scale, state.canvas.translation.y / state.canvas.scale, Null);
 	AssertOpenGL();
 }
+
+#if 0
+struct colour_panel_favourites_layer_layout {
+	vector currentColourCenter;
+	f32    currentColourRadius;
+	vector favouruitesCenters[6];
+	f32    favouritesRadii[6];
+};
+program_external colour_panel_favourites_layer_layout GetColourPanelColoursLayerLayout() {
+	auto* panel = GetColourPanel();
+	Assert(panel->visible == true);
+	f32 start = panel->frame.left + ColourPanelEdgeOffset;
+	f32 end = panel->save.rectangle.left - ColourPanelEdgeOffset;
+	ui8 count = GetArrayLength(panel->favourites) + 1;
+	auto* layouts = GetUIElementLayouts(start, end, count, ColourPanelFavouritesLayerHeight, 
+																			ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2, 
+																			ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2);
+	f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
+	ForAll(count) {
+		auto* l = layouts + it;
+		if(
+		// DrawCircleFull(l->center, centerY, l->size / 2, favouritesFinalRed[it] * 255, favouritesFinalGreen[it] * 255, favouritesFinalBlue[it] * 255, 1);
+		// DrawCircleBorder(l->center, centerY, l->size / 2, UIBorderThickness, 0, 0, 0);
+	}
+	FreeUIElementLayouts(layouts);
+}
+#endif
