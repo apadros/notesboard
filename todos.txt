@@ -21,6 +21,7 @@ Functionality
 		- Saving of custom colours
 			- Save to project file
 		- Possibility to manually set rgb & hex numbers
+			- Cut, copy and past contents - access to clipboard
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar

@@ -105,6 +105,16 @@ GUIAppEntryPoint(instance) {
 					if(GetTextLength(*GetTitleBar()) > 0)
 						Push(GetText(*GetTitleBar()), false, memory);
 					Push(Null, true, memory);
+					
+					// Store custom colours
+					// For now just store them all, including uninitialised ones
+					ui8 colours = GetArrayLength(GetColourPanel()->favourites);
+					PushInstance(colours, memory);
+					ForAll(GetArrayLength(GetColourPanel()->favourites)) {
+						auto* f = GetColourPanel()->favourites + it;
+						PushInstance(f->wheelSelection, memory);
+						PushInstance(f->sliderCenterY, memory);
+					}
 
 					// Notes
 					BeginNotesLoop(n) {
@@ -148,16 +158,25 @@ GUIAppEntryPoint(instance) {
 					auto file = LoadFile(path);
 					void* data = file.memory;
 
+					// Extract board title
 					char* boardTitle = (char*)data;
 					MovePtr(data, GetLength(boardTitle) + 1);
 					if(boardTitle[0] != '\0') {
 						ClearText(*GetTitleBar());
 						Insert(boardTitle, GetLength(boardTitle), *GetTitleBar(), 0);
 					}
-
-					Clear(state.notes.memory.memory, state.notes.memory.size);
+					
+					// Extract custom colours
+					ui8 count = ReadMemMovePtr(data, ui8);
+					Assert(count <= GetArrayLength(GetColourPanel()->favourites));
+					ForAll(count) {
+						auto* f = GetColourPanel()->favourites + it;
+						f->wheelSelection = ReadMemMovePtr(data, decltype(f->wheelSelection));
+						f->sliderCenterY = ReadMemMovePtr(data, decltype(f->sliderCenterY));
+					}
 
 					// Extract notes
+					Clear(state.notes.memory.memory, state.notes.memory.size);
 					while(data < (ui8*)file.memory + file.size) {
 						f32 x = ReadMemMovePtr(data, f32);
 						f32 y = ReadMemMovePtr(data, f32);
@@ -288,7 +307,7 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// Colour panel
-		if(Win32MouseLeftClickedThisFrame(osState) == true && MouseOverlapsGUI(GetColourPanel()->frame) == true) {
+		if(GetColourPanel()->display == true && Win32MouseLeftClickedThisFrame(osState) == true && MouseOverlapsGUI(GetColourPanel()->frame) == true) {
 			auto* panel = GetColourPanel();
 			auto wheel = GetColourPanelWheelRectangle();
 			if(Overlap(GetCenter(wheel).x, GetCenter(wheel).y, state.mouse.pos.x, state.mouse.pos.y, wheel.width / 2) == true) { // Colour wheel
@@ -345,7 +364,7 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// Notes
-		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardles of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
+		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardless of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
 			auto* previouslySelected = GetCurrentNote();
 			SetCurrentNote(Null);
 
@@ -444,11 +463,12 @@ GUIAppEntryPoint(instance) {
 		// Update text somewhere
 		if(TextIsBeingUpdated() == true) {
 			auto pipelineUpdate = RunTextUpdatePipeline(osState);
-			if(NoteTextIsBeingUpdated() == true)
-				UpdateNoteContainers(GetCurrentNote());
-
-			if(osState.escapePressed == true && NoteTextIsBeingUpdated() == true)
+			if(osState.escapePressed == true && (NoteTextIsBeingUpdated() == true || NoteTitleIsBeingUpdated() == true)) {
 				SetCurrentNote(Null);
+				break;
+			}
+			else if(NoteTextIsBeingUpdated() == true || NoteTitleIsBeingUpdated() == true)
+				UpdateNoteContainers(GetCurrentNote());
 			else if(osState.mouseLeftDown == true && MouseIsWithinToolbar() == false) { // Left mouse click outside of the tool bar, check where and decide
 				Assert(TitleIsBeingUpdated() == true || GetCurrentNote() != Null);
 				if(TitleIsBeingUpdated() == true && MouseOverlapsGUI(GetTitleBar()->container) == false ||

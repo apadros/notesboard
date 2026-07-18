@@ -59,7 +59,7 @@ program_external void UpdateNoteContainers(note* n) {
 	// Update widths as needed
 	f32 width = GetTextRectangle(n->text).width + n->text.textBorderOffset * 2;
 	if(NoteHasTitle(n) == true)
-		width = GetMax(width, GetTextRectangle(n->text).width + n->title.textBorderOffset * 2);
+		width = GetMax(width, GetTextRectangle(n->title).width + n->title.textBorderOffset * 2);
 	if(width < NoteMinWidth)
 		width = NoteMinWidth;
 	n->text.container.width = width;
@@ -140,6 +140,10 @@ program_external note* SetCurrentNote(note* n) {
 
 program_external bool NoteTextIsBeingUpdated() {
 	return TextIsBeingUpdated() == true && GetCurrentNote() != Null && GetCurrentTextBody() == &GetCurrentNote()->text;
+}
+
+program_external bool NoteTitleIsBeingUpdated() {
+	return TextIsBeingUpdated() == true && GetCurrentNote() != Null && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->title;
 }
 
 program_external bool ColourPanelIsVisible() {

@@ -35,6 +35,7 @@ note* 	SetCurrentNote(note* n);
 
 rectangle GetNoteOverallRectangle(note* n);
 bool 		  NoteTextIsBeingUpdated();
+bool 			NoteTitleIsBeingUpdated();
 bool 		  NoteHasTitle(note* n);
 bool 		  NoteMemoryIsInUse(note* n);
 void 		  UpdateNoteContainers(note* n); // Call after any updates to either text_body
