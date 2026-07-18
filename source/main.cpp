@@ -270,6 +270,7 @@ GUIAppEntryPoint(instance) {
 					panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
 					panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
 					panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderSize("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, TextBodyFlagLetters | TextBodyFlagLeftAligned);
+					Insert("#FFFFFF", 7, panel->hex, 0);
 				}
 
 				panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderSize("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);
@@ -295,6 +296,8 @@ GUIAppEntryPoint(instance) {
 				}
 			}
 			else {
+				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &GetColourPanel()->hex)
+					EndTextUpdate();
 				FreeText(panel->red);
 				FreeText(panel->green);
 				FreeText(panel->blue);
@@ -310,9 +313,13 @@ GUIAppEntryPoint(instance) {
 		if(GetColourPanel()->display == true && Win32MouseLeftClickedThisFrame(osState) == true && MouseOverlapsGUI(GetColourPanel()->frame) == true) {
 			auto* panel = GetColourPanel();
 			auto wheel = GetColourPanelWheelRectangle();
+			if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(panel->hex.container) == true) // Interact with hex field
+				BeginTextUpdate(panel->hex);
 			if(Overlap(GetCenter(wheel).x, GetCenter(wheel).y, state.mouse.pos.x, state.mouse.pos.y, wheel.width / 2) == true) { // Colour wheel
 				panel->updatingSelection = true;
 				panel->selection = state.mouse.pos;
+				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex)
+					EndTextUpdate();
 			}
 			else if(MouseOverlapsGUI(GetColourPanelSliderRectangle()) == true) { // Colour slider
 				panel->updatingSlider = true;
@@ -607,35 +614,6 @@ GUIAppEntryPoint(instance) {
 			DrawRectangleBorder(UnpackRectangle(rec), UIBorderThickness, 0, 0, 0);
 		}
 
-		// Draw cursor if needed
-		if(TextIsBeingUpdated() == true) {
-			SetGUIProjectionMatrix();
-			if(TitleIsBeingUpdated() == false)
-				SetCanvasProjetionMatrix();
-
-			f32 alpha = GetCursorAlphaValue();
-			vector cursorPos = {};
-			if(TitleIsBeingUpdated() == true)
-				cursorPos = GetTextRectangle(*GetTitleBar()).pos + GetCursorPos();
-			else if (NoteTextIsBeingUpdated() == true)
-				cursorPos = GetTextRectangle(GetCurrentNote()->text).pos + GetCursorPos();
-			else { // Note title
-				auto* n = GetCurrentNote();
-				Assert(n != Null);
-				Assert(NoteHasTitle(n) == true);
-				Assert(GetCurrentTextBody() == &n->title);
-				cursorPos = GetTextRectangle(GetCurrentNote()->title).pos + GetCursorPos();
-			}
-
-			glLineWidth(2);
-			glColor4f(0, 0, 0, alpha);
-			glBegin(GL_LINES);
-			glVertex2f(cursorPos.x, cursorPos.y);
-			glVertex2f(cursorPos.x, cursorPos.y + GetCurrentTextBody()->textHeight);
-			glEnd();
-			AssertOpenGL();
-		}
-
 		// Render top menu
 		{
 			SetGUIProjectionMatrix();
@@ -853,7 +831,7 @@ GUIAppEntryPoint(instance) {
 			}
 
 			// Display RGB as a single number in hexadecimal
-			{
+			if(panel->updatingSelection == true) {
 				ui8 r = finalRed * 255;
 				ui8 g = finalGreen * 255;
 				ui8 b = finalBlue * 255;
@@ -865,10 +843,10 @@ GUIAppEntryPoint(instance) {
 				sprintf(buffer + 5, "%02x", b);
 
 				ClearText(panel->hex);
-				Insert(buffer, 7, panel->hex, 0);
-				DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
-				Render(panel->hex);
+				Insert(buffer, 7, panel->hex, 0);	
 			}
+			DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
+			Render(panel->hex);
 
 			// Display final colour
 			f32 finalColourRight = Null;
@@ -910,9 +888,23 @@ GUIAppEntryPoint(instance) {
 				Render(panel->save, UnpackVector(state.mouse.pos));
 				DrawRectangleBorder(UnpackRectangle(panel->save.rectangle), UIBorderThickness, 0, 0, 0);
 				
-				if(ButtonClicked(panel->save, osState) == true && panel->favouriteSelected != Null) {
-					panel->favourites[panel->favouriteSelected - 1].wheelSelection = panel->selection;
-					panel->favourites[panel->favouriteSelected - 1].sliderCenterY = panel->sliderCenterY;
+				if(ButtonClicked(panel->save, osState) == true) {
+					if(panel->favouriteSelected != Null) { // Store in currently selected favourite
+						panel->favourites[panel->favouriteSelected - 1].wheelSelection = panel->selection;
+						panel->favourites[panel->favouriteSelected - 1].sliderCenterY = panel->sliderCenterY;
+					}
+					else { // Grab next one available
+						ForAll(GetArrayLength(panel->favourites)) {
+							auto* f = panel->favourites + it;
+							// @WIP
+							// Function to see if fav is inited?
+							if(f->wheelSelection.x == Null && f->wheelSelection.y == Null) {
+								f->wheelSelection = panel->selection;
+								f->sliderCenterY = panel->sliderCenterY;
+								break;
+							}
+						}
+					}
 				}
 			}
 
@@ -925,9 +917,32 @@ GUIAppEntryPoint(instance) {
 				panel->currentColour.wheelSelection = panel->selection;
 				panel->currentColour.sliderCenterY = panel->sliderCenterY;
 				panel->display = false;
+				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex)
+					EndTextUpdate();
 			}
-			else if(ButtonClicked(panel->cancel, osState) == true)
+			else if(ButtonClicked(panel->cancel, osState) == true) {
 				panel->display = false;
+				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex)
+					EndTextUpdate();
+			}
+		}
+		
+		// Draw cursor if needed
+		if(TextIsBeingUpdated() == true) {
+			SetGUIProjectionMatrix();
+			if(TitleIsBeingUpdated() == false)
+				SetCanvasProjetionMatrix();
+
+			f32 alpha = GetCursorAlphaValue();
+			vector cursorPos = GetTextRectangle(*GetCurrentTextBody()).pos + GetCursorPos();
+			
+			glLineWidth(2);
+			glColor4f(0, 0, 0, alpha);
+			glBegin(GL_LINES);
+			glVertex2f(cursorPos.x, cursorPos.y);
+			glVertex2f(cursorPos.x, cursorPos.y + GetCurrentTextBody()->textHeight);
+			glEnd();
+			AssertOpenGL();
 		}
 
 		Win32EndGUIUpdateLoop();

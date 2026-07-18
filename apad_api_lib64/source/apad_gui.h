@@ -85,7 +85,7 @@ dll_import void 		 Render(text_body& tb);
 const ui8 BulletPointChar = '\b';
 const ui8 NewlineChar = 		'\n';
 
-dll_import void  BeginTextUpdate(text_body& text); // Will place the cursor at the end of the text body
+dll_import void  BeginTextUpdate(text_body& text); // Calls EndTextUpdate() first, will place the cursor at the end of the text body
 dll_import void  EndTextUpdate();
 dll_import f32 	 GetTextLineHeight(f32 textHeight);
 dll_import bool  TextIsBeingUpdated();

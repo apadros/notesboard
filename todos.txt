@@ -17,15 +17,13 @@ Functionality
 		- Change the mouse image to the cursor and back
 	- Setting a custom colour for the note background
 	- Colour panel
-		- Ok / cancel buttons
-		- Saving of custom colours
-			- Save to project file
 		- Possibility to manually set rgb & hex numbers
 			- Cut, copy and past contents - access to clipboard
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar
 		- Bug where option continues to be highlighted when moving the mouse to the window title
+			- Need to add ability to highlight text and use shift + arrow keys - APAD_GUI
 			- Mouse pos isn't updated when moving beyond the client area, so same value continues to be used in overlap checks
 		- Back button - go back to previous board
 	- Updating the GUI layout with changes to the client window (gl viewport)
