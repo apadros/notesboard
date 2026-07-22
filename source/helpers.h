@@ -7,6 +7,7 @@
 #include "apad_maths.h"
 #include "apad_memory.h"
 #include "apad_time.h"
+#include "apad_win32_gui.h"
 
 // ******************** Notes ******************** //
 
@@ -34,6 +35,7 @@ note*   GetCurrentNote();
 note* 	SetCurrentNote(note* n);
 
 rectangle GetNoteOverallRectangle(note* n);
+bool 			NoteIsBeingUpdated();
 bool 		  NoteTextIsBeingUpdated();
 bool 			NoteTitleIsBeingUpdated();
 bool 		  NoteHasTitle(note* n);
@@ -118,23 +120,15 @@ program_unique struct {
 		bool         moving;
 		bool 				 justCreated;
 	} 						 notes;
-
-	struct { // All vectors in viewport space
-		vector pos;
-		vector translation;
-		bool   leftDown;
-		bool   rightDown;
-	} 			 mouse;
-	
 } state;
 
 // Misc
 #define GetTitleBar() (&state.titleBar)
 #define GetToolBar() 	(&state.toolBar)
 #define GetTopMenu() 	(&state.topMenu)
-bool    MouseIsWithinToolbar();
-bool    MouseOverlapsCanvas(rectangle& r);
-bool    MouseOverlapsGUI(rectangle& r);
+bool    MouseIsWithinToolbar(win32_state& osState);
+bool    MouseOverlapsCanvas(win32_state& osState, rectangle& r);
+bool    MouseOverlapsGUI(win32_state& osState, rectangle& r);
 bool    TitleIsBeingUpdated();
 
 // Colour panel

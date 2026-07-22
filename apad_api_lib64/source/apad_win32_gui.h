@@ -12,17 +12,13 @@
 dll_import void Win32InitGUI(const char* windowTitle /* Can be set to Null */, HINSTANCE instance);
 	
 struct win32_state {
-	bool mouseLeftDownLastFrame;
-	bool mouseLeftDown;
-	bool mouseLeftUp;
-	bool mouseLeftDoubleClick; // Check this before mouseLeftClickDown and mouseLeftDownLastFrame
+	bool mouseLeftDown; // If false it is up
+	bool mouseRightDown; // If false it is up
+	bool mouseLeftDoubleClick; // Check this before mouseLeftDown
 	
-	bool mouseRightDown;
-	bool mouseRightUp;
-	
-	bool mouseMoved;
-	ui16 mouseX; // Wlll only be updated during mouse move and click events
-	ui16 mouseY; // Wlll only be updated during mouse move and click events
+	bool   mouseMoved;
+	vector mousePos;
+	vector mouseTranslation; // Since last frame
 	
 	f32 mouseWheelRotation; // Where +/-1.0f represents a standard wheel notched rotation, positive for wheel rotating away from user.
 													// Will return other values for freely-rotating mouse wheels
@@ -52,7 +48,7 @@ struct win32_state {
 	
 // These need to be encased in a while(true) loop
 dll_import win32_state Win32BeginGUIUpdateLoop();
-dll_import void   		 Win32EndGUIUpdateLoop();
+dll_import void   		 Win32EndGUIUpdateLoop(win32_state& state);
 
 dll_import void DisplayLastWin32Error();
 
@@ -72,7 +68,8 @@ dll_import char* // Will be Null if cancelled or an error occurs
 																		
 dll_import void Win32DisplayInfoBox(const char* string, bool error);
 
-dll_import bool Win32MouseLeftClickedThisFrame(win32_state& state);
+dll_import bool Win32MouseLeftDownThisFrame(win32_state& state);
+dll_import bool Win32MouseLeftUpThisFrame(win32_state& state);
 
 
 #endif

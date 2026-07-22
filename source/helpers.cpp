@@ -113,16 +113,16 @@ program_external rectangle GetNoteOverallRectangle(note* n) {
 	return ret;
 }
 
-program_external bool MouseIsWithinToolbar() {
-	return Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackRectangle(state.toolBar.background));
+program_external bool MouseIsWithinToolbar(win32_state& osState) {
+	return Overlap(osState.mousePos.x, osState.mousePos.y, UnpackRectangle(state.toolBar.background));
 }
 
-program_external bool MouseOverlapsGUI(rectangle& r) {
-	return Overlap(state.mouse.pos.x, state.mouse.pos.y, UnpackRectangle(r));
+program_external bool MouseOverlapsGUI(win32_state& osState, rectangle& r) {
+	return Overlap(osState.mousePos.x, osState.mousePos.y, UnpackRectangle(r));
 }
 
-program_external bool MouseOverlapsCanvas(rectangle& r) {
-	auto pos = ConvertToCanvasSpace(state.mouse.pos);
+program_external bool MouseOverlapsCanvas(win32_state& osState, rectangle& r) {
+	auto pos = ConvertToCanvasSpace(osState.mousePos);
 	return Overlap(pos.x, pos.y, UnpackRectangle(r));
 }
 
@@ -144,6 +144,10 @@ program_external bool NoteTextIsBeingUpdated() {
 
 program_external bool NoteTitleIsBeingUpdated() {
 	return TextIsBeingUpdated() == true && GetCurrentNote() != Null && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->title;
+}
+
+program_external bool NoteIsBeingUpdated() {
+	return NoteTextIsBeingUpdated() == true || NoteTitleIsBeingUpdated() == true;
 }
 
 program_external bool ColourPanelIsVisible() {

@@ -50,7 +50,7 @@ dll_import button AllocateButton(f32 left, f32 bottom, f32 width, f32 height,
 																 ui8 highlightRed, ui8 highlightGreen, ui8 highlightBlue, f32 highlightAlpha);
 dll_import bool 	ButtonClicked(button& b, win32_state& state);
 dll_import void 	FreeButtonText(button& b);
-dll_import void 	Render(button& b,  f32 mouseX, f32 mouseY); // Will render the text and highlight background colour
+dll_import void 	Render(button& b, vector mousePos); // Will render the text and highlight background colour
 
 // ******************** Text body ******************** //
 
