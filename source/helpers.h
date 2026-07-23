@@ -32,7 +32,7 @@ struct note {
 
 note*   CreateNote(vector pos, const char* title, const char* text);
 note*   GetCurrentNote();
-note* 	SetCurrentNote(note* n);
+note* 	SetCurrentNote(note* n); // Set n to Null to deselect current note
 
 rectangle GetNoteOverallRectangle(note* n);
 bool 			NoteIsBeingUpdated();

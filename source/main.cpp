@@ -74,6 +74,7 @@ GUIAppEntryPoint(instance) {
 		if(TextIsBeingUpdated() == true)
 			textUpdatePipelineData = RunTextUpdatePipeline(osState);
 		
+		// @SECTION - Colour panel
 		// Update colour panel first, nothing else can be interacted with while it is running
 		if(GetColourPanel()->display == true) {
 			auto* panel = GetColourPanel();
@@ -168,10 +169,10 @@ GUIAppEntryPoint(instance) {
 				FreeUIElementLayouts(layouts);
 			}
 			
-			goto label_rendering;
+			goto label_rendering; // Need this since it will partially overlap the canvas
 		}
 		
-		// Top menu
+		// @SECTION - Top menu
 		if(MouseOverlapsGUI(osState, GetTopMenu()->background) == true) {
 			auto* m = GetTopMenu();
 			if(ButtonClicked(m->save, osState) == true) {
@@ -275,38 +276,34 @@ GUIAppEntryPoint(instance) {
 					}
 				}
 			}
-
-			goto label_rendering;
 		}
 
-		// Selection of the title bar
+		// @SECTION - Title bar
 		if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, GetTitleBar()->container) == true) {
 			auto* tb = GetTitleBar();
 
 			if(TextIsBeingUpdated() == true && TitleIsBeingUpdated() == false)
 				EndTextUpdate();
-			SetCurrentNote(Null);
-			BeginTextUpdate(*tb);
+			
+			if(TitleIsBeingUpdated() == false)
+				BeginTextUpdate(*tb);
 
 			SetCursorPos(UnpackVector(osState.mousePos - GetTextRectangle(*tb).pos));
-
-			goto label_rendering;
 		}
+		else if( // Clicking out of the title bar while updating it
+						TitleIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, GetTitleBar()->container) == false)
+			EndTextUpdate();
 
-		// Toolbar
+		// @SECTION - Toolbar
 		if(Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[0].background) == true) { // Create new note
 			auto pos = ConvertToCanvasSpace(0, osState.mousePos.y - NoteMinHeight / 2);
 			auto* n = CreateNote(pos, Null, Null);
 			state.notes.selected = n;
 			state.notes.justCreated = true;
 			state.notes.moving = true;
-
-			goto label_rendering;
 		}
-		else if(NoteTextIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[1].background) == true) { // Add a bullet point
+		else if(NoteTextIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[1].background) == true) // Add a bullet point
 			InsertCharAtCursor(BulletPointChar); // Will check viability first
-			goto label_rendering;
-		}
 		else if(GetCurrentNote() != Null && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[2].background) == true) { // Add a title to the currently selected note
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
@@ -315,7 +312,6 @@ GUIAppEntryPoint(instance) {
 				Insert("Title", GetLength("Title"), n->title, 0);
 				UpdateNoteContainers(n);
 			}
-			goto label_rendering;
 		}
 		else if(GetColourPanel()->display == false && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[3].background) == true) { // Toggle colour wheel
 			auto* panel = GetColourPanel();
@@ -370,11 +366,9 @@ GUIAppEntryPoint(instance) {
 				panel->ok = AllocateButton(panel->frame.left + offset, bottom, width, height, "OK", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
 				panel->cancel = AllocateButton(panel->frame.left + offset + width + offset, bottom, width, height, "Cancel", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
 			}
-			
-			goto label_rendering;
 		}
 
-		// Notes
+		// @SECTION - Notes
 		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardless of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
 			auto* previouslySelected = GetCurrentNote();
 			SetCurrentNote(Null);
@@ -413,7 +407,7 @@ GUIAppEntryPoint(instance) {
 				}
 			}
 		}
-		else if(Win32MouseLeftDownThisFrame(osState) == true) { // Select
+		else if(Win32MouseLeftDownThisFrame(osState) == true && NoteIsBeingUpdated() == false) { // Select only when not updating text
 			auto* previouslySelected = GetCurrentNote();
 			SetCurrentNote(Null);
 
@@ -463,60 +457,47 @@ GUIAppEntryPoint(instance) {
 
 			state.notes.justCreated = false;
 		}
-		else if(state.notes.selected != Null && TextIsBeingUpdated() == false && (osState.deletePressed == true || osState.backspacePressed == true)) { // Delete note
+		else if(GetCurrentNote() != Null && TextIsBeingUpdated() == false && (osState.deletePressed == true || osState.backspacePressed == true)) { // Delete note
 			FreeText(GetCurrentNote()->text);
 			if(IsValid(GetCurrentNote()->title) == true)
 				FreeText(GetCurrentNote()->title);
 			Clear(state.notes.selected, sizeof(note));
 			SetCurrentNote(Null);
 		}
+		else if(NoteTitleIsBeingUpdated() == true && textUpdatePipelineData.wantToLeaveTextBodyDown == true) { // If we're updating a note title and want to move down, go to the text section
+			auto* n = GetCurrentNote();
 
-		// Update text somewhere
-		if(TextIsBeingUpdated() == true) {
-			auto pipelineUpdate = RunTextUpdatePipeline(osState);
-			
-			if(NoteTextIsBeingUpdated() == true || NoteTitleIsBeingUpdated() == true)
-				UpdateNoteContainers(GetCurrentNote());
-			
-			if(Win32MouseLeftDownThisFrame(osState) == true && MouseIsWithinToolbar(osState) == false) { // Left mouse click outside of the tool bar, check where and decide
-				auto* tb = GetCurrentTextBody();
-				if(TitleIsBeingUpdated() == true && MouseOverlapsGUI(osState, GetTitleBar()->container) == false ||
-					 NoteIsBeingUpdated() == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(GetCurrentNote())) == false ||
-					 GetColourPanel()->display == true && MouseOverlapsGUI(osState, GetColourPanel()->hex.container) == false)
-					EndTextUpdate();
-			}
-			else if( // If we're updating a note title and want to move down, go to the text section
-							pipelineUpdate.wantToLeaveTextBodyDown == true && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->title)
-			{
-				auto* n = GetCurrentNote();
+			f32 cursorXAbs = GetTextRectangle(n->title).left + GetCursorPos().x;
 
-				f32 cursorXAbs = GetTextRectangle(n->title).left + GetCursorPos().x;
+			EndTextUpdate();
+			BeginTextUpdate(n->text);
 
-				EndTextUpdate();
-				BeginTextUpdate(n->text);
-
-				auto textRec = GetTextRectangle(n->text);
-				f32 xRel = cursorXAbs - textRec.left;
-				f32 yRel = textRec.height - n->text.textHeight;
-				SetCursorPos(xRel, yRel);
-			}
-			else if( // If we're updating a note title and want to move down, go to the text section
-							pipelineUpdate.wantToLeaveTextBodyUp == true && NoteTextIsBeingUpdated() == true && NoteHasTitle(GetCurrentNote()) == true && GetCurrentTextBody() == &GetCurrentNote()->text)
-			{
-				auto* n = GetCurrentNote();
-
-				f32 cursorXAbs = GetTextRectangle(n->text).left + GetCursorPos().x;
-
-				EndTextUpdate();
-				BeginTextUpdate(n->title);
-
-				f32 xRel = cursorXAbs - GetTextRectangle(n->title).left;
-				f32 yRel = GetTextRectangle(n->text).height;
-				SetCursorPos(xRel, yRel);
-			}
+			auto textRec = GetTextRectangle(n->text);
+			f32 xRel = cursorXAbs - textRec.left;
+			f32 yRel = textRec.height - n->text.textHeight;
+			SetCursorPos(xRel, yRel);
 		}
+		else if(NoteTextIsBeingUpdated() == true && textUpdatePipelineData.wantToLeaveTextBodyUp == true && NoteHasTitle(GetCurrentNote()) == true) { // If we're updating a note title and want to move down, go to the text section
+			auto* n = GetCurrentNote();
 
-		// Update scaling
+			f32 cursorXAbs = GetTextRectangle(n->text).left + GetCursorPos().x;
+
+			EndTextUpdate();
+			BeginTextUpdate(n->title);
+
+			f32 xRel = cursorXAbs - GetTextRectangle(n->title).left;
+			f32 yRel = GetTextRectangle(n->text).height;
+			SetCursorPos(xRel, yRel);
+		}
+		else if(GetCurrentNote() != Null && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(GetCurrentNote())) == false) { // Clicking out of the currently selected note
+			if(NoteIsBeingUpdated() == true)
+				EndTextUpdate();
+			SetCurrentNote(Null);
+		}
+		if(NoteTextIsBeingUpdated() == true || NoteTitleIsBeingUpdated() == true)
+			UpdateNoteContainers(GetCurrentNote());
+		
+		// @SECTION - Update scaling
 		if(osState.mouseWheelRotation != 0.0f) {
 			auto mousePosPre = ConvertToCanvasSpace(osState.mousePos);
 			state.canvas.scale += osState.mouseWheelRotation / 10;
@@ -527,7 +508,7 @@ GUIAppEntryPoint(instance) {
 			state.canvas.translation += mouseTranslationCanvas * state.canvas.scale;
 		}
 
-		// Update translations
+		// @SECTION - Update translations
 		if(osState.mouseRightDown == true && (osState.mouseTranslation.x != 0 || osState.mouseTranslation.y != 0)) {
 			state.canvas.translation.x += osState.mouseTranslation.x;
 			state.canvas.translation.y += osState.mouseTranslation.y;
@@ -538,7 +519,7 @@ GUIAppEntryPoint(instance) {
 
 		SetCanvasProjetionMatrix();
 
-		// Draw notes
+		// @SECTION - Render notes
 		BeginNotesMemoryLoop(n) {
 			if(NoteMemoryIsInUse(n) == true) {
 				bool draw = true;
@@ -550,9 +531,7 @@ GUIAppEntryPoint(instance) {
 			}
 		}
 		EndNotesMemoryLoop();
-
-		// Draw border on a selected note
-		if(state.notes.selected != Null && state.notes.justCreated == false)
+		if(GetCurrentNote() != Null && state.notes.justCreated == false) // Draw border on a selected note
 			DrawRectangleBorder(UnpackRectangle(GetNoteOverallRectangle(GetCurrentNote())), UIBorderThickness, 0, 0, 0);
 
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
@@ -571,7 +550,7 @@ GUIAppEntryPoint(instance) {
 		// Draw the overlying UI
 		SetGUIProjectionMatrix();
 
-		// Toolbar
+		// @SECTION - Render the toolbar
 		{
 			auto* tb = &state.toolBar;
 			DrawRectangleFull(UnpackRectangle(state.toolBar.background), 255, 255, 255, 1); // Background
@@ -592,7 +571,7 @@ GUIAppEntryPoint(instance) {
 			AssertOpenGL();
 		}
 
-		// Title bar
+		// @SECTION - Render the ritle bar
 		{
 			auto* tb = GetTitleBar();
 			DrawRectangleFull(UnpackRectangle(tb->container), 255, 255, 255, 1);
@@ -617,7 +596,7 @@ GUIAppEntryPoint(instance) {
 			DrawRectangleBorder(UnpackRectangle(rec), UIBorderThickness, 0, 0, 0);
 		}
 
-		// Render top menu
+		// @SECTION - Render top menu
 		{
 			SetGUIProjectionMatrix();
 
@@ -638,7 +617,7 @@ GUIAppEntryPoint(instance) {
 			AssertOpenGL();
 		}
 
-		// Colour panel
+		// @SECTION - Render the colour panel
 		if(GetColourPanel()->display == true) {
 			auto* panel = GetColourPanel();
 

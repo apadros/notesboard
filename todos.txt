@@ -27,6 +27,7 @@ Functionality
 			- Mouse pos isn't updated when moving beyond the client area, so same value continues to be used in overlap checks
 		- Back button - go back to previous board
 	- Updating the GUI layout with changes to the client window (gl viewport)
+	- @BUG - Currently title bar cannot be cliked on for text update @WIP
 	
 Vertical toolbar
 	- Usage of images for buttons

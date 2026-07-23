@@ -122,6 +122,10 @@ program_external bool MouseOverlapsGUI(win32_state& osState, rectangle& r) {
 }
 
 program_external bool MouseOverlapsCanvas(win32_state& osState, rectangle& r) {
+	// Check first if within GUI space
+	if(osState.mousePos.x <= GetTopRight(GetToolBar()->background).x || osState.mousePos.y >= GetTitleBar()->container.bottom)
+		return false;
+	
 	auto pos = ConvertToCanvasSpace(osState.mousePos);
 	return Overlap(pos.x, pos.y, UnpackRectangle(r));
 }
