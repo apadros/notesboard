@@ -69,6 +69,11 @@ const f32  ColourPanelOKCancelTextOffset = NoteTextBorder;
 
 const ui8  UIBorderThickness = 2;
 
+struct colour_panel_colour {
+	vector  wheelSelection;
+	f32     sliderCenterY;
+};
+
 program_unique struct {
 	struct {
 		vector translation; // In viewport space, applied post scaling, therefore must be scaled
@@ -96,18 +101,14 @@ program_unique struct {
 	struct { // All cords in UI viewport space
 		bool 			display;
 		rectangle frame;
-		vector    selection;
-		bool      updatingSelection;
-		f32       sliderCenterY;
+		bool      updatingCurrentColour;
 		bool      updatingSlider;
 		text_body red;
 		text_body green;
 		text_body blue;
 		text_body hex; 
-		struct {
-			vector  wheelSelection;
-			f32     sliderCenterY;
-		} 			  currentColour, favourites[6];
+		
+		colour_panel_colour currentColour, savedCurrentColour, favourites[6];
 		ui8       favouriteSelected; // 1 -> favourites array length
 		button    save;
 		button    ok;
@@ -132,6 +133,7 @@ bool    MouseOverlapsGUI(win32_state& osState, rectangle& r);
 bool    TitleIsBeingUpdated();
 
 // Colour panel
+bool 			ColourPanelColourIsInited(colour_panel_colour& c);
 bool 			ColourPanelIsVisible();
 #define 	GetColourPanel() (&state.colourPanel)
 rectangle GetColourPanelSliderRectangle();
