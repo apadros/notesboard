@@ -17,7 +17,7 @@
 
 GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", instance);
-
+	
 	// Init top menu
 	{
 		auto* m = GetTopMenu();
@@ -62,12 +62,6 @@ GUIAppEntryPoint(instance) {
 	while(true) {
 		auto osState = Win32BeginGUIUpdateLoop();
 		auto canvas = Win32GetProgramWindowClientSize();
-
-		// Reset the projection matrix and draw the canvas background
-		{
-			SetGUIProjectionMatrix();
-			DrawRectangleFull(0, 0, canvas.width, canvas.height, 230, 230, 230, 1);
-		}
 		
 		// Run text update pipeline first
 		text_update_pipeline_data textUpdatePipelineData = {};
@@ -276,6 +270,8 @@ GUIAppEntryPoint(instance) {
 					}
 				}
 			}
+			
+			goto label_rendering;
 		}
 
 		// @SECTION - Title bar
@@ -289,6 +285,8 @@ GUIAppEntryPoint(instance) {
 				BeginTextUpdate(*tb);
 
 			SetCursorPos(UnpackVector(osState.mousePos - GetTextRectangle(*tb).pos));
+			
+			goto label_rendering;
 		}
 		else if( // Clicking out of the title bar while updating it
 						TitleIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, GetTitleBar()->container) == false)
@@ -301,6 +299,7 @@ GUIAppEntryPoint(instance) {
 			state.notes.selected = n;
 			state.notes.justCreated = true;
 			state.notes.moving = true;
+			goto label_rendering;
 		}
 		else if(NoteTextIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[1].background) == true) // Add a bullet point
 			InsertCharAtCursor(BulletPointChar); // Will check viability first
@@ -313,60 +312,8 @@ GUIAppEntryPoint(instance) {
 				UpdateNoteContainers(n);
 			}
 		}
-		else if(GetColourPanel()->display == false && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[3].background) == true) { // Toggle colour wheel
-			auto* panel = GetColourPanel();
-			
-			panel->display = true;
-			
-			// Create the panel
-			panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
-			panel->frame.height = ColourPanelEdgeOffset + ColourPanelWheelHeight + ColourPanelEdgeOffset + ColourPanelFavouritesLayerHeight + ColourPanelEdgeOffset + ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2 + ColourPanelEdgeOffset;
-			panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
-
-			auto wheel = GetColourPanelWheelRectangle();
-			auto slider = GetColourPanelSliderRectangle();
-			if(ColourPanelColourIsInited(panel->savedCurrentColour) == true) // If we have stored a current colour
-				panel->currentColour = panel->savedCurrentColour;
-			else {
-				panel->currentColour.wheelSelection = GetCenter(wheel);
-				panel->currentColour.sliderCenterY = GetTopRight(slider).y;
-			}
-			
-			// RGB & hex boxes
-			{
-				f32  rgbBoxWidth = GetTextRenderSize("000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2;
-				f32  left = GetTopRight(slider).x + ColourPanelEdgeOffset;
-				f32  height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
-				f32  offset = (wheel.height - height * 4) / 3;
-				panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-				panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-				panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-				panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderSize("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, TextBodyFlagLetters | TextBodyFlagLeftAligned);
-				Insert("#FFFFFF", 7, panel->hex, 0);
-			}
-			
-			panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderSize("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);
-				
-			// Custom colour save button
-			{
-				f32 width = GetTextRenderSize("Save", 4, NoteTextHeight).width + NoteTextBorder * 2;
-				f32 left = panel->frame.left + panel->frame.width - ColourPanelEdgeOffset - width;
-				f32 height = NoteTextHeight + NoteTextBorder * 2;
-				f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
-				panel->save = AllocateButton(left, centerY - height / 2, width, height, "Save", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
-				panel->favouriteSelected = Null;
-			}
-			
-			// Ok and cancel buttons
-			{
-				f32 width = GetTextRenderSize("Cancel", Null, NoteTextHeight).width + ColourPanelEdgeOffset * 2;
-				f32 height = ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2;
-				f32 bottom = wheel.bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight - ColourPanelEdgeOffset - height;
-				f32 offset = (panel->frame.width - width * 2) / 3;
-				panel->ok = AllocateButton(panel->frame.left + offset, bottom, width, height, "OK", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
-				panel->cancel = AllocateButton(panel->frame.left + offset + width + offset, bottom, width, height, "Cancel", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
-			}
-		}
+		else if(GetColourPanel()->display == false && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[3].background) == true) // Toggle colour wheel
+			OpenColourPanel();
 
 		// @SECTION - Notes
 		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardless of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
@@ -396,6 +343,8 @@ GUIAppEntryPoint(instance) {
 					// Position mouse cursor more precisely
 					f32 x = mousePosCanvas.x - GetTextRectangle(n->title).left;
 					SetCursorPos(x, 0);
+					
+					goto label_rendering;
 				}
 				else if(MouseOverlapsCanvas(osState, n->text.container) == true) { // Update text
 					auto* n = GetCurrentNote();
@@ -404,6 +353,8 @@ GUIAppEntryPoint(instance) {
 
 					vector pos = mousePosCanvas - GetTextRectangle(n->text).pos;
 					SetCursorPos(pos.x, pos.y);
+					
+					goto label_rendering;
 				}
 			}
 		}
@@ -497,6 +448,10 @@ GUIAppEntryPoint(instance) {
 		if(NoteTextIsBeingUpdated() == true || NoteTitleIsBeingUpdated() == true)
 			UpdateNoteContainers(GetCurrentNote());
 		
+		// If double clicking hasn't done anything else, allow it to update the canvas's background colour
+		if(osState.mouseLeftDoubleClick == true && osState.mousePos.x > GetTopRight(GetToolBar()->background).width && osState.mousePos.y < GetTitleBar()->container.bottom)
+			OpenColourPanel();
+		
 		// @SECTION - Update scaling
 		if(osState.mouseWheelRotation != 0.0f) {
 			auto mousePosPre = ConvertToCanvasSpace(osState.mousePos);
@@ -516,9 +471,18 @@ GUIAppEntryPoint(instance) {
 
 		// Use gotos to keep things tidy instead of if else everywhere
 		label_rendering:
+		
+		// Reset the projection matrix and draw the canvas background
+		SetGUIProjectionMatrix();
+		
+		{
+			colour c = ConvertColourPanelColourToRGB(state.canvas.colour);
+			DrawRectangleFull(0, 0, canvas.width, canvas.height, UnpackColourUI8(c), 1);
+		}
+
 
 		SetCanvasProjetionMatrix();
-
+		
 		// @SECTION - Render notes
 		BeginNotesMemoryLoop(n) {
 			if(NoteMemoryIsInUse(n) == true) {
@@ -562,7 +526,7 @@ GUIAppEntryPoint(instance) {
 			}
 
 			// Draw separator
-			glLineWidth(2);
+			glLineWidth(UIBorderThickness);
 			glColor3f(0, 0, 0);
 			glBegin(GL_LINES);
 			glVertex2s(tb->background.width, 0);
@@ -579,7 +543,7 @@ GUIAppEntryPoint(instance) {
 				Render(*tb);
 
 			// Draw separator
-			glLineWidth(3);
+			glLineWidth(UIBorderThickness);
 			glColor3f(0, 0, 0);
 			glBegin(GL_LINES);
 			glVertex2s(tb->container.left, tb->container.bottom);
@@ -607,12 +571,15 @@ GUIAppEntryPoint(instance) {
 			Render(m->save, osState.mousePos);
 			Render(m->load, osState.mousePos);
 
-			// Draw separator
+			// Draw separators
 			glColor3f(1, 1, 1);
 			glLineWidth(UIBorderThickness);
 			glBegin(GL_LINES);
 			glVertex2f(GetTopRight(m->save.rectangle).x, m->save.rectangle.bottom + m->save.rectangle.height / 4);
 			glVertex2f(GetTopRight(m->save.rectangle).x, m->save.rectangle.bottom + m->save.rectangle.height * 3 / 4);
+			glColor3f(0, 0, 0);
+			glVertex2f(m->background.left, m->background.bottom);
+			glVertex2f(GetTopRight(m->background).width, m->background.bottom);
 			glEnd();
 			AssertOpenGL();
 		}
@@ -659,85 +626,18 @@ GUIAppEntryPoint(instance) {
 			}
 
 			// Get the current wheel colour selection
-			f32 wheelRed = 0;
-			f32 wheelGreen = 0;
-			f32 wheelBlue = 0;
-			f32 favouritesWheelRed[GetArrayLength(panel->favourites)];
-			f32 favouritesWheelGreen[GetArrayLength(panel->favourites)];
-			f32 favouritesWheelBlue[GetArrayLength(panel->favourites)];
-			ForAll(GetArrayLength(panel->favourites) + 1) {
-				if(it > 0 && ColourPanelColourIsInited(panel->favourites[it - 1]) == false) { // Hasn't been customised yet
-					// Just set to white
-					favouritesWheelRed[it - 1] = 1.0f;
-					favouritesWheelGreen[it - 1] = 1.0f;
-					favouritesWheelBlue[it - 1] = 1.0f;
-					continue;
-				}
-				
-				auto wheelRec = GetColourPanelWheelRectangle();
-
-				vector vector;
-				if(it == 0)
-					vector = panel->currentColour.wheelSelection - GetCenter(wheelRec);
-				else
-					vector = panel->favourites[it - 1].wheelSelection - GetCenter(wheelRec);
-
-				// Scale magnitude
-				f32 magnitude01 = Magnitude(vector) / (wheelRec.width / 2); // 0 -> 1 between circle center and outer edges
-
-				// Angle of current selection
-				f32 angle = 0; // About the horizontal axis
-				if(vector.x == 0)
-					angle = vector.y > 0 ? 90 : 270;
-				else if(vector.y == 0)
-					angle = vector.x > 0 ? 0 : 180;
+			colour currentColour = ConvertColourPanelColourToRGB(panel->currentColour);
+			colour favouriteColours[GetArrayLength(panel->favourites)];
+			ForAll(GetArrayLength(panel->favourites)) {
+				if(ColourPanelColourIsInited(panel->favourites[it]) == true)
+					favouriteColours[it] = ConvertColourPanelColourToRGB(panel->favourites[it]);
 				else {
-					f32 a = Magnitude(vector.x);
-					f32 o = Magnitude(vector.y);
-					angle = ArcTan(o / a);
-					if(vector.x < 0 && vector.y > 0)
-						angle = 180 - angle;
-					else if(vector.x < 0 && vector.y < 0)
-						angle += 180;
-					else if(vector.x > 0 && vector.y < 0)
-						angle = 360 - angle;
-				}
-
-				// Adjust angle to start from the vertical axis (red)
-				angle -= 90;
-				if(angle < 0)
-					angle += 360;
-
-				// Work out the max colour based on the angle
-				f32 rmax = 0;
-				f32 gmax = 0;
-				f32 bmax = 0;
-				if(angle <= 120) {
-					rmax = LERP(1.0f, 0, angle / 120);
-					gmax = LERP(0, 1.0f, angle / 120);
-				}
-				else if(angle <= 240) {
-					gmax = LERP(1.0f, 0, (angle - 120) / 120);
-					bmax = LERP(0, 1.0f, (angle - 120) / 120);
-				}
-				else {
-					rmax = LERP(0, 1.0f, (angle - 240) / 120);
-					bmax = LERP(1.0f, 0, (angle - 240) / 120);
-				}
-
-				// Final colour
-				if(it == 0) {
-					wheelRed = LERP(1.0f, rmax, magnitude01);
-					wheelGreen = LERP(1.0f, gmax, magnitude01);
-					wheelBlue = LERP(1.0f, bmax, magnitude01);
-				}
-				else {
-					favouritesWheelRed[it - 1] = LERP(1.0f, rmax, magnitude01);
-					favouritesWheelGreen[it - 1] = LERP(1.0f, gmax, magnitude01);
-					favouritesWheelBlue[it - 1] = LERP(1.0f, bmax, magnitude01);
+					favouriteColours[it].red = 1.0f;
+					favouriteColours[it].green = 1.0f;
+					favouriteColours[it].blue = 1.0f;
 				}
 			}
-
+			
 			// Draw colour slider
 			{
 				auto rec = GetColourPanelSliderRectangle();
@@ -745,7 +645,7 @@ GUIAppEntryPoint(instance) {
 				glColor3f(0, 0, 0);
 				glVertex2f(rec.left, rec.bottom);
 				glVertex2f(rec.left + rec.width, rec.bottom);
-				glColor3f(wheelRed, wheelGreen, wheelBlue);
+				glColor3f(UnpackColourF32(currentColour));
 				glVertex2f(rec.left + rec.width, rec.bottom + rec.height);
 				glVertex2f(rec.left, rec.bottom + rec.height);
 				glEnd();
@@ -756,36 +656,10 @@ GUIAppEntryPoint(instance) {
 				DrawRectangleBorder(rec.left - 3, panel->currentColour.sliderCenterY - 5, rec.width + 6, 10, UIBorderThickness, 0, 0, 0);
 			}
 
-			// Final sample colours including favourites
-			f32 finalRed = 255;
-			f32 finalGreen = 255;
-			f32 finalBlue = 255;
-			f32 favouritesFinalRed[GetArrayLength(panel->favourites)];
-			f32 favouritesFinalGreen[GetArrayLength(panel->favourites)];
-			f32 favouritesFinalBlue[GetArrayLength(panel->favourites)];
-			{
-				auto rec = GetColourPanelSliderRectangle();
-				f32 sliderScale = (panel->currentColour.sliderCenterY - rec.bottom) / rec.height;
-				finalRed = wheelRed * sliderScale;
-				finalGreen = wheelGreen * sliderScale;
-				finalBlue = wheelBlue * sliderScale;
-
-				ForAll(GetArrayLength(panel->favourites)) {
-					f32 sliderScaler = Null;
-					if(ColourPanelColourIsInited(panel->favourites[it]) == true)
-						sliderScale = (panel->favourites[it].sliderCenterY - rec.bottom) / rec.height;
-					else
-						sliderScale = 1.0f;
-					favouritesFinalRed[it] = favouritesWheelRed[it] * sliderScale;
-					favouritesFinalGreen[it] = favouritesWheelGreen[it] * sliderScale;
-					favouritesFinalBlue[it] = favouritesWheelBlue[it] * sliderScale;
-				}
-			}
-
 			// RGB panels
 			{
 				// Red
-				char* string = ToString((ui8)(finalRed * 255));
+				char* string = ToString((ui8)(currentColour.red * 255));
 				if(GetLength(string) == 1)
 					string = Concatenate(2, "00", string);
 				else if(GetLength(string) == 2)
@@ -798,7 +672,7 @@ GUIAppEntryPoint(instance) {
 				RenderText("Red", Null, GetTopRight(panel->red.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->red).bottom, panel->red.textHeight, false);
 
 				// Green
-				string = ToString((ui8)(finalGreen * 255));
+				string = ToString((ui8)(currentColour.green * 255));
 				if(GetLength(string) == 1)
 					string = Concatenate(2, "00", string);
 				else if(GetLength(string) == 2)
@@ -811,7 +685,7 @@ GUIAppEntryPoint(instance) {
 				RenderText("Green", Null, GetTopRight(panel->green.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->green).bottom, panel->green.textHeight, false);
 
 				// Blue
-				string = ToString((ui8)(finalBlue * 255));
+				string = ToString((ui8)(currentColour.blue * 255));
 				if(GetLength(string) == 1)
 					string = Concatenate(2, "00", string);
 				else if(GetLength(string) == 2)
@@ -826,9 +700,9 @@ GUIAppEntryPoint(instance) {
 
 			// Display RGB as a single number in hexadecimal
 			if(panel->updatingCurrentColour == true) {
-				ui8 r = finalRed * 255;
-				ui8 g = finalGreen * 255;
-				ui8 b = finalBlue * 255;
+				ui8 r = currentColour.red * 255;
+				ui8 g = currentColour.green * 255;
+				ui8 b = currentColour.blue * 255;
 
 				// Hex
 				char buffer[7] = { '#' };
@@ -850,7 +724,7 @@ GUIAppEntryPoint(instance) {
 				f32  centerX = wheel.left + radius;
 				f32  centerY = wheel.bottom - ColourPanelEdgeOffset - radius;
 				
-				DrawCircleFull(centerX, centerY, radius, finalRed * 255, finalGreen * 255, finalBlue * 255, 1.0f);
+				DrawCircleFull(centerX, centerY, radius, UnpackColourUI8(currentColour), 1.0f);
 				DrawCircleBorder(centerX, centerY, radius, UIBorderThickness, 0, 0, 0);
 
 				finalColourRight = centerX + radius;
@@ -867,7 +741,7 @@ GUIAppEntryPoint(instance) {
 				f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
 				FromTo(1, count) {
 					auto* l = layouts + it;
-					DrawCircleFull(l->center, centerY, l->size / 2, favouritesFinalRed[it - 1] * 255, favouritesFinalGreen[it - 1] * 255, favouritesFinalBlue[it - 1] * 255, 1);
+					DrawCircleFull(l->center, centerY, l->size / 2, UnpackColourUI8(favouriteColours[it - 1]), 1);
 					DrawCircleBorder(l->center, centerY, l->size / 2, UIBorderThickness, 0, 0, 0);
 				}
 				

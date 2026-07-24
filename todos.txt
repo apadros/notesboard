@@ -10,7 +10,8 @@ Background
 Functionality
 	- Double click anywhere on the canvas to create a note
 	- Prevent mouse from moving when attempting to drag a note outside the canvas
-	- Setting the gl clear color as option -> board background
+	- Double clicking the canvas background should open the colour panel. Any colour changes should apply to the former immediately
+	- Opening the colour panel with a note selected and changes the current colour should apply to the note's background
 	- Arrows to connect notes
 	- Creation of an image as a note
 	- Position mouse cursor more accurately on text body when double clicking it - currently works but is somewhat inaccurate
@@ -19,6 +20,7 @@ Functionality
 	- Colour panel
 		- Possibility to manually set rgb & hex numbers
 			- Cut, copy and past contents - access to clipboard
+		- Update hex field when moving the slider
 	- Boards / folders
 	- Text container colours
 	- Horizontal (main) menu under the program title bar
@@ -27,7 +29,6 @@ Functionality
 			- Mouse pos isn't updated when moving beyond the client area, so same value continues to be used in overlap checks
 		- Back button - go back to previous board
 	- Updating the GUI layout with changes to the client window (gl viewport)
-	- @BUG - Currently title bar cannot be cliked on for text update @WIP
 	
 Vertical toolbar
 	- Usage of images for buttons

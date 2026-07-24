@@ -76,9 +76,10 @@ struct colour_panel_colour {
 
 program_unique struct {
 	struct {
-		vector translation; // In viewport space, applied post scaling, therefore must be scaled
-		f32    scale = 1.0f;
-	} 			 canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
+		colour_panel_colour colour;
+		vector 							translation; // In viewport space, applied post scaling, therefore must be scaled
+		f32    							scale = 1.0f;
+	} 			 							canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
 	
 	text_body titleBar; // Coords in viewport space
 	
@@ -135,9 +136,11 @@ bool    TitleIsBeingUpdated();
 // Colour panel
 bool 			ColourPanelColourIsInited(colour_panel_colour& c);
 bool 			ColourPanelIsVisible();
+colour 	  ConvertColourPanelColourToRGB(colour_panel_colour& c);
 #define 	GetColourPanel() (&state.colourPanel)
 rectangle GetColourPanelSliderRectangle();
 rectangle GetColourPanelWheelRectangle();
+void 			OpenColourPanel();
 
 // Space and projection matrix stuff
 vector  ConvertToCanvasSpace(f32 x, f32 y);

@@ -199,3 +199,128 @@ program_external void SetCanvasProjetionMatrix() {
 program_external bool ColourPanelColourIsInited(colour_panel_colour& c) {
 	return c.wheelSelection.x != Null && c.wheelSelection.y != Null && c.sliderCenterY != Null;
 }
+
+program_external colour ConvertColourPanelColourToRGB(colour_panel_colour& c) {
+	if(ColourPanelColourIsInited(c) == false)
+		return CreateColour(255, 255, 255);
+	
+	auto wheelRec = GetColourPanelWheelRectangle();
+
+	vector vec = c.wheelSelection - GetCenter(wheelRec);
+	
+	// Scale magnitude
+	f32 magnitude01 = Magnitude(vec) / (wheelRec.width / 2); // 0 -> 1 between circle center and outer edges
+
+	// Angle of current selection
+	f32 angle = 0; // About the horizontal axis
+	if(vec.x == 0)
+		angle = vec.y > 0 ? 90 : 270;
+	else if(vec.y == 0)
+		angle = vec.x > 0 ? 0 : 180;
+	else {
+		f32 a = Magnitude(vec.x);
+		f32 o = Magnitude(vec.y);
+		angle = ArcTan(o / a);
+		if(vec.x < 0 && vec.y > 0)
+			angle = 180 - angle;
+		else if(vec.x < 0 && vec.y < 0)
+			angle += 180;
+		else if(vec.x > 0 && vec.y < 0)
+			angle = 360 - angle;
+	}
+	
+	// Adjust angle to start from the vertical axis (red)
+	angle -= 90;
+	if(angle < 0)
+		angle += 360;
+
+	// Work out the max colour based on the angle
+	f32 rmax = 0;
+	f32 gmax = 0;
+	f32 bmax = 0;
+	if(angle <= 120) {
+		rmax = LERP(1.0f, 0, angle / 120);
+		gmax = LERP(0, 1.0f, angle / 120);
+	}
+	else if(angle <= 240) {
+		gmax = LERP(1.0f, 0, (angle - 120) / 120);
+		bmax = LERP(0, 1.0f, (angle - 120) / 120);
+	}
+	else {
+		rmax = LERP(0, 1.0f, (angle - 240) / 120);
+		bmax = LERP(1.0f, 0, (angle - 240) / 120);
+	}
+
+	// Final wheel colour
+	f32 wheelRed = LERP(1.0f, rmax, magnitude01);
+	f32 wheelGreen = LERP(1.0f, gmax, magnitude01);
+	f32 wheelBlue = LERP(1.0f, bmax, magnitude01);
+	
+	// Final colour taking the slider position into consideration
+	auto sliderRec = GetColourPanelSliderRectangle();
+	f32 sliderScale = (c.sliderCenterY - sliderRec.bottom) / sliderRec.height;
+	f32 finalRed = wheelRed * sliderScale;
+	f32 finalGreen = wheelGreen * sliderScale;
+	f32 finalBlue = wheelBlue * sliderScale;
+	
+	colour ret = {};
+	ret.red = finalRed;
+	ret.green = finalGreen;
+	ret.blue = finalBlue;
+	return ret;
+}
+
+program_external void OpenColourPanel() {
+	auto* panel = GetColourPanel();
+			
+	panel->display = true;
+	
+	// Create the panel
+	panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
+	panel->frame.height = ColourPanelEdgeOffset + ColourPanelWheelHeight + ColourPanelEdgeOffset + ColourPanelFavouritesLayerHeight + ColourPanelEdgeOffset + ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2 + ColourPanelEdgeOffset;
+	panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
+
+	auto wheel = GetColourPanelWheelRectangle();
+	auto slider = GetColourPanelSliderRectangle();
+	if(ColourPanelColourIsInited(panel->savedCurrentColour) == true) // If we have stored a current colour
+		panel->currentColour = panel->savedCurrentColour;
+	else {
+		panel->currentColour.wheelSelection = GetCenter(wheel);
+		panel->currentColour.sliderCenterY = GetTopRight(slider).y;
+	}
+	
+	// RGB & hex boxes
+	{
+		f32  rgbBoxWidth = GetTextRenderSize("000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2;
+		f32  left = GetTopRight(slider).x + ColourPanelEdgeOffset;
+		f32  height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
+		f32  offset = (wheel.height - height * 4) / 3;
+		panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+		panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+		panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
+		panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderSize("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, TextBodyFlagLetters | TextBodyFlagLeftAligned);
+		Insert("#FFFFFF", 7, panel->hex, 0);
+	}
+	
+	panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderSize("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);
+		
+	// Custom colour save button
+	{
+		f32 width = GetTextRenderSize("Save", 4, NoteTextHeight).width + NoteTextBorder * 2;
+		f32 left = panel->frame.left + panel->frame.width - ColourPanelEdgeOffset - width;
+		f32 height = NoteTextHeight + NoteTextBorder * 2;
+		f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
+		panel->save = AllocateButton(left, centerY - height / 2, width, height, "Save", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
+		panel->favouriteSelected = Null;
+	}
+	
+	// Ok and cancel buttons
+	{
+		f32 width = GetTextRenderSize("Cancel", Null, NoteTextHeight).width + ColourPanelEdgeOffset * 2;
+		f32 height = ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2;
+		f32 bottom = wheel.bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight - ColourPanelEdgeOffset - height;
+		f32 offset = (panel->frame.width - width * 2) / 3;
+		panel->ok = AllocateButton(panel->frame.left + offset, bottom, width, height, "OK", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
+		panel->cancel = AllocateButton(panel->frame.left + offset + width + offset, bottom, width, height, "Cancel", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
+	}
+}
