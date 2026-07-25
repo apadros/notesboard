@@ -8,6 +8,7 @@ Background
 	- Mac OS compatibility
 	
 Functionality
+	- Save canvas background colour to file
 	- Double click anywhere on the canvas to create a note
 	- Prevent mouse from moving when attempting to drag a note outside the canvas
 	- Double clicking the canvas background should open the colour panel. Any colour changes should apply to the former immediately

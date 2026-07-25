@@ -270,10 +270,32 @@ program_external colour ConvertColourPanelColourToRGB(colour_panel_colour& c) {
 	return ret;
 }
 
-program_external void OpenColourPanel() {
+#include <stdio.h> // For conversion to hex
+program_external void UpdateColourPanelHex(colour_panel_colour colour) {
+	auto* panel = GetColourPanel();
+	Assert(panel->display == true);
+	auto rgb = ConvertColourPanelColourToRGB(colour);
+	ui8 r = rgb.red * 255;
+	ui8 g = rgb.green * 255;
+	ui8 b = rgb.blue * 255;
+
+	// Hex
+	char buffer[7] = { '#' };
+	sprintf(buffer + 1, "%02x", r);
+	sprintf(buffer + 3, "%02x", g);
+	sprintf(buffer + 5, "%02x", b);
+
+	ClearText(panel->hex);
+	Insert(buffer, 7, panel->hex, 0);	
+}
+
+program_external void OpenColourPanel(colour_panel_colour* colourToUpdate) {
 	auto* panel = GetColourPanel();
 			
 	panel->display = true;
+	panel->colourBeingUpdated = colourToUpdate;
+	if(panel->colourBeingUpdated != Null)
+		panel->savedCurrentColour = *colourToUpdate;
 	
 	// Create the panel
 	panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
@@ -299,7 +321,10 @@ program_external void OpenColourPanel() {
 		panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
 		panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
 		panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderSize("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, TextBodyFlagLetters | TextBodyFlagLeftAligned);
-		Insert("#FFFFFF", 7, panel->hex, 0);
+		if(ColourPanelColourIsInited(panel->savedCurrentColour) == true)
+			UpdateColourPanelHex(panel->savedCurrentColour);
+		else
+			Insert("#FFFFFF", 7, panel->hex, 0);
 	}
 	
 	panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderSize("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);

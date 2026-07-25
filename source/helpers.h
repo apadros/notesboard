@@ -100,21 +100,28 @@ program_unique struct {
 	} 							toolBar;
 	
 	struct { // All cords in UI viewport space
-		bool 			display;
+		bool display;
+		
+		colour_panel_colour currentColour;
+		colour_panel_colour savedCurrentColour;
+		bool      					updatingCurrentColour;
+		bool      					updatingSlider;
+		
+		colour_panel_colour* colourBeingUpdated;
+		
 		rectangle frame;
-		bool      updatingCurrentColour;
-		bool      updatingSlider;
 		text_body red;
 		text_body green;
 		text_body blue;
 		text_body hex; 
 		
-		colour_panel_colour currentColour, savedCurrentColour, favourites[6];
-		ui8       favouriteSelected; // 1 -> favourites array length
-		button    save;
-		button    ok;
-		button    cancel;
-	} 					colourPanel;
+		colour_panel_colour favourites[6];
+		ui8       					favouriteSelected; // 1 -> favourites array length
+		
+		button save;
+		button ok;
+		button cancel;
+	} colourPanel;
 
 	struct {
 		memory_block memory;
@@ -140,7 +147,8 @@ colour 	  ConvertColourPanelColourToRGB(colour_panel_colour& c);
 #define 	GetColourPanel() (&state.colourPanel)
 rectangle GetColourPanelSliderRectangle();
 rectangle GetColourPanelWheelRectangle();
-void 			OpenColourPanel();
+void 			OpenColourPanel(colour_panel_colour* colourToUpdate); // Can set colourToUpdate to Null
+void 			UpdateColourPanelHex(colour_panel_colour colour);
 
 // Space and projection matrix stuff
 vector  ConvertToCanvasSpace(f32 x, f32 y);

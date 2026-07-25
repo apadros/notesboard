@@ -12,7 +12,6 @@
 #include "apad_win32_gui.h"
 #include "helpers.h"
 
-// #include <math.h> // @TODO - Check if this are still
 #include <stdio.h> // For conversion to hex
 
 GUIAppEntryPoint(instance) {
@@ -79,8 +78,13 @@ GUIAppEntryPoint(instance) {
 			
 			if(ButtonClicked(panel->ok, osState) == true || ButtonClicked(panel->cancel, osState) == true) { // If OK or Cancel are clicked
 				// Store currently selected colour
-				if(ButtonClicked(panel->ok, osState) == true)
+				if(ButtonClicked(panel->ok, osState) == true) {
 					panel->savedCurrentColour = panel->currentColour;
+					if(panel->colourBeingUpdated != Null)
+						*panel->colourBeingUpdated = panel->currentColour;
+				}
+				else if(panel->colourBeingUpdated != Null)
+					*panel->colourBeingUpdated = panel->savedCurrentColour;
 				
 				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex)
 					EndTextUpdate();
@@ -92,6 +96,7 @@ GUIAppEntryPoint(instance) {
 				FreeButtonText(panel->ok);
 				FreeButtonText(panel->cancel);
 				FreeButtonText(panel->save);
+				panel->colourBeingUpdated = Null;
 				
 				panel->display = false;
 			}
@@ -122,6 +127,8 @@ GUIAppEntryPoint(instance) {
 					auto wheel = GetColourPanelWheelRectangle();
 					if(Overlap(UnpackVector(GetCenter(wheel)), UnpackVector(newPos), wheel.width / 2) == true) // Check if new position lies within the wheel
 						panel->currentColour.wheelSelection += osState.mouseTranslation;
+					if(panel->colourBeingUpdated != Null)
+						*panel->colourBeingUpdated = panel->currentColour;
 				}
 				else
 					panel->updatingCurrentColour = false;
@@ -136,6 +143,8 @@ GUIAppEntryPoint(instance) {
 					auto rec = GetColourPanelSliderRectangle();
 					if(MouseOverlapsGUI(osState, GetColourPanelSliderRectangle()) == true) // Check if new position lies within the wheel
 						panel->currentColour.sliderCenterY += osState.mouseTranslation.y;
+					if(panel->colourBeingUpdated != Null)
+						*panel->colourBeingUpdated = panel->currentColour;
 				}
 				else
 					panel->updatingSlider = false;
@@ -157,6 +166,9 @@ GUIAppEntryPoint(instance) {
 							panel->currentColour.wheelSelection = GetCenter(GetColourPanelWheelRectangle());
 							panel->currentColour.sliderCenterY = GetTopRight(GetColourPanelSliderRectangle()).y;
 						}
+						UpdateColourPanelHex(panel->currentColour);
+						if(panel->colourBeingUpdated != Null)
+							*panel->colourBeingUpdated = panel->currentColour;
 						break;
 					}
 				}
@@ -312,8 +324,8 @@ GUIAppEntryPoint(instance) {
 				UpdateNoteContainers(n);
 			}
 		}
-		else if(GetColourPanel()->display == false && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[3].background) == true) // Toggle colour wheel
-			OpenColourPanel();
+		else if(GetColourPanel()->display == false && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[3].background) == true) // Open colour panel
+			OpenColourPanel(Null);
 
 		// @SECTION - Notes
 		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardless of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
@@ -450,7 +462,7 @@ GUIAppEntryPoint(instance) {
 		
 		// If double clicking hasn't done anything else, allow it to update the canvas's background colour
 		if(osState.mouseLeftDoubleClick == true && osState.mousePos.x > GetTopRight(GetToolBar()->background).width && osState.mousePos.y < GetTitleBar()->container.bottom)
-			OpenColourPanel();
+			OpenColourPanel(&state.canvas.colour);
 		
 		// @SECTION - Update scaling
 		if(osState.mouseWheelRotation != 0.0f) {
@@ -472,14 +484,12 @@ GUIAppEntryPoint(instance) {
 		// Use gotos to keep things tidy instead of if else everywhere
 		label_rendering:
 		
-		// Reset the projection matrix and draw the canvas background
+		// Render canvas background
 		SetGUIProjectionMatrix();
-		
 		{
 			colour c = ConvertColourPanelColourToRGB(state.canvas.colour);
 			DrawRectangleFull(0, 0, canvas.width, canvas.height, UnpackColourUI8(c), 1);
 		}
-
 
 		SetCanvasProjetionMatrix();
 		
@@ -699,20 +709,8 @@ GUIAppEntryPoint(instance) {
 			}
 
 			// Display RGB as a single number in hexadecimal
-			if(panel->updatingCurrentColour == true) {
-				ui8 r = currentColour.red * 255;
-				ui8 g = currentColour.green * 255;
-				ui8 b = currentColour.blue * 255;
-
-				// Hex
-				char buffer[7] = { '#' };
-				sprintf(buffer + 1, "%02x", r);
-				sprintf(buffer + 3, "%02x", g);
-				sprintf(buffer + 5, "%02x", b);
-
-				ClearText(panel->hex);
-				Insert(buffer, 7, panel->hex, 0);	
-			}
+			if(panel->updatingCurrentColour == true || panel->updatingSlider == true)
+				UpdateColourPanelHex(panel->currentColour);
 			DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
 			Render(panel->hex);
 
