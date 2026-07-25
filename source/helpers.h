@@ -110,10 +110,12 @@ program_unique struct {
 		colour_panel_colour* colourBeingUpdated;
 		
 		rectangle frame;
+		
 		text_body red;
 		text_body green;
 		text_body blue;
 		text_body hex; 
+		text_body* bodyBeingUpdated; // RGB or hex
 		
 		colour_panel_colour favourites[6];
 		ui8       					favouriteSelected; // 1 -> favourites array length

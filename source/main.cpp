@@ -72,9 +72,16 @@ GUIAppEntryPoint(instance) {
 		if(GetColourPanel()->display == true) {
 			auto* panel = GetColourPanel();
 			
-			// If we're updating the hex field and click anywhere else, end update
-			if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, panel->hex.container) == false)
-				EndTextUpdate();
+			// If we're updating the any of the rgb/hex fields and click anywhere else, end text update
+			if(TextIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true) {
+				text_body* bodies[] = { &panel->red, &panel->green, &panel->blue, &panel->hex };
+				ForAll(GetArrayLength(bodies)) {
+					if(GetCurrentTextBody() == bodies[it] && MouseOverlapsGUI(osState, bodies[it]->container) == false) {
+						EndTextUpdate();
+						break;
+					}
+				}
+			}
 			
 			if(ButtonClicked(panel->ok, osState) == true || ButtonClicked(panel->cancel, osState) == true) { // If OK or Cancel are clicked
 				// Store currently selected colour
@@ -113,6 +120,12 @@ GUIAppEntryPoint(instance) {
 					}
 				}
 			}
+			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->red.container) == true) // Interact with red field
+				BeginTextUpdate(panel->red);
+			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->green.container) == true) // Interact with green field
+				BeginTextUpdate(panel->green);
+			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->blue.container) == true) // Interact with blue field
+				BeginTextUpdate(panel->blue);
 			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->hex.container) == true) // Interact with hex field
 				BeginTextUpdate(panel->hex);
 			else if(Win32MouseLeftDownThisFrame(osState) == true && Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().width / 2) == true) { // Begin colour wheel udpate
@@ -173,6 +186,11 @@ GUIAppEntryPoint(instance) {
 					}
 				}
 				FreeUIElementLayouts(layouts);
+			}
+			else if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->red) { // Update current colour based on updates to red text body
+				char* text = GetText(panel->red);
+				ui8   i = StringToInt(text, Null);
+				
 			}
 			
 			goto label_rendering; // Need this since it will partially overlap the canvas
@@ -500,8 +518,10 @@ GUIAppEntryPoint(instance) {
 				if(state.notes.selected != Null && state.notes.selected == n && state.notes.justCreated == true) // Recently created notes will be drawn in front of the UI, further down
 					draw = false;
 
-				if(draw == true)
+				if(draw == true) {
 					DrawRectangleFull(UnpackRectangle(GetNoteOverallRectangle(n)), 255, 255, 255, 1);
+					DrawRectangleBorder(UnpackRectangle(GetNoteOverallRectangle(n)), UIBorderThickness, 230, 230, 230);
+				}
 			}
 		}
 		EndNotesMemoryLoop();
