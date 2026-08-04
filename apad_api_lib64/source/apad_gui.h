@@ -88,6 +88,7 @@ const ui8 NewlineChar = 		'\n';
 dll_import void  BeginTextUpdate(text_body& text); // Calls EndTextUpdate() first, will place the cursor at the end of the text body
 dll_import void  EndTextUpdate();
 dll_import f32 	 GetTextLineHeight(f32 textHeight);
+dll_export bool  IsBeingUpdated(text_body& tb);
 dll_import bool  TextIsBeingUpdated();
 
 // The following functions are only valid if text is being updated

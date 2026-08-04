@@ -150,7 +150,9 @@ colour 	  ConvertColourPanelColourToRGB(colour_panel_colour& c);
 rectangle GetColourPanelSliderRectangle();
 rectangle GetColourPanelWheelRectangle();
 void 			OpenColourPanel(colour_panel_colour* colourToUpdate); // Can set colourToUpdate to Null
-void 			UpdateColourPanelHex(colour_panel_colour colour);
+void 			UpdateColourPanelHexText(colour_panel_colour colour);
+void 			UpdateColourPanelRGBText(ui8 number, text_body& tb);
+void 			UpdateColourPanelRGBHexText(colour_panel_colour colour);
 
 // Space and projection matrix stuff
 vector  ConvertToCanvasSpace(f32 x, f32 y);

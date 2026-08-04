@@ -271,7 +271,7 @@ program_external colour ConvertColourPanelColourToRGB(colour_panel_colour& c) {
 }
 
 #include <stdio.h> // For conversion to hex
-program_external void UpdateColourPanelHex(colour_panel_colour colour) {
+program_external void UpdateColourPanelHexText(colour_panel_colour colour) {
 	auto* panel = GetColourPanel();
 	Assert(panel->display == true);
 	auto rgb = ConvertColourPanelColourToRGB(colour);
@@ -287,6 +287,26 @@ program_external void UpdateColourPanelHex(colour_panel_colour colour) {
 
 	ClearText(panel->hex);
 	Insert(buffer, 7, panel->hex, 0);	
+}
+
+program_external void UpdateColourPanelRGBHexText(colour_panel_colour colour) {
+	auto* panel = GetColourPanel();
+	auto rgb = ConvertColourPanelColourToRGB(colour);
+	UpdateColourPanelRGBText(rgb.red * 255, panel->red);
+	UpdateColourPanelRGBText(rgb.green * 255, panel->green);
+	UpdateColourPanelRGBText(rgb.blue * 255, panel->blue);
+	UpdateColourPanelHexText(colour);
+}
+
+program_external void UpdateColourPanelRGBText(ui8 number, text_body& tb) {
+	char* string = ToString(number);
+	if(GetLength(string) == 1)
+		string = Concatenate(2, "00", string);
+	else if(GetLength(string) == 2)
+		string = Concatenate(2, "0", string);			
+	ClearText(tb);
+	Insert(string, 3, tb, 0);
+	Free(string);			
 }
 
 program_external void OpenColourPanel(colour_panel_colour* colourToUpdate) {
@@ -313,18 +333,15 @@ program_external void OpenColourPanel(colour_panel_colour* colourToUpdate) {
 	
 	// RGB & hex boxes
 	{
-		f32  rgbBoxWidth = GetTextRenderSize("000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2;
-		f32  left = GetTopRight(slider).x + ColourPanelEdgeOffset;
-		f32  height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
-		f32  offset = (wheel.height - height * 4) / 3;
+		f32 rgbBoxWidth = GetTextRenderSize("000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2;
+		f32 left = GetTopRight(slider).x + ColourPanelEdgeOffset;
+		f32 height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
+		f32 offset = (wheel.height - height * 4) / 3;
 		panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
 		panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
 		panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
 		panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderSize("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, TextBodyFlagLetters | TextBodyFlagLeftAligned);
-		if(ColourPanelColourIsInited(panel->savedCurrentColour) == true)
-			UpdateColourPanelHex(panel->savedCurrentColour);
-		else
-			Insert("#FFFFFF", 7, panel->hex, 0);
+		UpdateColourPanelRGBHexText(panel->currentColour);
 	}
 	
 	panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderSize("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);

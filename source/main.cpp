@@ -82,7 +82,7 @@ GUIAppEntryPoint(instance) {
 					}
 				}
 			}
-			
+						
 			if(ButtonClicked(panel->ok, osState) == true || ButtonClicked(panel->cancel, osState) == true) { // If OK or Cancel are clicked
 				// Store currently selected colour
 				if(ButtonClicked(panel->ok, osState) == true) {
@@ -179,7 +179,7 @@ GUIAppEntryPoint(instance) {
 							panel->currentColour.wheelSelection = GetCenter(GetColourPanelWheelRectangle());
 							panel->currentColour.sliderCenterY = GetTopRight(GetColourPanelSliderRectangle()).y;
 						}
-						UpdateColourPanelHex(panel->currentColour);
+						UpdateColourPanelRGBHexText(panel->currentColour);
 						if(panel->colourBeingUpdated != Null)
 							*panel->colourBeingUpdated = panel->currentColour;
 						break;
@@ -187,10 +187,20 @@ GUIAppEntryPoint(instance) {
 				}
 				FreeUIElementLayouts(layouts);
 			}
-			else if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->red) { // Update current colour based on updates to red text body
-				char* text = GetText(panel->red);
-				ui8   i = StringToInt(text, Null);
-				
+			else if(IsBeingUpdated(panel->red) == true) { // Update current colour based on updates to red text body
+				if(osState.escPressed == true) { // Return to what was there before
+					EndTextUpdate()
+					UpdateColourPanelRGBHexText(panel->currentColour);
+				}
+				else if(osState.enterPressed == true) { // Accept new changes
+					EndTextUpdate();
+					
+					// For now just update the hex field and final colour without updating the colour panel colour mechanics
+					char* text = GetText(panel->red);
+					ui8   i = StringToInt(text, Null);
+					
+					// @TODO - Update current colour
+				}
 			}
 			
 			goto label_rendering; // Need this since it will partially overlap the canvas
@@ -689,40 +699,16 @@ GUIAppEntryPoint(instance) {
 			// RGB panels
 			{
 				// Red
-				char* string = ToString((ui8)(currentColour.red * 255));
-				if(GetLength(string) == 1)
-					string = Concatenate(2, "00", string);
-				else if(GetLength(string) == 2)
-					string = Concatenate(2, "0", string);
-				ClearText(panel->red);
-				Insert(string, 3, panel->red, 0);
-				Free(string);
 				DrawRectangleBorder(UnpackRectangle(panel->red.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->red);
 				RenderText("Red", Null, GetTopRight(panel->red.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->red).bottom, panel->red.textHeight, false);
 
 				// Green
-				string = ToString((ui8)(currentColour.green * 255));
-				if(GetLength(string) == 1)
-					string = Concatenate(2, "00", string);
-				else if(GetLength(string) == 2)
-					string = Concatenate(2, "0", string);
-				ClearText(panel->green);
-				Insert(string, 3, panel->green, 0);
-				Free(string);
 				DrawRectangleBorder(UnpackRectangle(panel->green.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->green);
 				RenderText("Green", Null, GetTopRight(panel->green.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->green).bottom, panel->green.textHeight, false);
 
 				// Blue
-				string = ToString((ui8)(currentColour.blue * 255));
-				if(GetLength(string) == 1)
-					string = Concatenate(2, "00", string);
-				else if(GetLength(string) == 2)
-					string = Concatenate(2, "0", string);
-				ClearText(panel->blue);
-				Insert(string, 3, panel->blue, 0);
-				Free(string);
 				DrawRectangleBorder(UnpackRectangle(panel->blue.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->blue);
 				RenderText("Blue", Null, GetTopRight(panel->blue.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->blue).bottom, panel->blue.textHeight, false);
@@ -730,7 +716,7 @@ GUIAppEntryPoint(instance) {
 
 			// Display RGB as a single number in hexadecimal
 			if(panel->updatingCurrentColour == true || panel->updatingSlider == true)
-				UpdateColourPanelHex(panel->currentColour);
+				UpdateColourPanelRGBHexText(panel->currentColour);
 			DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
 			Render(panel->hex);
 
