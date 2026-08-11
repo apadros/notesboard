@@ -53,8 +53,11 @@ GUIAppEntryPoint(instance) {
 		tb->buttons[0].text = AllocateString("Note");
 		tb->buttons[1].text = AllocateString("Bullet point");
 		tb->buttons[2].text = AllocateString("Note Title");
-		tb->buttons[3].text = AllocateString("Colour Wheel");
+		tb->buttons[3].text = AllocateString("Colour Panel");
 	}
+	
+	GetColourPanel()->savedSliderPos = 0.5f;
+	state.canvas.colour = CreateColourUI8(200, 200, 200);
 	
 	state.notes.memory = AllocateMemory(sizeof(note) * 10);
 
@@ -73,6 +76,7 @@ GUIAppEntryPoint(instance) {
 			auto* panel = GetColourPanel();
 			
 			// If we're updating the any of the rgb/hex fields and click anywhere else, end text update
+			#if 0 // @COLOUR_PANEL_REWORK
 			if(TextIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true) {
 				text_body* bodies[] = { &panel->red, &panel->green, &panel->blue, &panel->hex };
 				ForAll(GetArrayLength(bodies)) {
@@ -82,16 +86,23 @@ GUIAppEntryPoint(instance) {
 					}
 				}
 			}
-						
+			#endif
+					
 			if(ButtonClicked(panel->ok, osState) == true || ButtonClicked(panel->cancel, osState) == true) { // If OK or Cancel are clicked
 				// Store currently selected colour
 				if(ButtonClicked(panel->ok, osState) == true) {
-					panel->savedCurrentColour = panel->currentColour;
+					panel->savedWheelAngle = panel->wheel;
+					panel->savedSliderPos = panel->slider;
+					
+					#if 0 // @COLOUR_PANEL_REWORK
 					if(panel->colourBeingUpdated != Null)
 						*panel->colourBeingUpdated = panel->currentColour;
+					#endif
 				}
+				#if 0 // @COLOUR_PANEL_REWORK
 				else if(panel->colourBeingUpdated != Null)
 					*panel->colourBeingUpdated = panel->savedCurrentColour;
+				#endif
 				
 				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex)
 					EndTextUpdate();
@@ -103,18 +114,19 @@ GUIAppEntryPoint(instance) {
 				FreeButtonText(panel->ok);
 				FreeButtonText(panel->cancel);
 				FreeButtonText(panel->save);
-				panel->colourBeingUpdated = Null;
+				// panel->colourBeingUpdated = Null; @COLOUR_PANEL_REWORK
 				
 				panel->display = false;
 			}
 			else if(ButtonClicked(panel->save, osState) == true) { // Save clicked
 				if(panel->favouriteSelected != Null) // Store in currently selected favourite
-					panel->favourites[panel->favouriteSelected - 1] = panel->currentColour;
+					panel->favourites[panel->favouriteSelected - 1].colour = ConvertCurrentColourPanelColourToRGB();
 				else { // Grab next one available
 					ForAll(GetArrayLength(panel->favourites)) {
 						auto* f = panel->favourites + it;
-						if(ColourPanelColourIsInited(*f) == false) {
-							*f = panel->currentColour;
+						if(f->inited == false) {
+							f->colour = ConvertCurrentColourPanelColourToRGB();
+							f->inited = true;
 							break;
 						}
 					}
@@ -128,40 +140,67 @@ GUIAppEntryPoint(instance) {
 				BeginTextUpdate(panel->blue);
 			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->hex.container) == true) // Interact with hex field
 				BeginTextUpdate(panel->hex);
-			else if(Win32MouseLeftDownThisFrame(osState) == true && Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().width / 2) == true) { // Begin colour wheel udpate
-				panel->updatingCurrentColour = true;
-				panel->currentColour.wheelSelection = osState.mousePos;
+			else if( // Begin colour wheel udpate
+							Win32MouseLeftDownThisFrame(osState) == true && 
+							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().height / 2) == true && 
+							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().height / 2 - ColourWheelThickness) == false) 
+			{
+				panel->updatingWheel = true;
 				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex)
 					EndTextUpdate();
 			}
-			else if(panel->updatingCurrentColour == true) { // Update current colour
+			else if(panel->updatingWheel == true) { // Update current colour
 				if(osState.mouseLeftDown == true) {
-					auto newPos = panel->currentColour.wheelSelection + osState.mouseTranslation;
-					auto wheel = GetColourPanelWheelRectangle();
-					if(Overlap(UnpackVector(GetCenter(wheel)), UnpackVector(newPos), wheel.width / 2) == true) // Check if new position lies within the wheel
-						panel->currentColour.wheelSelection += osState.mouseTranslation;
-					if(panel->colourBeingUpdated != Null)
-						*panel->colourBeingUpdated = panel->currentColour;
+					// Angle of current selection
+					f32 angle = 0; // About the horizontal axis
+					vector vec = osState.mousePos - GetCenter(GetColourPanelWheelRectangle());
+					if(vec.x == 0)
+						angle = vec.y > 0 ? 90 : 270;
+					else if(vec.y == 0)
+						angle = vec.x > 0 ? 0 : 180;
+					else {
+						f32 a = Magnitude(vec.x);
+						f32 o = Magnitude(vec.y);
+						angle = ArcTan(o / a);
+						if(vec.x < 0 && vec.y > 0)
+							angle = 180 - angle;
+						else if(vec.x < 0 && vec.y < 0)
+							angle += 180;
+						else if(vec.x > 0 && vec.y < 0)
+							angle = 360 - angle;
+					}
+					
+					// Adjust angle to start from the vertical axis (red)
+					angle -= 90;
+					if(angle < 0)
+						angle += 360;
+					
+					panel->wheel = angle;
+					
+					UpdateColourPanelRGBHexText();
 				}
 				else
-					panel->updatingCurrentColour = false;
+					panel->updatingWheel = false;
 			}
-			else if(Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, GetColourPanelSliderRectangle()) == true) { // Begin colour slider update
+			else if(Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, GetColourPanelSliderRectangle()) == true) // Begin colour slider update
 				panel->updatingSlider = true;
-				panel->currentColour.sliderCenterY = osState.mousePos.y;
-			}
 			else if(panel->updatingSlider == true) { // Update slider position
 				if(osState.mouseLeftDown == true) {
-					auto newPos = panel->currentColour.wheelSelection + osState.mouseTranslation;
-					auto rec = GetColourPanelSliderRectangle();
-					if(MouseOverlapsGUI(osState, GetColourPanelSliderRectangle()) == true) // Check if new position lies within the wheel
-						panel->currentColour.sliderCenterY += osState.mouseTranslation.y;
+					auto sliderRec = GetColourPanelSliderRectangle();
+					panel->slider = (osState.mousePos.y - sliderRec.bottom) / sliderRec.height;
+					Clamp(panel->slider, 0, 1);
+					
+					#if 0 // @COLOUR_PANEL_REWORK
 					if(panel->colourBeingUpdated != Null)
 						*panel->colourBeingUpdated = panel->currentColour;
+					#endif
+					
+					UpdateColourPanelRGBHexText();
 				}
 				else
 					panel->updatingSlider = false;
 			}
+			#if 0 // @COLOUR_PANEL_REWORK
 			else if(Win32MouseLeftDownThisFrame(osState) == true) { // Check for selection of favourite colours
 				f32 start = panel->frame.left + ColourPanelEdgeOffset;
 				f32 end = panel->save.rectangle.left - ColourPanelEdgeOffset;
@@ -174,7 +213,7 @@ GUIAppEntryPoint(instance) {
 					auto* l = layouts + it;
 					if(Overlap(UnpackVector(osState.mousePos), l->center, centerY, l->size / 2) == true) {
 						panel->favouriteSelected = it;
-						panel->currentColour = panel->favourites[it - 1];
+						panel->currentColour = panel->favourites[it - 1].colour;
 						if(ColourPanelColourIsInited(panel->currentColour) == false) {
 							panel->currentColour.wheelSelection = GetCenter(GetColourPanelWheelRectangle());
 							panel->currentColour.sliderCenterY = GetTopRight(GetColourPanelSliderRectangle()).y;
@@ -188,8 +227,8 @@ GUIAppEntryPoint(instance) {
 				FreeUIElementLayouts(layouts);
 			}
 			else if(IsBeingUpdated(panel->red) == true) { // Update current colour based on updates to red text body
-				if(osState.escPressed == true) { // Return to what was there before
-					EndTextUpdate()
+				if(osState.escapePressed == true) { // Return to what was there before
+					EndTextUpdate();
 					UpdateColourPanelRGBHexText(panel->currentColour);
 				}
 				else if(osState.enterPressed == true) { // Accept new changes
@@ -202,6 +241,7 @@ GUIAppEntryPoint(instance) {
 					// @TODO - Update current colour
 				}
 			}
+			#endif
 			
 			goto label_rendering; // Need this since it will partially overlap the canvas
 		}
@@ -228,12 +268,14 @@ GUIAppEntryPoint(instance) {
 					
 					// Store custom colours
 					// For now just store them all, including uninitialised ones
+					#if 0 // @COLOUR_PANEL_REWORK
 					ui8 colours = GetArrayLength(GetColourPanel()->favourites);
 					PushInstance(colours, memory);
 					ForAll(GetArrayLength(GetColourPanel()->favourites)) {
 						auto* f = GetColourPanel()->favourites + it;
 						Push(f, sizeof(*f), memory);
 					}
+					#endif
 
 					// Notes
 					BeginNotesLoop(n) {
@@ -286,6 +328,7 @@ GUIAppEntryPoint(instance) {
 					}
 					
 					// Extract custom colours
+					#if 0 // @COLOUR_PANEL_REWORK
 					ui8 count = ReadMemMovePtr(data, ui8);
 					Assert(count <= GetArrayLength(GetColourPanel()->favourites));
 					ForAll(count) {
@@ -293,6 +336,7 @@ GUIAppEntryPoint(instance) {
 						Copy(data, sizeof(*f), f);
 						MovePtr(data, sizeof(*f));
 					}
+					#endif
 
 					// Extract notes
 					Clear(state.notes.memory.memory, state.notes.memory.size);
@@ -353,7 +397,7 @@ GUIAppEntryPoint(instance) {
 			}
 		}
 		else if(GetColourPanel()->display == false && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[3].background) == true) // Open colour panel
-			OpenColourPanel(Null);
+			OpenColourPanel();
 
 		// @SECTION - Notes
 		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardless of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
@@ -489,8 +533,10 @@ GUIAppEntryPoint(instance) {
 			UpdateNoteContainers(GetCurrentNote());
 		
 		// If double clicking hasn't done anything else, allow it to update the canvas's background colour
+		#if 0 // @COLOUR_PANEL_REWORK
 		if(osState.mouseLeftDoubleClick == true && osState.mousePos.x > GetTopRight(GetToolBar()->background).width && osState.mousePos.y < GetTitleBar()->container.bottom)
 			OpenColourPanel(&state.canvas.colour);
+		#endif
 		
 		// @SECTION - Update scaling
 		if(osState.mouseWheelRotation != 0.0f) {
@@ -514,11 +560,8 @@ GUIAppEntryPoint(instance) {
 		
 		// Render canvas background
 		SetGUIProjectionMatrix();
-		{
-			colour c = ConvertColourPanelColourToRGB(state.canvas.colour);
-			DrawRectangleFull(0, 0, canvas.width, canvas.height, UnpackColourUI8(c), 1);
-		}
-
+		DrawRectangleFull(0, 0, canvas.width, canvas.height, UnpackColourUI8(state.canvas.colour), 1);
+		
 		SetCanvasProjetionMatrix();
 		
 		// @SECTION - Render notes
@@ -624,7 +667,7 @@ GUIAppEntryPoint(instance) {
 			AssertOpenGL();
 		}
 
-		// @SECTION - Render the colour panel
+		// @SECTION - Render colour panel
 		if(GetColourPanel()->display == true) {
 			auto* panel = GetColourPanel();
 
@@ -632,17 +675,14 @@ GUIAppEntryPoint(instance) {
 			DrawRectangleFull(UnpackRectangle(panel->frame), 255, 255, 255, 1); // Draw the frame
 			DrawRectangleBorder(UnpackRectangle(panel->frame), UIBorderThickness, 0, 0, 0);
 
-			// Draw colour wheel
+			// Draw colour wheel and current colour selection
 			{
-				auto r = GetColourPanelWheelRectangle();
-				glBegin(GL_TRIANGLE_FAN);
-
-				// Center
-				glColor3f(1.0f, 1.0f, 1.0f);
-				glVertex2f(GetCenter(r).x, GetCenter(r).y);
-
-				// Draw the wheel itself
-				FromToInc(0, ColourWheelVertices + 1) {
+				rectangle wheel = GetColourPanelWheelRectangle();
+				f32* outer = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2); // Must be freed with Win32FreeMemory()
+				f32* inner = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2 - ColourWheelThickness); // Must be freed with Win32FreeMemory()
+				
+				glBegin(GL_TRIANGLE_STRIP);
+				ForAll(ColourWheelVertices) {
 					f32 angle = it * 360 / ColourWheelVertices;
 					if(angle <= 120)
 						glColor3f(LERP(1.0f, 0, angle / 120), LERP(0, 1.0f, angle / 120), 0);
@@ -650,53 +690,107 @@ GUIAppEntryPoint(instance) {
 						glColor3f(0, LERP(1.0f, 0, (angle - 120) / 120), LERP(0, 1.0f, (angle - 120) / 120));
 					else
 						glColor3f(LERP(0, 1.0f, (angle - 240) / 120), 0, LERP(1.0f, 0, (angle - 240) / 120));
-					f32 x = GetCenter(r).x - Sine(angle) * r.width / 2;
-					f32 y = GetCenter(r).y + Cos(angle) * r.height / 2;
-					glVertex2f(x, y);
+					glVertex2f(inner[it * 2], inner[it * 2 + 1]);
+					glVertex2f(outer[it * 2], outer[it * 2 + 1]);					
 				}
+				glColor3f(1.0f, 0, 0);
+				glVertex2f(inner[0], inner[1]);
+				glVertex2f(outer[0], outer[1]);
 				glEnd();
+				
+				Win32FreeMemory(outer);
+				Win32FreeMemory(inner);
 
-				// Draw outer edges
-				DrawCircleBorder(GetCenter(r).x, GetCenter(r).y, r.width / 2, UIBorderThickness, 0, 0, 0);
-
-				// Draw selection
-				DrawCircleBorder(UnpackVector(panel->currentColour.wheelSelection), 10, UIBorderThickness, 0, 0, 0);
+				// Draw edges
+				DrawCircleBorder(UnpackVector(GetCenter(wheel)), wheel.width / 2, UIBorderThickness, 0, 0, 0);
+				DrawCircleBorder(UnpackVector(GetCenter(wheel)), wheel.width / 2 - ColourWheelThickness, UIBorderThickness, 0, 0, 0);
+				
+				// Draw current colour selection
+				// DrawCircleBorder(UnpackVector(panel->currentColour.wheelSelection), 10, UIBorderThickness, 0, 0, 0); // @COLOUR_PANEL_REWORK
+				{
+					vector pos = GetCenter(wheel) + CreateVector(-Sine(panel->wheel), Cos(panel->wheel)) * (wheel.height / 2 - ColourWheelThickness / 2);
+					f32 radius = ColourWheelThickness / 2;
+					DrawCircleFull(UnpackVector(pos), radius, 255, 255, 255, 1.0f);
+					DrawCircleBorder(UnpackVector(pos), radius, UIBorderThickness, 0, 0, 0);
+				}
 
 				AssertOpenGL();
 			}
-
-			// Get the current wheel colour selection
-			colour currentColour = ConvertColourPanelColourToRGB(panel->currentColour);
-			colour favouriteColours[GetArrayLength(panel->favourites)];
-			ForAll(GetArrayLength(panel->favourites)) {
-				if(ColourPanelColourIsInited(panel->favourites[it]) == true)
-					favouriteColours[it] = ConvertColourPanelColourToRGB(panel->favourites[it]);
-				else {
-					favouriteColours[it].red = 1.0f;
-					favouriteColours[it].green = 1.0f;
-					favouriteColours[it].blue = 1.0f;
-				}
-			}
 			
+			// Determine wheel colour
+			colour wheelColour;
+			{
+				
+				// Work out the final colour based on the angle
+				f32 r = 0;
+				f32 g = 0;
+				f32 b = 0;
+				if(panel->wheel <= 120) {
+					r = LERP(1.0f, 0, panel->wheel / 120);
+					g = LERP(0, 1.0f, panel->wheel / 120);
+				}
+				else if(panel->wheel <= 240) {
+					g = LERP(1.0f, 0, (panel->wheel - 120) / 120);
+					b = LERP(0, 1.0f, (panel->wheel - 120) / 120);
+				}
+				else {
+					r = LERP(0, 1.0f, (panel->wheel - 240) / 120);
+					b = LERP(1.0f, 0, (panel->wheel - 240) / 120);
+				}
+				
+				wheelColour = CreateColourF32(r, g, b);
+			}
+
 			// Draw colour slider
 			{
 				auto rec = GetColourPanelSliderRectangle();
-				glBegin(GL_QUADS);
+				glBegin(GL_QUAD_STRIP);
 				glColor3f(0, 0, 0);
 				glVertex2f(rec.left, rec.bottom);
 				glVertex2f(rec.left + rec.width, rec.bottom);
-				glColor3f(UnpackColourF32(currentColour));
-				glVertex2f(rec.left + rec.width, rec.bottom + rec.height);
+				glColor3f(UnpackColourF32(wheelColour));
+				glVertex2f(rec.left, rec.bottom + rec.height / 2);
+				glVertex2f(rec.left + rec.width, rec.bottom + rec.height / 2);
+				glColor3f(1.0f, 1.0f, 1.0f);
 				glVertex2f(rec.left, rec.bottom + rec.height);
+				glVertex2f(rec.left + rec.width, rec.bottom + rec.height);
 				glEnd();
-				glLineWidth(1);
+				glLineWidth(UIBorderThickness);
 				DrawRectangleBorder(rec.left, rec.bottom, rec.width, rec.height, UIBorderThickness, 0, 0, 0);
 
 				// Draw selection
-				DrawRectangleBorder(rec.left - 3, panel->currentColour.sliderCenterY - 5, rec.width + 6, 10, UIBorderThickness, 0, 0, 0);
+				DrawRectangleFull(rec.left - 3, rec.bottom + panel->slider * rec.height - 5, rec.width + 6, 10, 255, 255, 255);
+				DrawRectangleBorder(rec.left - 3, rec.bottom + panel->slider * rec.height - 5, rec.width + 6, 10, UIBorderThickness, 0, 0, 0);
 			}
+			
+			// Draw final colour
+			{
+				// Final colour taking the slider position into consideration
+				auto colour = ConvertCurrentColourPanelColourToRGB();
+				
+				// Render
+				auto wheel = GetColourPanelWheelRectangle();
+				f32  radius = wheel.height / 6;
+				f32* vertices = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), radius);
+				DrawCircleFull(UnpackVector(GetCenter(wheel)), radius, UnpackColourUI8(colour), 1.0f);
+				DrawCircleBorder(UnpackVector(GetCenter(wheel)), radius, UIBorderThickness, 0, 0, 0);
+				Win32FreeMemory(vertices);
+			}
+			
+			#if 0 // @COLOUR_PANEL_REWORK
+			// Get the current wheel colour selection
+			colour currentColour = ConvertCurrentColourPanelColourToRGB(panel->currentColour);
+			colour favouriteColours[GetArrayLength(panel->favourites)];
+			ForAll(GetArrayLength(panel->favourites)) {
+				if(ColourPanelColourIsInited(panel->favourites[it]) == true)
+					favouriteColours[it] = ConvertCurrentColourPanelColourToRGB(panel->favourites[it]);
+				else
+					favouriteColours[it] = CreateColourF32(1.0f, 1.0f, 1.0f);
+			}
+			
+			#endif
 
-			// RGB panels
+			// RGB & hex panels
 			{
 				// Red
 				DrawRectangleBorder(UnpackRectangle(panel->red.container), UIBorderThickness, 0, 0, 0);
@@ -712,46 +806,32 @@ GUIAppEntryPoint(instance) {
 				DrawRectangleBorder(UnpackRectangle(panel->blue.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->blue);
 				RenderText("Blue", Null, GetTopRight(panel->blue.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->blue).bottom, panel->blue.textHeight, false);
-			}
-
-			// Display RGB as a single number in hexadecimal
-			if(panel->updatingCurrentColour == true || panel->updatingSlider == true)
-				UpdateColourPanelRGBHexText(panel->currentColour);
-			DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
-			Render(panel->hex);
-
-			// Display final colour
-			f32 finalColourRight = Null;
-			{
-				auto wheel = GetColourPanelWheelRectangle();
-				f32  radius = ColourPanelFavouritesLayerHeight / 2;
-				f32  centerX = wheel.left + radius;
-				f32  centerY = wheel.bottom - ColourPanelEdgeOffset - radius;
 				
-				DrawCircleFull(centerX, centerY, radius, UnpackColourUI8(currentColour), 1.0f);
-				DrawCircleBorder(centerX, centerY, radius, UIBorderThickness, 0, 0, 0);
-
-				finalColourRight = centerX + radius;
+				// if(panel->updatingCurrentColour == true || panel->updatingSlider == true)
+				// 	UpdateColourPanelRGBHexText(panel->currentColour);
+				DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
+				Render(panel->hex);
 			}
 
 			// Favourites
 			{
 				f32 start = panel->frame.left + ColourPanelEdgeOffset;
 				f32 end = panel->save.rectangle.left - ColourPanelEdgeOffset;
-				ui8 count = GetArrayLength(panel->favourites) + 1;
-				auto* layouts = GetUIElementLayouts(start, end, count, ColourPanelFavouritesLayerHeight,
-																						ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2,
-																						ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2);
+				ui8 count = GetArrayLength(panel->favourites);
+				f32 elementHeight = ColourPanelFavouritesLayerHeight / 2;
+				auto* layouts = GetUIElementLayouts(start, end, count, 
+																						elementHeight, elementHeight, elementHeight, elementHeight,
+																						elementHeight, elementHeight, elementHeight, elementHeight);
 				f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
-				FromTo(1, count) {
+				ForAll(count) {
 					auto* l = layouts + it;
-					DrawCircleFull(l->center, centerY, l->size / 2, UnpackColourUI8(favouriteColours[it - 1]), 1);
+					DrawCircleFull(l->center, centerY, l->size / 2, UnpackColourUI8(panel->favourites[it].colour), 1);
 					DrawCircleBorder(l->center, centerY, l->size / 2, UIBorderThickness, 0, 0, 0);
 				}
 				
 				if(panel->favouriteSelected != Null) {
-					Assert(panel->favouriteSelected <= GetArrayLength(panel->favourites));
-					auto* l = layouts + panel->favouriteSelected;
+					Assert(panel->favouriteSelected - 1 < GetArrayLength(panel->favourites));
+					auto* l = layouts + panel->favouriteSelected - 1;
 					DrawCircleBorder(l->center, centerY, l->size * 0.6f, UIBorderThickness, 0, 0, 0);
 				}
 				

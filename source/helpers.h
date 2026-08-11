@@ -57,7 +57,8 @@ const ui16 TopMenuButtonWidth = 200; // In viewport space
 const ui8  TopMenuTextHeight = NoteTextHeight;
 
 const ui16 ColourPanelEdgeOffset = 25;
-const ui8  ColourWheelVertices = 36;
+const ui8  ColourWheelVertices = 64;
+const f32  ColourWheelThickness = ColourPanelEdgeOffset;
 const ui8  ColourPanelSliderWidth = 25;
 const ui8  ColourPanelRGBBoxTextHeight = NoteTextHeight;
 const ui8  ColourPanelRGBBoxOffset = NoteTextBorder;
@@ -69,17 +70,12 @@ const f32  ColourPanelOKCancelTextOffset = NoteTextBorder;
 
 const ui8  UIBorderThickness = 2;
 
-struct colour_panel_colour {
-	vector  wheelSelection;
-	f32     sliderCenterY;
-};
-
 program_unique struct {
 	struct {
-		colour_panel_colour colour;
-		vector 							translation; // In viewport space, applied post scaling, therefore must be scaled
-		f32    							scale = 1.0f;
-	} 			 							canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
+		colour colour;
+		vector translation; // In viewport space, applied post scaling, therefore must be scaled
+		f32    scale = 1.0f;
+	} 			 canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
 	
 	text_body titleBar; // Coords in viewport space
 	
@@ -102,12 +98,17 @@ program_unique struct {
 	struct { // All cords in UI viewport space
 		bool display;
 		
-		colour_panel_colour currentColour;
-		colour_panel_colour savedCurrentColour;
-		bool      					updatingCurrentColour;
-		bool      					updatingSlider;
+		f32  wheel;
+		f32  slider; // 0 -> 1
+		bool updatingWheel;
+		bool updatingSlider;
+		f32  savedWheelAngle;
+		f32  savedSliderPos; // 0 -> 1
+		
+		#if 0 // @COLOUR_PANEL_REWORK
 		
 		colour_panel_colour* colourBeingUpdated;
+		#endif
 		
 		rectangle frame;
 		
@@ -117,8 +118,11 @@ program_unique struct {
 		text_body hex; 
 		text_body* bodyBeingUpdated; // RGB or hex
 		
-		colour_panel_colour favourites[6];
-		ui8       					favouriteSelected; // 1 -> favourites array length
+		struct {
+			colour colour;
+			bool   inited;
+		} favourites[8];
+		ui8    favouriteSelected; // 1 -> favourites array length
 		
 		button save;
 		button ok;
@@ -143,16 +147,13 @@ bool    MouseOverlapsGUI(win32_state& osState, rectangle& r);
 bool    TitleIsBeingUpdated();
 
 // Colour panel
-bool 			ColourPanelColourIsInited(colour_panel_colour& c);
-bool 			ColourPanelIsVisible();
-colour 	  ConvertColourPanelColourToRGB(colour_panel_colour& c);
+colour 	  ConvertCurrentColourPanelColourToRGB();
 #define 	GetColourPanel() (&state.colourPanel)
 rectangle GetColourPanelSliderRectangle();
 rectangle GetColourPanelWheelRectangle();
-void 			OpenColourPanel(colour_panel_colour* colourToUpdate); // Can set colourToUpdate to Null
-void 			UpdateColourPanelHexText(colour_panel_colour colour);
+void 			OpenColourPanel();
 void 			UpdateColourPanelRGBText(ui8 number, text_body& tb);
-void 			UpdateColourPanelRGBHexText(colour_panel_colour colour);
+void 			UpdateColourPanelRGBHexText();
 
 // Space and projection matrix stuff
 vector  ConvertToCanvasSpace(f32 x, f32 y);

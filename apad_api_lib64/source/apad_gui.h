@@ -25,14 +25,26 @@ dll_import ui_element_layout* // Will contain count number of elements
 // ******************** Colours ******************** //
 
 struct colour {
-	f32 red;
-	f32 green;
-	f32 blue;
+	struct {
+		f32 f; // 0 -> 1.0
+		ui8 i; // 0 -> 255
+	} red;
+	
+	struct {
+		f32 f; // 0 -> 1.0
+		ui8 i; // 0 -> 255
+	} green;
+	
+	struct {
+		f32 f; // 0 -> 1.0
+		ui8 i; // 0 -> 255
+	} blue;
 };
 
-dll_import colour CreateColour(ui8 r, ui8 g, ui8 b);
-#define           UnpackColourUI8(_colour) (ui8)((_colour).red * 255), (ui8)((_colour).green * 255), (ui8)((_colour).blue * 255)
-#define           UnpackColourF32(_colour) (_colour).red, (_colour).green, (_colour).blue
+dll_import colour CreateColourUI8(ui8 r, ui8 g, ui8 b);
+dll_import colour CreateColourF32(f32 r, f32 g, f32 b);
+#define           UnpackColourUI8(_colour) (_colour).red.i, (_colour).green.i, (_colour).blue.i
+#define           UnpackColourF32(_colour) (_colour).red.f, (_colour).green.f, (_colour).blue.f
 dll_import f32    UI8ColourToF32(ui8 u);
 
 // ******************** Buttons ******************** //
@@ -88,7 +100,7 @@ const ui8 NewlineChar = 		'\n';
 dll_import void  BeginTextUpdate(text_body& text); // Calls EndTextUpdate() first, will place the cursor at the end of the text body
 dll_import void  EndTextUpdate();
 dll_import f32 	 GetTextLineHeight(f32 textHeight);
-dll_export bool  IsBeingUpdated(text_body& tb);
+dll_import bool  IsBeingUpdated(text_body& tb);
 dll_import bool  TextIsBeingUpdated();
 
 // The following functions are only valid if text is being updated
@@ -118,6 +130,8 @@ dll_import void 	_SetCursorPos(f32 x, f32 y); // Coords are relative to text_bod
 dll_import void      DrawRectangleBorder(f32 left, f32 bottom, f32 width, f32 height, 
 																				 f32 lineWidth, 
 																				 ui8 r, ui8 g, ui8 b);
+dll_import void 		 DrawRectangleFull(f32 left, f32 bottom, f32 width, f32 height, 
+																			 ui8 r, ui8 g, ui8 b);
 dll_import void      DrawCircleBorder(f32 centerX, f32 centerY, f32 radius, 
 																			ui8 lineWidth, 
 																			ui8 r, ui8 g, ui8 b);

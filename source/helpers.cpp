@@ -154,10 +154,6 @@ program_external bool NoteIsBeingUpdated() {
 	return NoteTextIsBeingUpdated() == true || NoteTitleIsBeingUpdated() == true;
 }
 
-program_external bool ColourPanelIsVisible() {
-	return GetColourPanel()->display;
-}
-
 program_external vector ConvertToCanvasSpace(f32 x, f32 y) {
 	vector p = {};
 	p.x = (x - state.canvas.translation.x) / state.canvas.scale;
@@ -196,106 +192,61 @@ program_external void SetCanvasProjetionMatrix() {
 	AssertOpenGL();
 }
 
-program_external bool ColourPanelColourIsInited(colour_panel_colour& c) {
-	return c.wheelSelection.x != Null && c.wheelSelection.y != Null && c.sliderCenterY != Null;
-}
-
-program_external colour ConvertColourPanelColourToRGB(colour_panel_colour& c) {
-	if(ColourPanelColourIsInited(c) == false)
-		return CreateColour(255, 255, 255);
+program_external colour ConvertCurrentColourPanelColourToRGB() {
+	auto* panel = GetColourPanel();
 	
-	auto wheelRec = GetColourPanelWheelRectangle();
-
-	vector vec = c.wheelSelection - GetCenter(wheelRec);
-	
-	// Scale magnitude
-	f32 magnitude01 = Magnitude(vec) / (wheelRec.width / 2); // 0 -> 1 between circle center and outer edges
-
-	// Angle of current selection
-	f32 angle = 0; // About the horizontal axis
-	if(vec.x == 0)
-		angle = vec.y > 0 ? 90 : 270;
-	else if(vec.y == 0)
-		angle = vec.x > 0 ? 0 : 180;
-	else {
-		f32 a = Magnitude(vec.x);
-		f32 o = Magnitude(vec.y);
-		angle = ArcTan(o / a);
-		if(vec.x < 0 && vec.y > 0)
-			angle = 180 - angle;
-		else if(vec.x < 0 && vec.y < 0)
-			angle += 180;
-		else if(vec.x > 0 && vec.y < 0)
-			angle = 360 - angle;
+	// Work out the final colour based on the angle
+	f32 wheelRed = 0;
+	f32 wheelGreen = 0;
+	f32 wheelBlue = 0;
+	if(panel->wheel <= 120) {
+		wheelRed = LERP(1.0f, 0, panel->wheel / 120);
+		wheelGreen = LERP(0, 1.0f, panel->wheel / 120);
 	}
-	
-	// Adjust angle to start from the vertical axis (red)
-	angle -= 90;
-	if(angle < 0)
-		angle += 360;
-
-	// Work out the max colour based on the angle
-	f32 rmax = 0;
-	f32 gmax = 0;
-	f32 bmax = 0;
-	if(angle <= 120) {
-		rmax = LERP(1.0f, 0, angle / 120);
-		gmax = LERP(0, 1.0f, angle / 120);
-	}
-	else if(angle <= 240) {
-		gmax = LERP(1.0f, 0, (angle - 120) / 120);
-		bmax = LERP(0, 1.0f, (angle - 120) / 120);
+	else if(panel->wheel <= 240) {
+		wheelGreen = LERP(1.0f, 0, (panel->wheel - 120) / 120);
+		wheelBlue = LERP(0, 1.0f, (panel->wheel - 120) / 120);
 	}
 	else {
-		rmax = LERP(0, 1.0f, (angle - 240) / 120);
-		bmax = LERP(1.0f, 0, (angle - 240) / 120);
+		wheelRed = LERP(0, 1.0f, (panel->wheel - 240) / 120);
+		wheelBlue = LERP(1.0f, 0, (panel->wheel - 240) / 120);
 	}
-
-	// Final wheel colour
-	f32 wheelRed = LERP(1.0f, rmax, magnitude01);
-	f32 wheelGreen = LERP(1.0f, gmax, magnitude01);
-	f32 wheelBlue = LERP(1.0f, bmax, magnitude01);
 	
-	// Final colour taking the slider position into consideration
-	auto sliderRec = GetColourPanelSliderRectangle();
-	f32 sliderScale = (c.sliderCenterY - sliderRec.bottom) / sliderRec.height;
-	f32 finalRed = wheelRed * sliderScale;
-	f32 finalGreen = wheelGreen * sliderScale;
-	f32 finalBlue = wheelBlue * sliderScale;
+	f32 finalRed = 0.0f;
+	f32 finalGreen = 0.0f;
+	f32 finalBlue = 0.0f;
+	if(panel->slider <= 0.5f) {
+		finalRed = wheelRed * panel->slider * 2;
+		finalGreen = wheelGreen * panel->slider * 2;
+		finalBlue = wheelBlue * panel->slider * 2;
+	}
+	else {
+		finalRed = LERP(wheelRed, 1.0f, (panel->slider - 0.5f) * 2);
+		finalGreen = LERP(wheelGreen, 1.0f, (panel->slider - 0.5f) * 2);
+		finalBlue = LERP(wheelBlue, 1.0f, (panel->slider - 0.5f) * 2);
+	}
 	
-	colour ret = {};
-	ret.red = finalRed;
-	ret.green = finalGreen;
-	ret.blue = finalBlue;
-	return ret;
+	return CreateColourF32(finalRed, finalGreen, finalBlue);
 }
 
 #include <stdio.h> // For conversion to hex
-program_external void UpdateColourPanelHexText(colour_panel_colour colour) {
+program_external void UpdateColourPanelRGBHexText() {
 	auto* panel = GetColourPanel();
-	Assert(panel->display == true);
-	auto rgb = ConvertColourPanelColourToRGB(colour);
-	ui8 r = rgb.red * 255;
-	ui8 g = rgb.green * 255;
-	ui8 b = rgb.blue * 255;
-
+	
+	colour c = ConvertCurrentColourPanelColourToRGB();
+	UpdateColourPanelRGBText(c.red.i, panel->red);
+	UpdateColourPanelRGBText(c.green.i, panel->green);
+	UpdateColourPanelRGBText(c.blue.i, panel->blue);
+	
+	// Update hex
 	// Hex
 	char buffer[7] = { '#' };
-	sprintf(buffer + 1, "%02x", r);
-	sprintf(buffer + 3, "%02x", g);
-	sprintf(buffer + 5, "%02x", b);
+	sprintf(buffer + 1, "%02x", c.red.i);
+	sprintf(buffer + 3, "%02x", c.green.i);
+	sprintf(buffer + 5, "%02x", c.blue.i);
 
 	ClearText(panel->hex);
 	Insert(buffer, 7, panel->hex, 0);	
-}
-
-program_external void UpdateColourPanelRGBHexText(colour_panel_colour colour) {
-	auto* panel = GetColourPanel();
-	auto rgb = ConvertColourPanelColourToRGB(colour);
-	UpdateColourPanelRGBText(rgb.red * 255, panel->red);
-	UpdateColourPanelRGBText(rgb.green * 255, panel->green);
-	UpdateColourPanelRGBText(rgb.blue * 255, panel->blue);
-	UpdateColourPanelHexText(colour);
 }
 
 program_external void UpdateColourPanelRGBText(ui8 number, text_body& tb) {
@@ -309,13 +260,16 @@ program_external void UpdateColourPanelRGBText(ui8 number, text_body& tb) {
 	Free(string);			
 }
 
-program_external void OpenColourPanel(colour_panel_colour* colourToUpdate) {
+program_external void OpenColourPanel() {
 	auto* panel = GetColourPanel();
 			
 	panel->display = true;
+	
+	#if 0 // @COLOUR_PANEL_REWORK
 	panel->colourBeingUpdated = colourToUpdate;
 	if(panel->colourBeingUpdated != Null)
 		panel->savedCurrentColour = *colourToUpdate;
+	#endif
 	
 	// Create the panel
 	panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
@@ -324,12 +278,30 @@ program_external void OpenColourPanel(colour_panel_colour* colourToUpdate) {
 
 	auto wheel = GetColourPanelWheelRectangle();
 	auto slider = GetColourPanelSliderRectangle();
-	if(ColourPanelColourIsInited(panel->savedCurrentColour) == true) // If we have stored a current colour
-		panel->currentColour = panel->savedCurrentColour;
-	else {
-		panel->currentColour.wheelSelection = GetCenter(wheel);
-		panel->currentColour.sliderCenterY = GetTopRight(slider).y;
+	panel->wheel = panel->savedWheelAngle;
+	panel->slider = panel->savedSliderPos;
+	
+	#if 0 // @COLOUR_PANEL_REWORK
+	if(panel->savedCurrentColour.inited == true) { // If we have stored a current colour
+		panel->current
+		
+		#if 0
+		auto* sc = &panel->savedCurrentColour;
+		if(sc->colour.red.i == 0) // Between green and blue
+			panel->wheel = (1.0f - sc->colour.green.f) * 120 + 120; // 120 -> 240
+		else if (sc->colour.green.i == 0) // Between red and blue
+			panel->wheel = (1.0f - sc->colour.blue.f) * 120 + 240; // 240 -> 0
+		else if(sc->colour.blue.i == 0) // Between red and green
+			panel->wheel = (1.0f - sc->colour.red.f) * 120; // 0 -> 120
+		#endif
+			
+		// @TODO - Add others
 	}
+	else {
+		panel->wheel = 0; // From the vertical axis
+		panel->slider = 0.5f;
+	}
+	#endif
 	
 	// RGB & hex boxes
 	{
@@ -341,7 +313,7 @@ program_external void OpenColourPanel(colour_panel_colour* colourToUpdate) {
 		panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
 		panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
 		panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderSize("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, TextBodyFlagLetters | TextBodyFlagLeftAligned);
-		UpdateColourPanelRGBHexText(panel->currentColour);
+		UpdateColourPanelRGBHexText();
 	}
 	
 	panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderSize("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);

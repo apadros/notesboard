@@ -50,6 +50,7 @@ dll_import f32 			 Cos(f32 degs);
 dll_import rectangle CreateRectangle(f32 left, f32 bottom, f32 width, f32 height);
 dll_export rectangle CreateRectangle(vector pos, vector size);
 dll_import vector 	 CreateVector(f32 x, f32 y);
+dll_import f32* 		 GenerateCircularCoords(ui8 count, f32 centerX, f32 centerY, f32 radius); // Coords will start at the 12 O'Clock position. Must be freed with Win32FreeMemory()
 dll_import vector    GetCenter(rectangle r);
 #define 				     GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))
 #define 				     GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
