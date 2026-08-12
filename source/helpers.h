@@ -120,9 +120,11 @@ program_unique struct {
 		
 		struct {
 			colour colour;
+			vector center;
+			f32    radius;
 			bool   inited;
-		} favourites[8];
-		ui8    favouriteSelected; // 1 -> favourites array length
+		} 			 favourites[8];
+		ui8    	 favouriteSelected; // 1 -> favourites array length
 		
 		button save;
 		button ok;

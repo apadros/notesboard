@@ -119,8 +119,10 @@ GUIAppEntryPoint(instance) {
 				panel->display = false;
 			}
 			else if(ButtonClicked(panel->save, osState) == true) { // Save clicked
-				if(panel->favouriteSelected != Null) // Store in currently selected favourite
+				if(panel->favouriteSelected != Null) { // Store in currently selected favourite
 					panel->favourites[panel->favouriteSelected - 1].colour = ConvertCurrentColourPanelColourToRGB();
+					panel->favourites[panel->favouriteSelected - 1].inited = true;
+				}
 				else { // Grab next one available
 					ForAll(GetArrayLength(panel->favourites)) {
 						auto* f = panel->favourites + it;
@@ -200,32 +202,42 @@ GUIAppEntryPoint(instance) {
 				else
 					panel->updatingSlider = false;
 			}
-			#if 0 // @COLOUR_PANEL_REWORK
 			else if(Win32MouseLeftDownThisFrame(osState) == true) { // Check for selection of favourite colours
-				f32 start = panel->frame.left + ColourPanelEdgeOffset;
-				f32 end = panel->save.rectangle.left - ColourPanelEdgeOffset;
-				ui8 count = GetArrayLength(panel->favourites) + 1;
-				auto* layouts = GetUIElementLayouts(start, end, count, ColourPanelFavouritesLayerHeight,
-																						ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2,
-																						ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2, ColourPanelFavouritesLayerHeight / 2);
-				f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
-				FromTo(1, count) {
-					auto* l = layouts + it;
-					if(Overlap(UnpackVector(osState.mousePos), l->center, centerY, l->size / 2) == true) {
-						panel->favouriteSelected = it;
-						panel->currentColour = panel->favourites[it - 1].colour;
-						if(ColourPanelColourIsInited(panel->currentColour) == false) {
-							panel->currentColour.wheelSelection = GetCenter(GetColourPanelWheelRectangle());
-							panel->currentColour.sliderCenterY = GetTopRight(GetColourPanelSliderRectangle()).y;
+				ForAll(GetArrayLength(panel->favourites)) {
+					auto* f = panel->favourites + it;
+					if(Overlap(UnpackVector(osState.mousePos), UnpackVector(f->center), f->radius) == true) {
+						panel->favouriteSelected = it + 1;
+						if(f->inited == true) {
+							if(f->colour.red.i == 255 && f->colour.green.i == 255 && f->colour.blue.i == 255) { // Pure white
+								panel->wheel = 0;
+								panel->slider = 1.0f;
+							}
+							else if(f->colour.red.i == 0 && f->colour.green.i == 0 && f->colour.blue.i == 0) { // Pure black
+								panel->wheel = 0;
+								panel->slider = 0.0f;
+							}
+							#if 0
+							if(f->colour.red.i == 0) // Between green and blue
+								panel->wheel = (1.0f - f->colour.green.f) * 120 + 120; // 120 -> 240
+							else if (f->colour.green.i == 0) // Between red and blue
+								panel->wheel = (1.0f - f->colour.blue.f) * 120 + 240; // 240 -> 0
+							else if(f->colour.blue.i == 0) // Between red and green
+								panel->wheel = (1.0f - f->colour.red.f) * 120; // 0 -> 120
+							#endif
+							
+							// @TODO - Convert rgb colour to panel angle and slider pos
+							// panel->currentColour = panel->favourites[it - 1].colour;
+							// UpdateColourPanelRGBHexText(panel->currentColour);
 						}
-						UpdateColourPanelRGBHexText(panel->currentColour);
+						#if 0 // @COLOUR_PANEL_REWORK
 						if(panel->colourBeingUpdated != Null)
 							*panel->colourBeingUpdated = panel->currentColour;
+						#endif
 						break;
 					}
 				}
-				FreeUIElementLayouts(layouts);
 			}
+			#if 0 // @COLOUR_PANEL_REWORK
 			else if(IsBeingUpdated(panel->red) == true) { // Update current colour based on updates to red text body
 				if(osState.escapePressed == true) { // Return to what was there before
 					EndTextUpdate();
@@ -815,28 +827,21 @@ GUIAppEntryPoint(instance) {
 
 			// Favourites
 			{
-				f32 start = panel->frame.left + ColourPanelEdgeOffset;
-				f32 end = panel->save.rectangle.left - ColourPanelEdgeOffset;
-				ui8 count = GetArrayLength(panel->favourites);
-				f32 elementHeight = ColourPanelFavouritesLayerHeight / 2;
-				auto* layouts = GetUIElementLayouts(start, end, count, 
-																						elementHeight, elementHeight, elementHeight, elementHeight,
-																						elementHeight, elementHeight, elementHeight, elementHeight);
-				f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
-				ForAll(count) {
-					auto* l = layouts + it;
-					DrawCircleFull(l->center, centerY, l->size / 2, UnpackColourUI8(panel->favourites[it].colour), 1);
-					DrawCircleBorder(l->center, centerY, l->size / 2, UIBorderThickness, 0, 0, 0);
+				ForAll(GetArrayLength(panel->favourites)) {
+					auto* f = panel->favourites + it;
+					if(f->inited == true)
+						DrawCircleFull(UnpackVector(f->center), f->radius, UnpackColourUI8(f->colour), 1);
+					else
+						DrawCircleFull(UnpackVector(f->center), f->radius, 255, 255, 255, 1);
+					DrawCircleBorder(UnpackVector(f->center), f->radius, UIBorderThickness, 0, 0, 0);
 				}
 				
 				if(panel->favouriteSelected != Null) {
 					Assert(panel->favouriteSelected - 1 < GetArrayLength(panel->favourites));
-					auto* l = layouts + panel->favouriteSelected - 1;
-					DrawCircleBorder(l->center, centerY, l->size * 0.6f, UIBorderThickness, 0, 0, 0);
+					auto* f = panel->favourites + panel->favouriteSelected - 1;
+					DrawCircleBorder(UnpackVector(f->center), f->radius * 1.25f, UIBorderThickness , 0, 0, 0);
 				}
 				
-				FreeUIElementLayouts(layouts);
-
 				Render(panel->save, osState.mousePos);
 				DrawRectangleBorder(UnpackRectangle(panel->save.rectangle), UIBorderThickness, 0, 0, 0);
 			}

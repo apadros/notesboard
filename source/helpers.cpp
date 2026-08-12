@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <gl\gl.h>
+#include "apad_array.h"
 #include "apad_error.h"
 #include "apad_intrinsics.h"
 #include "apad_maths.h"
@@ -280,29 +281,7 @@ program_external void OpenColourPanel() {
 	auto slider = GetColourPanelSliderRectangle();
 	panel->wheel = panel->savedWheelAngle;
 	panel->slider = panel->savedSliderPos;
-	
-	#if 0 // @COLOUR_PANEL_REWORK
-	if(panel->savedCurrentColour.inited == true) { // If we have stored a current colour
-		panel->current
 		
-		#if 0
-		auto* sc = &panel->savedCurrentColour;
-		if(sc->colour.red.i == 0) // Between green and blue
-			panel->wheel = (1.0f - sc->colour.green.f) * 120 + 120; // 120 -> 240
-		else if (sc->colour.green.i == 0) // Between red and blue
-			panel->wheel = (1.0f - sc->colour.blue.f) * 120 + 240; // 240 -> 0
-		else if(sc->colour.blue.i == 0) // Between red and green
-			panel->wheel = (1.0f - sc->colour.red.f) * 120; // 0 -> 120
-		#endif
-			
-		// @TODO - Add others
-	}
-	else {
-		panel->wheel = 0; // From the vertical axis
-		panel->slider = 0.5f;
-	}
-	#endif
-	
 	// RGB & hex boxes
 	{
 		f32 rgbBoxWidth = GetTextRenderSize("000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2;
@@ -326,6 +305,24 @@ program_external void OpenColourPanel() {
 		f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
 		panel->save = AllocateButton(left, centerY - height / 2, width, height, "Save", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
 		panel->favouriteSelected = Null;
+	}
+	
+	// Favourites
+	{
+		f32 start = panel->frame.left + ColourPanelEdgeOffset;
+		f32 end = panel->save.rectangle.left - ColourPanelEdgeOffset;
+		ui8 count = GetArrayLength(panel->favourites);
+		f32 elementHeight = ColourPanelFavouritesLayerHeight / 2;
+		auto* layouts = GetUIElementLayouts(start, end, count, 
+																				elementHeight, elementHeight, elementHeight, elementHeight,
+																				elementHeight, elementHeight, elementHeight, elementHeight);
+		f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
+		ForAll(count) {
+			auto* f = panel->favourites + it;
+			f->center = CreateVector(layouts[it].center, centerY);
+			f->radius = elementHeight / 2;
+		}
+		FreeUIElementLayouts(layouts);
 	}
 	
 	// Ok and cancel buttons
