@@ -56,7 +56,6 @@ GUIAppEntryPoint(instance) {
 		tb->buttons[3].text = AllocateString("Colour Panel");
 	}
 	
-	GetColourPanel()->savedSliderPos = 0.5f;
 	state.canvas.colour = CreateColourUI8(200, 200, 200);
 	
 	state.notes.memory = AllocateMemory(sizeof(note) * 10);
@@ -91,8 +90,8 @@ GUIAppEntryPoint(instance) {
 			if(ButtonClicked(panel->ok, osState) == true || ButtonClicked(panel->cancel, osState) == true) { // If OK or Cancel are clicked
 				// Store currently selected colour
 				if(ButtonClicked(panel->ok, osState) == true) {
-					panel->savedWheelAngle = panel->wheel;
-					panel->savedSliderPos = panel->slider;
+					panel->savedOuterWheelAngle = panel->outerWheel;
+					panel->savedInnerWheelAngle = panel->innerWheel;
 					
 					#if 0 // @COLOUR_PANEL_REWORK
 					if(panel->colourBeingUpdated != Null)
@@ -142,20 +141,20 @@ GUIAppEntryPoint(instance) {
 				BeginTextUpdate(panel->blue);
 			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->hex.container) == true) // Interact with hex field
 				BeginTextUpdate(panel->hex);
-			else if( // Begin colour wheel udpate
+			else if( // Begin outer colour wheel update
 							Win32MouseLeftDownThisFrame(osState) == true && 
-							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().height / 2) == true && 
-							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().height / 2 - ColourWheelThickness) == false) 
+							Overlap(UnpackVector(GetCenter(GetColourPanelOuterWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelOuterWheelRectangle().height / 2) == true && 
+							Overlap(UnpackVector(GetCenter(GetColourPanelOuterWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelOuterWheelRectangle().height / 2 - ColourWheelThickness) == false) 
 			{
-				panel->updatingWheel = true;
+				panel->updatingOuterWheel = true;
 				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex)
 					EndTextUpdate();
 			}
-			else if(panel->updatingWheel == true) { // Update current colour
+			else if(panel->updatingOuterWheel == true) { // Update current colour
 				if(osState.mouseLeftDown == true) {
 					// Angle of current selection
 					f32 angle = 0; // About the horizontal axis
-					vector vec = osState.mousePos - GetCenter(GetColourPanelWheelRectangle());
+					vector vec = osState.mousePos - GetCenter(GetColourPanelOuterWheelRectangle());
 					if(vec.x == 0)
 						angle = vec.y > 0 ? 90 : 270;
 					else if(vec.y == 0)
@@ -177,30 +176,50 @@ GUIAppEntryPoint(instance) {
 					if(angle < 0)
 						angle += 360;
 					
-					panel->wheel = angle;
+					panel->outerWheel = angle;
 					
 					UpdateColourPanelRGBHexText();
 				}
 				else
-					panel->updatingWheel = false;
+					panel->updatingOuterWheel = false;
 			}
-			else if(Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, GetColourPanelSliderRectangle()) == true) // Begin colour slider update
-				panel->updatingSlider = true;
-			else if(panel->updatingSlider == true) { // Update slider position
+			else if( // Begin inner colour wheel update
+							Win32MouseLeftDownThisFrame(osState) == true && 
+							Overlap(UnpackVector(GetCenter(GetColourPanelInnerWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelInnerWheelRectangle().height / 2) == true && 
+							Overlap(UnpackVector(GetCenter(GetColourPanelInnerWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelInnerWheelRectangle().height / 2 - ColourWheelThickness) == false)
+				panel->updatingInnerWheel = true;
+			else if(panel->updatingInnerWheel == true) { // Update inner wheel
 				if(osState.mouseLeftDown == true) {
-					auto sliderRec = GetColourPanelSliderRectangle();
-					panel->slider = (osState.mousePos.y - sliderRec.bottom) / sliderRec.height;
-					Clamp(panel->slider, 0, 1);
+					// Angle of current selection
+					f32 angle = 0; // About the horizontal axis
+					vector vec = osState.mousePos - GetCenter(GetColourPanelOuterWheelRectangle());
+					if(vec.x == 0)
+						angle = vec.y > 0 ? 90 : 270;
+					else if(vec.y == 0)
+						angle = vec.x > 0 ? 0 : 180;
+					else {
+						f32 a = Magnitude(vec.x);
+						f32 o = Magnitude(vec.y);
+						angle = ArcTan(o / a);
+						if(vec.x < 0 && vec.y > 0)
+							angle = 180 - angle;
+						else if(vec.x < 0 && vec.y < 0)
+							angle += 180;
+						else if(vec.x > 0 && vec.y < 0)
+							angle = 360 - angle;
+					}
 					
-					#if 0 // @COLOUR_PANEL_REWORK
-					if(panel->colourBeingUpdated != Null)
-						*panel->colourBeingUpdated = panel->currentColour;
-					#endif
+					// Adjust angle to start from the vertical axis (red)
+					angle -= 90;
+					if(angle < 0)
+						angle += 360;
+					
+					panel->innerWheel = angle;
 					
 					UpdateColourPanelRGBHexText();
 				}
 				else
-					panel->updatingSlider = false;
+					panel->updatingInnerWheel = false;
 			}
 			else if(Win32MouseLeftDownThisFrame(osState) == true) { // Check for selection of favourite colours
 				ForAll(GetArrayLength(panel->favourites)) {
@@ -208,26 +227,70 @@ GUIAppEntryPoint(instance) {
 					if(Overlap(UnpackVector(osState.mousePos), UnpackVector(f->center), f->radius) == true) {
 						panel->favouriteSelected = it + 1;
 						if(f->inited == true) {
-							if(f->colour.red.i == 255 && f->colour.green.i == 255 && f->colour.blue.i == 255) { // Pure white
-								panel->wheel = 0;
-								panel->slider = 1.0f;
+							if(f->colour.red.i == f->colour.green.i && f->colour.green.i == f->colour.blue.i) { // Black to white scale
+								panel->outerWheel = 0;
+								panel->innerWheel = 120 + f->colour.red.f * 120;
 							}
-							else if(f->colour.red.i == 0 && f->colour.green.i == 0 && f->colour.blue.i == 0) { // Pure black
-								panel->wheel = 0;
-								panel->slider = 0.0f;
+							
+							// @TODO
+							// The lowest number will determine the position of the inner wheel towards pure white,
+							// whereas if the largest 2 numbers add up to less than 255, this will determine the inner wheel's
+							// position towards the pure black section
+							// From there can we reverse LERP to determine the outer wheel colour as the point of origin for the inner wheel?
+							if(f->colour.red.i < f->colour.green.i && f->colour.red.i < f->colour.blue.i) {
+								if(f->colour.red.i == 0) { // Scaling towards black
+									// At this point, the sum of the 2 largest numbers should <= 255
+									Assert(f->colour.green.i + f->colour.blue.i <= 255);
+									f32 scale = f->colour.green.f + f->colour.blue.f;
+									// @TODO - If 1.0f, smack in the center of the outer wheel target colour
+								}
+								else { // Scaling towards white
+									panel->innerWheel = 360 - f->colour.ref.f * 120;
+									// @TODO - From here invert the LERP formula using the angle and the final rgb channels
+								}
 							}
+							
+							#if 0
+							// Otherwise highest 2 numbers determine the rgb section of the outer wheel
+							if(f->colour.red.i >= f->colour.green.i && f->colour.red.i > f->colour.blue.i) { // Primarily red, potentially up to r == g
+								panel->outerWheel = 0;
+								if(f->colour.green.i > f->colour.blue.i) {
+									// @TODO - Move closer to green
+								}
+								else if(f->colour.blue.i > f->colour.green.i) {
+									// @TODO - Move closer to blue
+								}
+								// Otherwise it's a pure red shade where the gb channels will position the inner wheel towards pure white
+							}
+							#endif
+							
+							#if 0
+							else if(f->colour.red.i == f->colour.green.i) { // Half way between red and green (OR a light shade of blue @TODO)
+								panel->outerWheel = 60;
+								if(f->colour.blue.i == 0) // Somewhere between target colour and pure black
+									panel->innerWheel = LERP(0, 120, -(f->colour.red.f - 0.5f));
+								else // Somewhere between target colour and pure white
+									panel->innerWheel = 360 - f->colour.blue.f * 120;
+							}
+							else 
+							#endif
+							
+							
+							
 							#if 0
 							if(f->colour.red.i == 0) // Between green and blue
-								panel->wheel = (1.0f - f->colour.green.f) * 120 + 120; // 120 -> 240
+								panel->outerWheel = (1.0f - f->colour.green.f) * 120 + 120; // 120 -> 240
 							else if (f->colour.green.i == 0) // Between red and blue
-								panel->wheel = (1.0f - f->colour.blue.f) * 120 + 240; // 240 -> 0
+								panel->outerWheel = (1.0f - f->colour.blue.f) * 120 + 240; // 240 -> 0
 							else if(f->colour.blue.i == 0) // Between red and green
-								panel->wheel = (1.0f - f->colour.red.f) * 120; // 0 -> 120
+								panel->outerWheel = (1.0f - f->colour.red.f) * 120; // 0 -> 120
 							#endif
+							
+							
 							
 							// @TODO - Convert rgb colour to panel angle and slider pos
 							// panel->currentColour = panel->favourites[it - 1].colour;
-							// UpdateColourPanelRGBHexText(panel->currentColour);
+							UpdateColourPanelRGBHexText();
 						}
 						#if 0 // @COLOUR_PANEL_REWORK
 						if(panel->colourBeingUpdated != Null)
@@ -687,11 +750,11 @@ GUIAppEntryPoint(instance) {
 			DrawRectangleFull(UnpackRectangle(panel->frame), 255, 255, 255, 1); // Draw the frame
 			DrawRectangleBorder(UnpackRectangle(panel->frame), UIBorderThickness, 0, 0, 0);
 
-			// Draw colour wheel and current colour selection
+			// Draw outer colour wheel and current colour selection
 			{
-				rectangle wheel = GetColourPanelWheelRectangle();
-				f32* outer = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2); // Must be freed with Win32FreeMemory()
-				f32* inner = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2 - ColourWheelThickness); // Must be freed with Win32FreeMemory()
+				rectangle wheel = GetColourPanelOuterWheelRectangle();
+				f32* outer = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2);
+				f32* inner = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2 - ColourWheelThickness);
 				
 				glBegin(GL_TRIANGLE_STRIP);
 				ForAll(ColourWheelVertices) {
@@ -720,7 +783,7 @@ GUIAppEntryPoint(instance) {
 				// Draw current colour selection
 				// DrawCircleBorder(UnpackVector(panel->currentColour.wheelSelection), 10, UIBorderThickness, 0, 0, 0); // @COLOUR_PANEL_REWORK
 				{
-					vector pos = GetCenter(wheel) + CreateVector(-Sine(panel->wheel), Cos(panel->wheel)) * (wheel.height / 2 - ColourWheelThickness / 2);
+					vector pos = GetCenter(wheel) + CreateVector(-Sine(panel->outerWheel), Cos(panel->outerWheel)) * (wheel.height / 2 - ColourWheelThickness / 2);
 					f32 radius = ColourWheelThickness / 2;
 					DrawCircleFull(UnpackVector(pos), radius, 255, 255, 255, 1.0f);
 					DrawCircleBorder(UnpackVector(pos), radius, UIBorderThickness, 0, 0, 0);
@@ -729,60 +792,82 @@ GUIAppEntryPoint(instance) {
 				AssertOpenGL();
 			}
 			
-			// Determine wheel colour
-			colour wheelColour;
+			// Determine outer wheel colour
+			colour outerWheelColour;
 			{
 				
 				// Work out the final colour based on the angle
 				f32 r = 0;
 				f32 g = 0;
 				f32 b = 0;
-				if(panel->wheel <= 120) {
-					r = LERP(1.0f, 0, panel->wheel / 120);
-					g = LERP(0, 1.0f, panel->wheel / 120);
+				if(panel->outerWheel <= 120) {
+					r = LERP(1.0f, 0, panel->outerWheel / 120);
+					g = LERP(0, 1.0f, panel->outerWheel / 120);
 				}
-				else if(panel->wheel <= 240) {
-					g = LERP(1.0f, 0, (panel->wheel - 120) / 120);
-					b = LERP(0, 1.0f, (panel->wheel - 120) / 120);
+				else if(panel->outerWheel <= 240) {
+					g = LERP(1.0f, 0, (panel->outerWheel - 120) / 120);
+					b = LERP(0, 1.0f, (panel->outerWheel - 120) / 120);
 				}
 				else {
-					r = LERP(0, 1.0f, (panel->wheel - 240) / 120);
-					b = LERP(1.0f, 0, (panel->wheel - 240) / 120);
+					r = LERP(0, 1.0f, (panel->outerWheel - 240) / 120);
+					b = LERP(1.0f, 0, (panel->outerWheel - 240) / 120);
 				}
 				
-				wheelColour = CreateColourF32(r, g, b);
+				outerWheelColour = CreateColourF32(r, g, b);
 			}
 
-			// Draw colour slider
+			// Draw inner colour wheel and current colour selection
 			{
-				auto rec = GetColourPanelSliderRectangle();
-				glBegin(GL_QUAD_STRIP);
-				glColor3f(0, 0, 0);
-				glVertex2f(rec.left, rec.bottom);
-				glVertex2f(rec.left + rec.width, rec.bottom);
-				glColor3f(UnpackColourF32(wheelColour));
-				glVertex2f(rec.left, rec.bottom + rec.height / 2);
-				glVertex2f(rec.left + rec.width, rec.bottom + rec.height / 2);
-				glColor3f(1.0f, 1.0f, 1.0f);
-				glVertex2f(rec.left, rec.bottom + rec.height);
-				glVertex2f(rec.left + rec.width, rec.bottom + rec.height);
+				rectangle wheel = GetColourPanelInnerWheelRectangle();
+				f32* outer = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2);
+				f32* inner = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2 - ColourWheelThickness);
+				
+				glBegin(GL_TRIANGLE_STRIP);
+				ForAll(ColourWheelVertices) {
+					f32 angle = it * 360 / ColourWheelVertices;
+					if(angle <= 120)
+						glColor3f(LERP(outerWheelColour.red.f, 0, angle / 120), LERP(outerWheelColour.green.f, 0, angle / 120), LERP(outerWheelColour.blue.f, 0, angle / 120));
+					else if(angle <= 240) {
+						f32 rgb = LERP(0, 1.0f, (angle - 120) / 120);
+						glColor3f(rgb, rgb, rgb);
+					}
+					else
+						glColor3f(LERP(1.0f, outerWheelColour.red.f, (angle - 240) / 120), LERP(1.0f, outerWheelColour.green.f, (angle - 240) / 120), LERP(1.0f, outerWheelColour.blue.f, (angle - 240) / 120));
+					glVertex2f(inner[it * 2], inner[it * 2 + 1]);
+					glVertex2f(outer[it * 2], outer[it * 2 + 1]);					
+				}
+				glColor3f(UnpackColourF32(outerWheelColour));
+				glVertex2f(inner[0], inner[1]);
+				glVertex2f(outer[0], outer[1]);
 				glEnd();
-				glLineWidth(UIBorderThickness);
-				DrawRectangleBorder(rec.left, rec.bottom, rec.width, rec.height, UIBorderThickness, 0, 0, 0);
+				
+				Win32FreeMemory(outer);
+				Win32FreeMemory(inner);
 
-				// Draw selection
-				DrawRectangleFull(rec.left - 3, rec.bottom + panel->slider * rec.height - 5, rec.width + 6, 10, 255, 255, 255);
-				DrawRectangleBorder(rec.left - 3, rec.bottom + panel->slider * rec.height - 5, rec.width + 6, 10, UIBorderThickness, 0, 0, 0);
+				// Draw edges
+				DrawCircleBorder(UnpackVector(GetCenter(wheel)), wheel.width / 2, UIBorderThickness, 0, 0, 0);
+				DrawCircleBorder(UnpackVector(GetCenter(wheel)), wheel.width / 2 - ColourWheelThickness, UIBorderThickness, 0, 0, 0);
+				
+				// Draw current colour selection
+				// DrawCircleBorder(UnpackVector(panel->currentColour.wheelSelection), 10, UIBorderThickness, 0, 0, 0); // @COLOUR_PANEL_REWORK
+				{
+					vector pos = GetCenter(wheel) + CreateVector(-Sine(panel->innerWheel), Cos(panel->innerWheel)) * (wheel.height / 2 - ColourWheelThickness / 2);
+					f32 radius = ColourWheelThickness / 2;
+					DrawCircleFull(UnpackVector(pos), radius, 255, 255, 255, 1.0f);
+					DrawCircleBorder(UnpackVector(pos), radius, UIBorderThickness, 0, 0, 0);
+				}
+
+				AssertOpenGL();
 			}
 			
 			// Draw final colour
 			{
-				// Final colour taking the slider position into consideration
+				// Final colour taking the inner wheel position into consideration
 				auto colour = ConvertCurrentColourPanelColourToRGB();
 				
 				// Render
-				auto wheel = GetColourPanelWheelRectangle();
-				f32  radius = wheel.height / 6;
+				auto wheel = GetColourPanelOuterWheelRectangle();
+				f32  radius = ColourPanelFavouritesLayerHeight / 4;
 				f32* vertices = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), radius);
 				DrawCircleFull(UnpackVector(GetCenter(wheel)), radius, UnpackColourUI8(colour), 1.0f);
 				DrawCircleBorder(UnpackVector(GetCenter(wheel)), radius, UIBorderThickness, 0, 0, 0);

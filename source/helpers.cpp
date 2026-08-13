@@ -90,18 +90,18 @@ program_external bool NoteHasTitle(note* n) {
 	return IsValid(n->title);
 }
 
-program_external rectangle GetColourPanelWheelRectangle() {
+program_external rectangle GetColourPanelOuterWheelRectangle() {
 	auto* panel = GetColourPanel();	
 	f32 left = panel->frame.left + ColourPanelEdgeOffset;
 	f32 top = GetTopRight(panel->frame).y - ColourPanelEdgeOffset;
 	return CreateRectangle(left, top - ColourPanelWheelHeight, ColourPanelWheelHeight, ColourPanelWheelHeight);
 }
 
-program_external rectangle GetColourPanelSliderRectangle() {
-	auto* panel = GetColourPanel();
-	auto  wheel = GetColourPanelWheelRectangle();
-	f32 left = GetTopRight(wheel).x + ColourPanelEdgeOffset;
-	return CreateRectangle(left, wheel.bottom, ColourPanelSliderWidth, wheel.height);
+program_external rectangle GetColourPanelInnerWheelRectangle() {
+	auto outer = GetColourPanelOuterWheelRectangle();
+	auto center = GetCenter(outer);
+	f32  size = outer.height - ColourWheelThickness * 2 - ColourPanelRGBBoxOffset* 2;
+	return CreateRectangle(center.x - size / 2, center.y - size / 2, size, size);
 }
 
 program_external rectangle GetNoteOverallRectangle(note* n) {
@@ -200,31 +200,37 @@ program_external colour ConvertCurrentColourPanelColourToRGB() {
 	f32 wheelRed = 0;
 	f32 wheelGreen = 0;
 	f32 wheelBlue = 0;
-	if(panel->wheel <= 120) {
-		wheelRed = LERP(1.0f, 0, panel->wheel / 120);
-		wheelGreen = LERP(0, 1.0f, panel->wheel / 120);
+	if(panel->outerWheel <= 120) {
+		wheelRed = LERP(1.0f, 0, panel->outerWheel / 120);
+		wheelGreen = LERP(0, 1.0f, panel->outerWheel / 120);
 	}
-	else if(panel->wheel <= 240) {
-		wheelGreen = LERP(1.0f, 0, (panel->wheel - 120) / 120);
-		wheelBlue = LERP(0, 1.0f, (panel->wheel - 120) / 120);
+	else if(panel->outerWheel <= 240) {
+		wheelGreen = LERP(1.0f, 0, (panel->outerWheel - 120) / 120);
+		wheelBlue = LERP(0, 1.0f, (panel->outerWheel - 120) / 120);
 	}
 	else {
-		wheelRed = LERP(0, 1.0f, (panel->wheel - 240) / 120);
-		wheelBlue = LERP(1.0f, 0, (panel->wheel - 240) / 120);
+		wheelRed = LERP(0, 1.0f, (panel->outerWheel - 240) / 120);
+		wheelBlue = LERP(1.0f, 0, (panel->outerWheel - 240) / 120);
 	}
 	
+	// @TODO - Technically, if the inner wheel is 120 <= x <= 240, there is no need to check the outer wheel. Optimise.
 	f32 finalRed = 0.0f;
 	f32 finalGreen = 0.0f;
 	f32 finalBlue = 0.0f;
-	if(panel->slider <= 0.5f) {
-		finalRed = wheelRed * panel->slider * 2;
-		finalGreen = wheelGreen * panel->slider * 2;
-		finalBlue = wheelBlue * panel->slider * 2;
+	if(panel->innerWheel <= 120) { // Between target colour and black
+		finalRed = LERP(wheelRed, 0.0f, panel->innerWheel / 120);
+		finalGreen = LERP(wheelGreen, 0.0f, panel->innerWheel / 120);
+		finalBlue = LERP(wheelBlue, 0.0f, panel->innerWheel / 120);
 	}
-	else {
-		finalRed = LERP(wheelRed, 1.0f, (panel->slider - 0.5f) * 2);
-		finalGreen = LERP(wheelGreen, 1.0f, (panel->slider - 0.5f) * 2);
-		finalBlue = LERP(wheelBlue, 1.0f, (panel->slider - 0.5f) * 2);
+	else if(panel->innerWheel <= 240) { // Between black and white
+		finalRed = LERP(0.0f, 1.0f, (panel->innerWheel - 120) / 120);
+		finalGreen = LERP(0.0f, 1.0f, (panel->innerWheel - 120) / 120);
+		finalBlue = LERP(0.0f, 1.0f, (panel->innerWheel - 120) / 120);
+	}
+	else { // Between target colour and white
+		finalRed = LERP(1.0f, wheelRed, (panel->innerWheel - 240) / 120);
+		finalGreen = LERP(1.0f, wheelGreen, (panel->innerWheel - 240) / 120);
+		finalBlue = LERP(1.0f, wheelBlue, (panel->innerWheel - 240) / 120);
 	}
 	
 	return CreateColourF32(finalRed, finalGreen, finalBlue);
@@ -277,15 +283,14 @@ program_external void OpenColourPanel() {
 	panel->frame.height = ColourPanelEdgeOffset + ColourPanelWheelHeight + ColourPanelEdgeOffset + ColourPanelFavouritesLayerHeight + ColourPanelEdgeOffset + ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2 + ColourPanelEdgeOffset;
 	panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
 
-	auto wheel = GetColourPanelWheelRectangle();
-	auto slider = GetColourPanelSliderRectangle();
-	panel->wheel = panel->savedWheelAngle;
-	panel->slider = panel->savedSliderPos;
+	auto wheel = GetColourPanelOuterWheelRectangle();
+	panel->outerWheel = panel->savedOuterWheelAngle;
+	panel->innerWheel = panel->savedInnerWheelAngle;
 		
 	// RGB & hex boxes
 	{
 		f32 rgbBoxWidth = GetTextRenderSize("000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2;
-		f32 left = GetTopRight(slider).x + ColourPanelEdgeOffset;
+		f32 left = GetTopRight(wheel).x + ColourPanelEdgeOffset;
 		f32 height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
 		f32 offset = (wheel.height - height * 4) / 3;
 		panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
@@ -302,7 +307,7 @@ program_external void OpenColourPanel() {
 		f32 width = GetTextRenderSize("Save", 4, NoteTextHeight).width + NoteTextBorder * 2;
 		f32 left = panel->frame.left + panel->frame.width - ColourPanelEdgeOffset - width;
 		f32 height = NoteTextHeight + NoteTextBorder * 2;
-		f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
+		f32 centerY = GetColourPanelOuterWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
 		panel->save = AllocateButton(left, centerY - height / 2, width, height, "Save", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
 		panel->favouriteSelected = Null;
 	}
@@ -316,7 +321,7 @@ program_external void OpenColourPanel() {
 		auto* layouts = GetUIElementLayouts(start, end, count, 
 																				elementHeight, elementHeight, elementHeight, elementHeight,
 																				elementHeight, elementHeight, elementHeight, elementHeight);
-		f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
+		f32 centerY = GetColourPanelOuterWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
 		ForAll(count) {
 			auto* f = panel->favourites + it;
 			f->center = CreateVector(layouts[it].center, centerY);

@@ -98,12 +98,12 @@ program_unique struct {
 	struct { // All cords in UI viewport space
 		bool display;
 		
-		f32  wheel;
-		f32  slider; // 0 -> 1
-		bool updatingWheel;
-		bool updatingSlider;
-		f32  savedWheelAngle;
-		f32  savedSliderPos; // 0 -> 1
+		f32  outerWheel; // Angle
+		f32  innerWheel; // Angle
+		bool updatingOuterWheel;
+		bool updatingInnerWheel;
+		f32  savedOuterWheelAngle;
+		f32  savedInnerWheelAngle; // 0 -> 1
 		
 		#if 0 // @COLOUR_PANEL_REWORK
 		
@@ -151,8 +151,8 @@ bool    TitleIsBeingUpdated();
 // Colour panel
 colour 	  ConvertCurrentColourPanelColourToRGB();
 #define 	GetColourPanel() (&state.colourPanel)
-rectangle GetColourPanelSliderRectangle();
-rectangle GetColourPanelWheelRectangle();
+rectangle GetColourPanelOuterWheelRectangle();
+rectangle GetColourPanelInnerWheelRectangle();
 void 			OpenColourPanel();
 void 			UpdateColourPanelRGBText(ui8 number, text_body& tb);
 void 			UpdateColourPanelRGBHexText();
