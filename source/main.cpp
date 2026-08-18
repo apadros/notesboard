@@ -231,65 +231,47 @@ GUIAppEntryPoint(instance) {
 								panel->outerWheel = 0;
 								panel->innerWheel = 120 + f->colour.red.f * 120;
 							}
-							
-							// @TODO
-							// The lowest number will determine the position of the inner wheel towards pure white,
-							// whereas if the largest 2 numbers add up to less than 255, this will determine the inner wheel's
-							// position towards the pure black section
-							// From there can we reverse LERP to determine the outer wheel colour as the point of origin for the inner wheel?
-							if(f->colour.red.i < f->colour.green.i && f->colour.red.i < f->colour.blue.i) {
-								if(f->colour.red.i == 0) { // Scaling towards black
-									// At this point, the sum of the 2 largest numbers should <= 255
-									Assert(f->colour.green.i + f->colour.blue.i <= 255);
-									f32 scale = f->colour.green.f + f->colour.blue.f;
-									// @TODO - If 1.0f, smack in the center of the outer wheel target colour
-								}
-								else { // Scaling towards white
-									panel->innerWheel = 360 - f->colour.ref.f * 120;
-									// @TODO - From here invert the LERP formula using the angle and the final rgb channels
+							else {
+								// The lowest number will determine the position of the inner wheel towards pure white,
+								// whereas the other 2 numbers will determine the inner wheel's position towards pure black
+								ForAll(3) {
+									f32 targetColours[] = { f->colour.red.f, f->colour.green.f, f->colour.blue.f };
+									f32 coloursAfterOnWheel[] = { f->colour.green.f, f->colour.blue.f, f->colour.red.f };
+									f32 coloursAfterAngle[] = { 120, 240, 0 };
+									f32 lastColours[] = { f->colour.blue.f, f->colour.red.f, f->colour.green.f };
+									
+									f32 targetColour = targetColours[it];
+									f32 colourAfterOnWheel = coloursAfterOnWheel[it];
+									f32 colourAfterAngle = coloursAfterAngle[it];
+									f32 lastColour = lastColours[it];
+									
+									if(targetColour < colourAfterOnWheel && targetColour < lastColour) {
+										if(targetColour == 0.0f) { // Scaling towards black
+											Assert(colourAfterOnWheel + lastColour <= 1.0f);
+											f32 scale = colourAfterOnWheel + lastColour;
+											panel->innerWheel = (1.0f - scale) * 120;
+											
+											// Need to scale the other 2 channels back
+											f32 perc = panel->innerWheel / 120;
+											f32 colourAfter = colourAfterOnWheel / (1.0f - perc);
+											panel->outerWheel = colourAfterAngle + (1.0f - colourAfter) * 120;
+											
+											break;
+										}
+										else { // Scaling towards white
+											panel->innerWheel = 360 - targetColour * 120;
+											
+											// Need to scale the other 2 channels back
+											f32 perc = targetColour;
+											f32 colourAfter = (colourAfterOnWheel - perc) / (1.0f - perc);
+											panel->outerWheel = colourAfterAngle + (1.0f - colourAfter) * 120;
+											
+											break;
+										}
+									}
 								}
 							}
 							
-							#if 0
-							// Otherwise highest 2 numbers determine the rgb section of the outer wheel
-							if(f->colour.red.i >= f->colour.green.i && f->colour.red.i > f->colour.blue.i) { // Primarily red, potentially up to r == g
-								panel->outerWheel = 0;
-								if(f->colour.green.i > f->colour.blue.i) {
-									// @TODO - Move closer to green
-								}
-								else if(f->colour.blue.i > f->colour.green.i) {
-									// @TODO - Move closer to blue
-								}
-								// Otherwise it's a pure red shade where the gb channels will position the inner wheel towards pure white
-							}
-							#endif
-							
-							#if 0
-							else if(f->colour.red.i == f->colour.green.i) { // Half way between red and green (OR a light shade of blue @TODO)
-								panel->outerWheel = 60;
-								if(f->colour.blue.i == 0) // Somewhere between target colour and pure black
-									panel->innerWheel = LERP(0, 120, -(f->colour.red.f - 0.5f));
-								else // Somewhere between target colour and pure white
-									panel->innerWheel = 360 - f->colour.blue.f * 120;
-							}
-							else 
-							#endif
-							
-							
-							
-							#if 0
-							if(f->colour.red.i == 0) // Between green and blue
-								panel->outerWheel = (1.0f - f->colour.green.f) * 120 + 120; // 120 -> 240
-							else if (f->colour.green.i == 0) // Between red and blue
-								panel->outerWheel = (1.0f - f->colour.blue.f) * 120 + 240; // 240 -> 0
-							else if(f->colour.blue.i == 0) // Between red and green
-								panel->outerWheel = (1.0f - f->colour.red.f) * 120; // 0 -> 120
-							#endif
-							
-							
-							
-							// @TODO - Convert rgb colour to panel angle and slider pos
-							// panel->currentColour = panel->favourites[it - 1].colour;
 							UpdateColourPanelRGBHexText();
 						}
 						#if 0 // @COLOUR_PANEL_REWORK
