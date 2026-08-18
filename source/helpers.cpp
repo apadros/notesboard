@@ -36,7 +36,7 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 	Assert(n != Null);
 
 	// Text
-	n->text = AllocateTextBody(pos.x, pos.y, NoteMinWidth, NoteTextBorder, NoteTextHeight,
+	n->text = AllocateTextBody(pos.x, pos.y, NoteMinWidth, NoteTextBorder, NoteTextHeight, Null,
 														 TextBodyFlagLetters | TextBodyFlagBulletPoints | TextBodyFlagNewlines | TextBodyFlagLeftAligned);
 	if(text != Null) {
 		Insert((char*)text, GetLength(text), n->text, 0);
@@ -46,7 +46,7 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 	// Title
 	if(title != Null) {
 		auto textRec = GetTextRectangle(n->text);
-		n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, textRec.width, NoteTextBorder, NoteTitleTextHeight, TextBodyFlagLetters);
+		n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, textRec.width, NoteTextBorder, NoteTitleTextHeight, Null, TextBodyFlagLetters);
 		Insert((char*)title, GetLength(title), n->title, 0);
 		UpdateNoteContainers(n);
 	}
@@ -293,10 +293,10 @@ program_external void OpenColourPanel() {
 		f32 left = GetTopRight(wheel).x + ColourPanelEdgeOffset;
 		f32 height = ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2;
 		f32 offset = (wheel.height - height * 4) / 3;
-		panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-		panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-		panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, Null);
-		panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderSize("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, TextBodyFlagLetters | TextBodyFlagLeftAligned);
+		panel->red = AllocateTextBody(left, wheel.bottom + wheel.height - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, 3, Null);
+		panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, 3, Null);
+		panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, 3, Null);
+		panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderSize("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, 7, TextBodyFlagLetters | TextBodyFlagLeftAligned);
 		UpdateColourPanelRGBHexText();
 	}
 	
@@ -338,5 +338,55 @@ program_external void OpenColourPanel() {
 		f32 offset = (panel->frame.width - width * 2) / 3;
 		panel->ok = AllocateButton(panel->frame.left + offset, bottom, width, height, "OK", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
 		panel->cancel = AllocateButton(panel->frame.left + offset + width + offset, bottom, width, height, "Cancel", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
+	}
+}
+
+program_external void UpdateColourPanelWheels(ui8 red, ui8 green, ui8 blue) {
+	colour c = CreateColourUI8(red, green, blue);
+	auto* panel = GetColourPanel();
+	
+	if(c.red.i == c.green.i && c.green.i == c.blue.i) { // Black to white scale
+		panel->outerWheel = 0;
+		panel->innerWheel = 120 + c.red.f * 120;
+	}
+	else {
+		// The lowest number will determine the position of the inner wheel towards pure white,
+		// whereas the other 2 numbers will determine the inner wheel's position towards pure black
+		ForAll(3) {
+			f32 targetColours[] = { c.red.f, c.green.f, c.blue.f };
+			f32 coloursAfterOnWheel[] = { c.green.f, c.blue.f, c.red.f };
+			f32 coloursAfterAngle[] = { 120, 240, 0 };
+			f32 lastColours[] = { c.blue.f, c.red.f, c.green.f };
+			
+			f32 targetColour = targetColours[it];
+			f32 colourAfterOnWheel = coloursAfterOnWheel[it];
+			f32 colourAfterAngle = coloursAfterAngle[it];
+			f32 lastColour = lastColours[it];
+			
+			if(targetColour < colourAfterOnWheel && targetColour < lastColour) {
+				if(targetColour == 0.0f) { // Scaling towards black
+					Assert(colourAfterOnWheel + lastColour <= 1.0f);
+					f32 scale = colourAfterOnWheel + lastColour;
+					panel->innerWheel = (1.0f - scale) * 120;
+					
+					// Need to scale the other 2 channels back
+					f32 perc = panel->innerWheel / 120;
+					f32 colourAfter = colourAfterOnWheel / (1.0f - perc);
+					panel->outerWheel = colourAfterAngle + (1.0f - colourAfter) * 120;
+					
+					break;
+				}
+				else { // Scaling towards white
+					panel->innerWheel = 360 - targetColour * 120;
+					
+					// Need to scale the other 2 channels back
+					f32 perc = targetColour;
+					f32 colourAfter = (colourAfterOnWheel - perc) / (1.0f - perc);
+					panel->outerWheel = colourAfterAngle + (1.0f - colourAfter) * 120;
+					
+					break;
+				}
+			}
+		}
 	}
 }

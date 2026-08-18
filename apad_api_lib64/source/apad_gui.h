@@ -77,10 +77,11 @@ struct text_body {
 	rectangle    container;
 	f32          textBorderOffset;
 	f32          textHeight;
+	ui16         maxLength; // Null == no limit
 	ui8          flags;
 };
 
-dll_import text_body AllocateTextBody(f32 left, f32 bottom, f32 width, f32 textBorderOffset, f32 textHeight, ui8 flags);
+dll_import text_body AllocateTextBody(f32 left, f32 bottom, f32 width, f32 textBorderOffset, f32 textHeight, ui16 maxLength /* Set to Null for no limit */, ui8 flags);
 dll_import void 		 ClearText(text_body& tb);
 dll_import void 		 FreeText(text_body& tb);
 dll_import char* 		 FindChar(char c, ui16 pos, bool scanForward, text_body& tb);
@@ -106,8 +107,9 @@ dll_import bool  TextIsBeingUpdated();
 // The following functions are only valid if text is being updated
 struct win32_state;
 struct text_update_pipeline_data {
-	bool wantToLeaveTextBodyUp; 	// When pressing up at the top edge of a text_body
-	bool wantToLeaveTextBodyDown; // When pressing down at the bottom edge of a text_body
+	text_body* bodyBeingUpdatedThisFrame; // In case EndTextUpdate() was called this frame within RunTextUpdatePipeline() and want to carry out custom code afterwards. Will be Null otherwise.
+	bool 			 wantToLeaveTextBodyUp; 	  // When pressing up at the top edge of a text_body
+	bool 			 wantToLeaveTextBodyDown;   // When pressing down at the bottom edge of a text_body
 };
 dll_import ui16  										 GetCharOffsetFromStart(char* c);
 dll_import text_body* 							 GetCurrentTextBody();

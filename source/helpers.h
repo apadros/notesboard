@@ -156,6 +156,7 @@ rectangle GetColourPanelInnerWheelRectangle();
 void 			OpenColourPanel();
 void 			UpdateColourPanelRGBText(ui8 number, text_body& tb);
 void 			UpdateColourPanelRGBHexText();
+void 			UpdateColourPanelWheels(ui8 red, ui8 green, ui8 blue);
 
 // Space and projection matrix stuff
 vector  ConvertToCanvasSpace(f32 x, f32 y);

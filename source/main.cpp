@@ -29,7 +29,7 @@ GUIAppEntryPoint(instance) {
 	}
 
 	// Init title bar
-	state.titleBar = AllocateTextBody(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, (TitleBarHeight - TitleBarTextHeight) / 2, TitleBarTextHeight, TextBodyFlagLetters);
+	state.titleBar = AllocateTextBody(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, (TitleBarHeight - TitleBarTextHeight) / 2, TitleBarTextHeight, Null, TextBodyFlagLetters);
 	Insert("Title", GetLength("Title"), state.titleBar, 0);
 
 	// Init toolbar
@@ -103,7 +103,7 @@ GUIAppEntryPoint(instance) {
 					*panel->colourBeingUpdated = panel->savedCurrentColour;
 				#endif
 				
-				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex)
+				if(TextIsBeingUpdated() == true)
 					EndTextUpdate();
 				
 				FreeText(panel->red);
@@ -227,51 +227,7 @@ GUIAppEntryPoint(instance) {
 					if(Overlap(UnpackVector(osState.mousePos), UnpackVector(f->center), f->radius) == true) {
 						panel->favouriteSelected = it + 1;
 						if(f->inited == true) {
-							if(f->colour.red.i == f->colour.green.i && f->colour.green.i == f->colour.blue.i) { // Black to white scale
-								panel->outerWheel = 0;
-								panel->innerWheel = 120 + f->colour.red.f * 120;
-							}
-							else {
-								// The lowest number will determine the position of the inner wheel towards pure white,
-								// whereas the other 2 numbers will determine the inner wheel's position towards pure black
-								ForAll(3) {
-									f32 targetColours[] = { f->colour.red.f, f->colour.green.f, f->colour.blue.f };
-									f32 coloursAfterOnWheel[] = { f->colour.green.f, f->colour.blue.f, f->colour.red.f };
-									f32 coloursAfterAngle[] = { 120, 240, 0 };
-									f32 lastColours[] = { f->colour.blue.f, f->colour.red.f, f->colour.green.f };
-									
-									f32 targetColour = targetColours[it];
-									f32 colourAfterOnWheel = coloursAfterOnWheel[it];
-									f32 colourAfterAngle = coloursAfterAngle[it];
-									f32 lastColour = lastColours[it];
-									
-									if(targetColour < colourAfterOnWheel && targetColour < lastColour) {
-										if(targetColour == 0.0f) { // Scaling towards black
-											Assert(colourAfterOnWheel + lastColour <= 1.0f);
-											f32 scale = colourAfterOnWheel + lastColour;
-											panel->innerWheel = (1.0f - scale) * 120;
-											
-											// Need to scale the other 2 channels back
-											f32 perc = panel->innerWheel / 120;
-											f32 colourAfter = colourAfterOnWheel / (1.0f - perc);
-											panel->outerWheel = colourAfterAngle + (1.0f - colourAfter) * 120;
-											
-											break;
-										}
-										else { // Scaling towards white
-											panel->innerWheel = 360 - targetColour * 120;
-											
-											// Need to scale the other 2 channels back
-											f32 perc = targetColour;
-											f32 colourAfter = (colourAfterOnWheel - perc) / (1.0f - perc);
-											panel->outerWheel = colourAfterAngle + (1.0f - colourAfter) * 120;
-											
-											break;
-										}
-									}
-								}
-							}
-							
+							UpdateColourPanelWheels(UnpackColourUI8(f->colour));
 							UpdateColourPanelRGBHexText();
 						}
 						#if 0 // @COLOUR_PANEL_REWORK
@@ -282,23 +238,50 @@ GUIAppEntryPoint(instance) {
 					}
 				}
 			}
-			#if 0 // @COLOUR_PANEL_REWORK
-			else if(IsBeingUpdated(panel->red) == true) { // Update current colour based on updates to red text body
-				if(osState.escapePressed == true) { // Return to what was there before
-					EndTextUpdate();
-					UpdateColourPanelRGBHexText(panel->currentColour);
+			else if( // Update current colour based on updates to RGB & hex text bodies
+							IsBeingUpdated(panel->red) == true || IsBeingUpdated(panel->green) == true || IsBeingUpdated(panel->blue) == true || IsBeingUpdated(panel->hex) == true || 
+							textUpdatePipelineData.bodyBeingUpdatedThisFrame == &panel->red || textUpdatePipelineData.bodyBeingUpdatedThisFrame == &panel->green ||
+							textUpdatePipelineData.bodyBeingUpdatedThisFrame == &panel->blue || textUpdatePipelineData.bodyBeingUpdatedThisFrame == &panel->hex) 
+			{ 
+				if( // EndTextUpdate() was called within RunTextUpdatePipeline(). If ESC was pressed, return to what was there before
+						textUpdatePipelineData.bodyBeingUpdatedThisFrame != Null && osState.escapePressed == true) 
+				{
+					panel->outerWheel = panel->savedOuterWheelAngle;
+					panel->innerWheel = panel->savedInnerWheelAngle;
+					UpdateColourPanelRGBHexText();
 				}
-				else if(osState.enterPressed == true) { // Accept new changes
-					EndTextUpdate();
-					
-					// For now just update the hex field and final colour without updating the colour panel colour mechanics
-					char* text = GetText(panel->red);
-					ui8   i = StringToInt(text, Null);
-					
-					// @TODO - Update current colour
+				else if(osState.keyPressed != Null) { // Change of value
+					// Check for new value and clamp between 0 and 255
+					if(IsBeingUpdated(panel->red) == true || IsBeingUpdated(panel->green) == true || IsBeingUpdated(panel->blue) == true) {
+						text_body* b = Null;
+						if(IsBeingUpdated(panel->red) == true)
+							b = &panel->red;
+						else if(IsBeingUpdated(panel->green) == true)
+							b = &panel->green;
+						else
+							b = &panel->blue;
+						
+						char* text = GetText(*b);
+						ui32  i = StringToInt(text, Null);
+						if(i >= 255) {
+							ClearText(*b);
+							Insert("255", 3, *b, 0);
+							i = 255;
+						}
+						UpdateColourPanelRGBHexText();
+						
+						if(IsBeingUpdated(panel->red) == true)
+							UpdateColourPanelWheels(i, StringToInt(GetText(panel->green), Null), StringToInt(GetText(panel->blue), Null));
+						else if(IsBeingUpdated(panel->green) == true)
+							UpdateColourPanelWheels(StringToInt(GetText(panel->red), Null), i, StringToInt(GetText(panel->blue), Null));
+						else
+							UpdateColourPanelWheels(StringToInt(GetText(panel->red), Null), StringToInt(GetText(panel->blue), Null), i);
+						// @WIP - Can't do rgb 255 255 0, will trigger bug
+						// This is due to each channel not being == 255 at just one spot, but over a range of 1/6th of the wheel
+						// Is this the same with the back / white wheel?
+					}	
 				}
 			}
-			#endif
 			
 			goto label_rendering; // Need this since it will partially overlap the canvas
 		}
@@ -324,16 +307,20 @@ GUIAppEntryPoint(instance) {
 					Push(Null, true, memory);
 					
 					// Store custom colours
-					// For now just store them all, including uninitialised ones
-					#if 0 // @COLOUR_PANEL_REWORK
-					ui8 colours = GetArrayLength(GetColourPanel()->favourites);
-					PushInstance(colours, memory);
-					ForAll(GetArrayLength(GetColourPanel()->favourites)) {
-						auto* f = GetColourPanel()->favourites + it;
-						Push(f, sizeof(*f), memory);
+					{
+						auto* panel = GetColourPanel();
+						
+						ForAll(GetArrayLength(panel->favourites)) {
+							auto* f = panel->favourites + it;
+							PushInstance(f->inited, memory);
+							if(f->inited == true) {
+								PushInstance(f->colour.red.i, memory);
+								PushInstance(f->colour.green.i, memory);
+								PushInstance(f->colour.blue.i, memory);
+							}
+						}
 					}
-					#endif
-
+					
 					// Notes
 					BeginNotesLoop(n) {
 						if(NoteMemoryIsInUse(n) == true) {
@@ -385,16 +372,25 @@ GUIAppEntryPoint(instance) {
 					}
 					
 					// Extract custom colours
-					#if 0 // @COLOUR_PANEL_REWORK
-					ui8 count = ReadMemMovePtr(data, ui8);
-					Assert(count <= GetArrayLength(GetColourPanel()->favourites));
-					ForAll(count) {
-						auto* f = GetColourPanel()->favourites + it;
-						Copy(data, sizeof(*f), f);
-						MovePtr(data, sizeof(*f));
+					// Store custom colours
+					{
+						auto* panel = GetColourPanel();
+						
+						ForAll(GetArrayLength(panel->favourites)) {
+							auto* f = panel->favourites + it;
+							f->inited = false;
+							ClearInstance(f->colour);
+							
+							f->inited = ReadMemMovePtr(data, bool);
+							if(f->inited == true) {
+								ui8 red = ReadMemMovePtr(data, ui8);
+								ui8 green = ReadMemMovePtr(data, ui8);
+								ui8 blue = ReadMemMovePtr(data, ui8);
+								f->colour = CreateColourUI8(red, green, blue);
+							}
+						}
 					}
-					#endif
-
+					
 					// Extract notes
 					Clear(state.notes.memory.memory, state.notes.memory.size);
 					while(data < (ui8*)file.memory + file.size) {
@@ -448,7 +444,7 @@ GUIAppEntryPoint(instance) {
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
 				auto textRec = GetTextRectangle(n->text);
-				n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, NoteMinWidth, NoteTextBorder, NoteTitleTextHeight, TextBodyFlagLetters);
+				n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, NoteMinWidth, NoteTextBorder, NoteTitleTextHeight, Null, TextBodyFlagLetters);
 				Insert("Title", GetLength("Title"), n->title, 0);
 				UpdateNoteContainers(n);
 			}
