@@ -119,14 +119,14 @@ GUIAppEntryPoint(instance) {
 			}
 			else if(ButtonClicked(panel->save, osState) == true) { // Save clicked
 				if(panel->favouriteSelected != Null) { // Store in currently selected favourite
-					panel->favourites[panel->favouriteSelected - 1].colour = ConvertCurrentColourPanelColourToRGB();
+					panel->favourites[panel->favouriteSelected - 1].colour = GetCurrentColourPanelColour();
 					panel->favourites[panel->favouriteSelected - 1].inited = true;
 				}
 				else { // Grab next one available
 					ForAll(GetArrayLength(panel->favourites)) {
 						auto* f = panel->favourites + it;
 						if(f->inited == false) {
-							f->colour = ConvertCurrentColourPanelColourToRGB();
+							f->colour = GetCurrentColourPanelColour();
 							f->inited = true;
 							break;
 						}
@@ -276,9 +276,6 @@ GUIAppEntryPoint(instance) {
 							UpdateColourPanelWheels(StringToInt(GetText(panel->red), Null), i, StringToInt(GetText(panel->blue), Null));
 						else
 							UpdateColourPanelWheels(StringToInt(GetText(panel->red), Null), StringToInt(GetText(panel->blue), Null), i);
-						// @WIP - Can't do rgb 255 255 0, will trigger bug
-						// This is due to each channel not being == 255 at just one spot, but over a range of 1/6th of the wheel
-						// Is this the same with the back / white wheel?
 					}	
 				}
 			}
@@ -737,12 +734,10 @@ GUIAppEntryPoint(instance) {
 				glBegin(GL_TRIANGLE_STRIP);
 				ForAll(ColourWheelVertices) {
 					f32 angle = it * 360 / ColourWheelVertices;
-					if(angle <= 120)
-						glColor3f(LERP(1.0f, 0, angle / 120), LERP(0, 1.0f, angle / 120), 0);
-					else if(angle <= 240)
-						glColor3f(0, LERP(1.0f, 0, (angle - 120) / 120), LERP(0, 1.0f, (angle - 120) / 120));
-					else
-						glColor3f(LERP(0, 1.0f, (angle - 240) / 120), 0, LERP(1.0f, 0, (angle - 240) / 120));
+					
+					colour c = GetColourPanelOuterWheelColour(angle);
+					glColor3f(UnpackColourF32(c));
+					
 					glVertex2f(inner[it * 2], inner[it * 2 + 1]);
 					glVertex2f(outer[it * 2], outer[it * 2 + 1]);					
 				}
@@ -771,28 +766,7 @@ GUIAppEntryPoint(instance) {
 			}
 			
 			// Determine outer wheel colour
-			colour outerWheelColour;
-			{
-				
-				// Work out the final colour based on the angle
-				f32 r = 0;
-				f32 g = 0;
-				f32 b = 0;
-				if(panel->outerWheel <= 120) {
-					r = LERP(1.0f, 0, panel->outerWheel / 120);
-					g = LERP(0, 1.0f, panel->outerWheel / 120);
-				}
-				else if(panel->outerWheel <= 240) {
-					g = LERP(1.0f, 0, (panel->outerWheel - 120) / 120);
-					b = LERP(0, 1.0f, (panel->outerWheel - 120) / 120);
-				}
-				else {
-					r = LERP(0, 1.0f, (panel->outerWheel - 240) / 120);
-					b = LERP(1.0f, 0, (panel->outerWheel - 240) / 120);
-				}
-				
-				outerWheelColour = CreateColourF32(r, g, b);
-			}
+			colour outerWheelColour = GetColourPanelOuterWheelColour(panel->outerWheel);
 
 			// Draw inner colour wheel and current colour selection
 			{
@@ -803,14 +777,8 @@ GUIAppEntryPoint(instance) {
 				glBegin(GL_TRIANGLE_STRIP);
 				ForAll(ColourWheelVertices) {
 					f32 angle = it * 360 / ColourWheelVertices;
-					if(angle <= 120)
-						glColor3f(LERP(outerWheelColour.red.f, 0, angle / 120), LERP(outerWheelColour.green.f, 0, angle / 120), LERP(outerWheelColour.blue.f, 0, angle / 120));
-					else if(angle <= 240) {
-						f32 rgb = LERP(0, 1.0f, (angle - 120) / 120);
-						glColor3f(rgb, rgb, rgb);
-					}
-					else
-						glColor3f(LERP(1.0f, outerWheelColour.red.f, (angle - 240) / 120), LERP(1.0f, outerWheelColour.green.f, (angle - 240) / 120), LERP(1.0f, outerWheelColour.blue.f, (angle - 240) / 120));
+					colour c = GetColourPanelInnerWheelColour(angle, outerWheelColour);
+					glColor3f(UnpackColourF32(c));
 					glVertex2f(inner[it * 2], inner[it * 2 + 1]);
 					glVertex2f(outer[it * 2], outer[it * 2 + 1]);					
 				}
@@ -841,7 +809,7 @@ GUIAppEntryPoint(instance) {
 			// Draw final colour
 			{
 				// Final colour taking the inner wheel position into consideration
-				auto colour = ConvertCurrentColourPanelColourToRGB();
+				auto colour = GetCurrentColourPanelColour();
 				
 				// Render
 				auto wheel = GetColourPanelOuterWheelRectangle();
@@ -854,11 +822,11 @@ GUIAppEntryPoint(instance) {
 			
 			#if 0 // @COLOUR_PANEL_REWORK
 			// Get the current wheel colour selection
-			colour currentColour = ConvertCurrentColourPanelColourToRGB(panel->currentColour);
+			colour currentColour = GetCurrentColourPanelColour(panel->currentColour);
 			colour favouriteColours[GetArrayLength(panel->favourites)];
 			ForAll(GetArrayLength(panel->favourites)) {
 				if(ColourPanelColourIsInited(panel->favourites[it]) == true)
-					favouriteColours[it] = ConvertCurrentColourPanelColourToRGB(panel->favourites[it]);
+					favouriteColours[it] = GetCurrentColourPanelColour(panel->favourites[it]);
 				else
 					favouriteColours[it] = CreateColourF32(1.0f, 1.0f, 1.0f);
 			}

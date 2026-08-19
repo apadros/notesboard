@@ -193,54 +193,18 @@ program_external void SetCanvasProjetionMatrix() {
 	AssertOpenGL();
 }
 
-program_external colour ConvertCurrentColourPanelColourToRGB() {
+program_external colour GetCurrentColourPanelColour() {
 	auto* panel = GetColourPanel();
 	
-	// Work out the final colour based on the angle
-	f32 wheelRed = 0;
-	f32 wheelGreen = 0;
-	f32 wheelBlue = 0;
-	if(panel->outerWheel <= 120) {
-		wheelRed = LERP(1.0f, 0, panel->outerWheel / 120);
-		wheelGreen = LERP(0, 1.0f, panel->outerWheel / 120);
-	}
-	else if(panel->outerWheel <= 240) {
-		wheelGreen = LERP(1.0f, 0, (panel->outerWheel - 120) / 120);
-		wheelBlue = LERP(0, 1.0f, (panel->outerWheel - 120) / 120);
-	}
-	else {
-		wheelRed = LERP(0, 1.0f, (panel->outerWheel - 240) / 120);
-		wheelBlue = LERP(1.0f, 0, (panel->outerWheel - 240) / 120);
-	}
-	
-	// @TODO - Technically, if the inner wheel is 120 <= x <= 240, there is no need to check the outer wheel. Optimise.
-	f32 finalRed = 0.0f;
-	f32 finalGreen = 0.0f;
-	f32 finalBlue = 0.0f;
-	if(panel->innerWheel <= 120) { // Between target colour and black
-		finalRed = LERP(wheelRed, 0.0f, panel->innerWheel / 120);
-		finalGreen = LERP(wheelGreen, 0.0f, panel->innerWheel / 120);
-		finalBlue = LERP(wheelBlue, 0.0f, panel->innerWheel / 120);
-	}
-	else if(panel->innerWheel <= 240) { // Between black and white
-		finalRed = LERP(0.0f, 1.0f, (panel->innerWheel - 120) / 120);
-		finalGreen = LERP(0.0f, 1.0f, (panel->innerWheel - 120) / 120);
-		finalBlue = LERP(0.0f, 1.0f, (panel->innerWheel - 120) / 120);
-	}
-	else { // Between target colour and white
-		finalRed = LERP(1.0f, wheelRed, (panel->innerWheel - 240) / 120);
-		finalGreen = LERP(1.0f, wheelGreen, (panel->innerWheel - 240) / 120);
-		finalBlue = LERP(1.0f, wheelBlue, (panel->innerWheel - 240) / 120);
-	}
-	
-	return CreateColourF32(finalRed, finalGreen, finalBlue);
+	colour outerWheelSelection = GetColourPanelOuterWheelColour(panel->outerWheel);
+	return GetColourPanelInnerWheelColour(panel->innerWheel, outerWheelSelection);
 }
 
 #include <stdio.h> // For conversion to hex
 program_external void UpdateColourPanelRGBHexText() {
 	auto* panel = GetColourPanel();
 	
-	colour c = ConvertCurrentColourPanelColourToRGB();
+	colour c = GetCurrentColourPanelColour();
 	UpdateColourPanelRGBText(c.red.i, panel->red);
 	UpdateColourPanelRGBText(c.green.i, panel->green);
 	UpdateColourPanelRGBText(c.blue.i, panel->blue);
@@ -363,6 +327,7 @@ program_external void UpdateColourPanelWheels(ui8 red, ui8 green, ui8 blue) {
 			f32 colourAfterAngle = coloursAfterAngle[it];
 			f32 lastColour = lastColours[it];
 			
+			// @WIP - Need to update this next
 			if(targetColour < colourAfterOnWheel && targetColour < lastColour) {
 				if(targetColour == 0.0f) { // Scaling towards black
 					Assert(colourAfterOnWheel + lastColour <= 1.0f);
@@ -389,4 +354,66 @@ program_external void UpdateColourPanelWheels(ui8 red, ui8 green, ui8 blue) {
 			}
 		}
 	}
+}
+
+program_external colour GetColourPanelOuterWheelColour(f32 angle) {
+	Assert(angle <= 360);
+	// Each colour is at full strength at center +- 60, then LERPs off to 0 at other colours' centers
+					
+	// Work out percentages of each
+	f32 red = 0;
+	f32 green = 0;
+	f32 blue = 0;
+	if(angle <= 60) {
+		red = 1.0f;
+		green = LERP(0, 1.0f, angle / 60);
+	}
+	else if(angle <= 120) { // Pure bottom left colour center
+		red = LERP(1.0f, 0, (angle - 60) / 60);
+		green = 1.0f;
+	}
+	else if(angle <= 180) {
+		green = 1.0f;
+		blue = LERP(0, 1.0f, (angle - 120) / 60);
+	}
+	else if(angle <= 240) { // Pure bottom right colour center
+		green = LERP(1.0f, 0, (angle - 180) / 60);
+		blue = 1.0f;
+	}
+	else if(angle <= 300) {
+		red = LERP(0, 1.0f, (angle - 240) / 60);
+		blue = 1.0f;
+	}
+	else if(angle <= 360) { // Pure top colour center
+		red = 1.0f;
+		blue = LERP(1.0f, 0, (angle - 300) / 60);
+	}
+	
+	return CreateColourF32(red, green, blue);
+}
+
+program_external colour GetColourPanelInnerWheelColour(f32 angle, colour top) {
+	Assert(angle <= 360);
+	
+	// @TODO - Technically, if the inner wheel is 120 <= x <= 240, there is no need to check the outer wheel. Optimise.
+	f32 finalRed = 0.0f;
+	f32 finalGreen = 0.0f;
+	f32 finalBlue = 0.0f;
+	if(angle <= 120) { // Between target colour and black
+		finalRed = LERP(top.red.f, 0.0f, angle / 120);
+		finalGreen = LERP(top.green.f, 0.0f, angle / 120);
+		finalBlue = LERP(top.blue.f, 0.0f, angle / 120);
+	}
+	else if(angle <= 240) { // Between black and white
+		finalRed = LERP(0.0f, 1.0f, (angle - 120) / 120);
+		finalGreen = LERP(0.0f, 1.0f, (angle - 120) / 120);
+		finalBlue = LERP(0.0f, 1.0f, (angle - 120) / 120);
+	}
+	else { // Between target colour and white
+		finalRed = LERP(1.0f, top.red.f, (angle - 240) / 120);
+		finalGreen = LERP(1.0f, top.green.f, (angle - 240) / 120);
+		finalBlue = LERP(1.0f, top.blue.f, (angle - 240) / 120);
+	}
+	
+	return CreateColourF32(finalRed, finalGreen, finalBlue);
 }

@@ -149,10 +149,12 @@ bool    MouseOverlapsGUI(win32_state& osState, rectangle& r);
 bool    TitleIsBeingUpdated();
 
 // Colour panel
-colour 	  ConvertCurrentColourPanelColourToRGB();
+colour 	  GetCurrentColourPanelColour();
 #define 	GetColourPanel() (&state.colourPanel)
-rectangle GetColourPanelOuterWheelRectangle();
 rectangle GetColourPanelInnerWheelRectangle();
+rectangle GetColourPanelOuterWheelRectangle();
+colour 		GetColourPanelInnerWheelColour(f32 angle, colour top);
+colour 		GetColourPanelOuterWheelColour(f32 angle);
 void 			OpenColourPanel();
 void 			UpdateColourPanelRGBText(ui8 number, text_body& tb);
 void 			UpdateColourPanelRGBHexText();
