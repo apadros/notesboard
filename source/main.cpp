@@ -178,7 +178,7 @@ GUIAppEntryPoint(instance) {
 					
 					panel->outerWheel = angle;
 					
-					UpdateColourPanelRGBHexText();
+					SetColourPanelRGBHexText();
 				}
 				else
 					panel->updatingOuterWheel = false;
@@ -216,7 +216,7 @@ GUIAppEntryPoint(instance) {
 					
 					panel->innerWheel = angle;
 					
-					UpdateColourPanelRGBHexText();
+					SetColourPanelRGBHexText();
 				}
 				else
 					panel->updatingInnerWheel = false;
@@ -227,8 +227,8 @@ GUIAppEntryPoint(instance) {
 					if(Overlap(UnpackVector(osState.mousePos), UnpackVector(f->center), f->radius) == true) {
 						panel->favouriteSelected = it + 1;
 						if(f->inited == true) {
-							UpdateColourPanelWheels(UnpackColourUI8(f->colour));
-							UpdateColourPanelRGBHexText();
+							SetColourPanelColour(UnpackColourUI8(f->colour));
+							SetColourPanelRGBHexText();
 						}
 						#if 0 // @COLOUR_PANEL_REWORK
 						if(panel->colourBeingUpdated != Null)
@@ -248,7 +248,7 @@ GUIAppEntryPoint(instance) {
 				{
 					panel->outerWheel = panel->savedOuterWheelAngle;
 					panel->innerWheel = panel->savedInnerWheelAngle;
-					UpdateColourPanelRGBHexText();
+					SetColourPanelRGBHexText();
 				}
 				else if(osState.keyPressed != Null) { // Change of value
 					// Check for new value and clamp between 0 and 255
@@ -268,14 +268,14 @@ GUIAppEntryPoint(instance) {
 							Insert("255", 3, *b, 0);
 							i = 255;
 						}
-						UpdateColourPanelRGBHexText();
+						SetColourPanelRGBHexText();
 						
 						if(IsBeingUpdated(panel->red) == true)
-							UpdateColourPanelWheels(i, StringToInt(GetText(panel->green), Null), StringToInt(GetText(panel->blue), Null));
+							SetColourPanelColour(i, StringToInt(GetText(panel->green), Null), StringToInt(GetText(panel->blue), Null));
 						else if(IsBeingUpdated(panel->green) == true)
-							UpdateColourPanelWheels(StringToInt(GetText(panel->red), Null), i, StringToInt(GetText(panel->blue), Null));
+							SetColourPanelColour(StringToInt(GetText(panel->red), Null), i, StringToInt(GetText(panel->blue), Null));
 						else
-							UpdateColourPanelWheels(StringToInt(GetText(panel->red), Null), StringToInt(GetText(panel->blue), Null), i);
+							SetColourPanelColour(StringToInt(GetText(panel->red), Null), StringToInt(GetText(panel->blue), Null), i);
 					}	
 				}
 			}
@@ -851,7 +851,7 @@ GUIAppEntryPoint(instance) {
 				RenderText("Blue", Null, GetTopRight(panel->blue.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->blue).bottom, panel->blue.textHeight, false);
 				
 				// if(panel->updatingCurrentColour == true || panel->updatingSlider == true)
-				// 	UpdateColourPanelRGBHexText(panel->currentColour);
+				// 	SetColourPanelRGBHexText(panel->currentColour);
 				DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->hex);
 			}

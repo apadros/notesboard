@@ -201,13 +201,13 @@ program_external colour GetCurrentColourPanelColour() {
 }
 
 #include <stdio.h> // For conversion to hex
-program_external void UpdateColourPanelRGBHexText() {
+program_external void SetColourPanelRGBHexText() {
 	auto* panel = GetColourPanel();
 	
 	colour c = GetCurrentColourPanelColour();
-	UpdateColourPanelRGBText(c.red.i, panel->red);
-	UpdateColourPanelRGBText(c.green.i, panel->green);
-	UpdateColourPanelRGBText(c.blue.i, panel->blue);
+	SetColourPanelRGBText(c.red.i, panel->red);
+	SetColourPanelRGBText(c.green.i, panel->green);
+	SetColourPanelRGBText(c.blue.i, panel->blue);
 	
 	// Update hex
 	// Hex
@@ -220,7 +220,7 @@ program_external void UpdateColourPanelRGBHexText() {
 	Insert(buffer, 7, panel->hex, 0);	
 }
 
-program_external void UpdateColourPanelRGBText(ui8 number, text_body& tb) {
+program_external void SetColourPanelRGBText(ui8 number, text_body& tb) {
 	char* string = ToString(number);
 	if(GetLength(string) == 1)
 		string = Concatenate(2, "00", string);
@@ -261,7 +261,7 @@ program_external void OpenColourPanel() {
 		panel->green = AllocateTextBody(left, panel->red.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, 3, Null);
 		panel->blue = AllocateTextBody(left, panel->green.container.bottom - offset - height, rgbBoxWidth, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, 3, Null);
 		panel->hex = AllocateTextBody(left, wheel.bottom, GetTextRenderSize("#000000", Null, ColourPanelRGBBoxTextHeight).width + ColourPanelRGBBoxOffset * 2, ColourPanelRGBBoxOffset, ColourPanelRGBBoxTextHeight, 7, TextBodyFlagLetters | TextBodyFlagLeftAligned);
-		UpdateColourPanelRGBHexText();
+		SetColourPanelRGBHexText();
 	}
 	
 	panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderSize("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);
@@ -305,13 +305,25 @@ program_external void OpenColourPanel() {
 	}
 }
 
-program_external void UpdateColourPanelWheels(ui8 red, ui8 green, ui8 blue) {
+program_external void SetColourPanelColour(ui8 red, ui8 green, ui8 blue) {
 	colour c = CreateColourUI8(red, green, blue);
 	auto* panel = GetColourPanel();
 	
 	if(c.red.i == c.green.i && c.green.i == c.blue.i) { // Black to white scale
 		panel->outerWheel = 0;
 		panel->innerWheel = 120 + c.red.f * 120;
+	}
+	else if(c.red.i == 255 && c.green.i == 0 && c.blue.i == 0) { // Pure red
+		panel->outerWheel = 0;
+		panel->innerWheel = 0;
+	}
+	else if(c.red.i == 0 && c.green.i == 255 && c.blue.i == 0) { // Pure green
+		panel->outerWheel = 120;
+		panel->innerWheel = 0;
+	}
+	else if(c.red.i == 0 && c.green.i == 0 && c.blue.i == 255) { // Pure blue
+		panel->outerWheel = 240;
+		panel->innerWheel = 0;
 	}
 	else {
 		// The lowest number will determine the position of the inner wheel towards pure white,
@@ -327,30 +339,43 @@ program_external void UpdateColourPanelWheels(ui8 red, ui8 green, ui8 blue) {
 			f32 colourAfterAngle = coloursAfterAngle[it];
 			f32 lastColour = lastColours[it];
 			
-			// @WIP - Need to update this next
-			if(targetColour < colourAfterOnWheel && targetColour < lastColour) {
+			f32 realColourAfter = 0;
+			f32 realLastColour = 0;
+			if(targetColour < colourAfterOnWheel && targetColour < lastColour) { // Lowest channel
 				if(targetColour == 0.0f) { // Scaling towards black
-					Assert(colourAfterOnWheel + lastColour <= 1.0f);
-					f32 scale = colourAfterOnWheel + lastColour;
-					panel->innerWheel = (1.0f - scale) * 120;
+					// The starting colour will always have a channel == 255,
+					// otherwise the inner wheel angle != 0
 					
-					// Need to scale the other 2 channels back
-					f32 perc = panel->innerWheel / 120;
-					f32 colourAfter = colourAfterOnWheel / (1.0f - perc);
-					panel->outerWheel = colourAfterAngle + (1.0f - colourAfter) * 120;
-					
-					break;
+					if(colourAfterOnWheel == 1.0f || lastColour == 1.0f) { // Inner wheel at angle == 0
+						panel->innerWheel = 0;
+						realColourAfter = colourAfterOnWheel;
+						realLastColour = lastColour;
+					}
+					else { // Scale back first
+						f32 beta = 1.0f - GetMax(colourAfterOnWheel, lastColour);
+						panel->innerWheel = beta * 120;
+						realColourAfter = ((beta * 0) - colourAfterOnWheel) / (beta - 1.0f);
+						realLastColour = ((beta * 0) - lastColour) / (beta - 1.0f);
+					}
 				}
 				else { // Scaling towards white
 					panel->innerWheel = 360 - targetColour * 120;
 					
-					// Need to scale the other 2 channels back
-					f32 perc = targetColour;
-					f32 colourAfter = (colourAfterOnWheel - perc) / (1.0f - perc);
-					panel->outerWheel = colourAfterAngle + (1.0f - colourAfter) * 120;
-					
-					break;
+					// Need to scale the other 2 channels back. Carry out inverse LERP
+					f32 beta = targetColour;
+					realColourAfter = ((beta * 1.0f) - colourAfterOnWheel) / (beta - 1.0f);
+					realLastColour = ((beta * 1.0f) - lastColour) / (beta - 1.0f);
 				}
+				
+				f32 angle = colourAfterAngle; // Because current target channel strength == 0
+				if(realLastColour < 1.0f)
+					angle = LERP(angle, angle + 60, realLastColour);
+				else
+					angle = LERP(angle + 60, angle + 120, 1.0f - realColourAfter);
+				
+				panel->outerWheel = angle;
+				
+				break;
 			}
 		}
 	}
