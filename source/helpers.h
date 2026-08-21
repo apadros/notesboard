@@ -156,7 +156,8 @@ rectangle GetColourPanelOuterWheelRectangle();
 colour 		GetColourPanelInnerWheelColour(f32 angle, colour top);
 colour 		GetColourPanelOuterWheelColour(f32 angle);
 void 			OpenColourPanel();
-void 			SetColourPanelColour(ui8 red, ui8 green, ui8 blue);
+void 			SetColourPanelWheels(ui8 red, ui8 green, ui8 blue);
+void 			SetColourPanelHexText();
 void 			SetColourPanelRGBText(ui8 number, text_body& tb);
 void 			SetColourPanelRGBHexText();
 

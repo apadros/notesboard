@@ -46,6 +46,7 @@ dll_import f32 			 ArcSine(f32 f);
 dll_import f32 			 ArcTan(f32 f);
 #define 				     Clamp(_value, _min, _max) { if((_value) < (_min)) (_value) = (_min); \
 								     													   else if((_value) > (_max)) (_value) = (_max); }
+dll_import ui32 		 ConvertHexToUI32(char* hex); // Max 8 hex digits
 dll_import f32 			 Cos(f32 degs);
 dll_import rectangle CreateRectangle(f32 left, f32 bottom, f32 width, f32 height);
 dll_export rectangle CreateRectangle(vector pos, vector size);

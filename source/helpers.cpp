@@ -201,6 +201,21 @@ program_external colour GetCurrentColourPanelColour() {
 }
 
 #include <stdio.h> // For conversion to hex
+program_external void SetColourPanelHexText() {
+	auto* panel = GetColourPanel();
+	
+	colour c = GetCurrentColourPanelColour();
+	
+	char buffer[7] = { '#' };
+	sprintf(buffer + 1, "%02x", c.red.i);
+	sprintf(buffer + 3, "%02x", c.green.i);
+	sprintf(buffer + 5, "%02x", c.blue.i);
+
+	ClearText(panel->hex);
+	Insert(buffer, 7, panel->hex, 0);	
+}
+
+#include <stdio.h> // For conversion to hex
 program_external void SetColourPanelRGBHexText() {
 	auto* panel = GetColourPanel();
 	
@@ -209,15 +224,7 @@ program_external void SetColourPanelRGBHexText() {
 	SetColourPanelRGBText(c.green.i, panel->green);
 	SetColourPanelRGBText(c.blue.i, panel->blue);
 	
-	// Update hex
-	// Hex
-	char buffer[7] = { '#' };
-	sprintf(buffer + 1, "%02x", c.red.i);
-	sprintf(buffer + 3, "%02x", c.green.i);
-	sprintf(buffer + 5, "%02x", c.blue.i);
-
-	ClearText(panel->hex);
-	Insert(buffer, 7, panel->hex, 0);	
+	SetColourPanelHexText();	
 }
 
 program_external void SetColourPanelRGBText(ui8 number, text_body& tb) {
@@ -305,7 +312,7 @@ program_external void OpenColourPanel() {
 	}
 }
 
-program_external void SetColourPanelColour(ui8 red, ui8 green, ui8 blue) {
+program_external void SetColourPanelWheels(ui8 red, ui8 green, ui8 blue) {
 	colour c = CreateColourUI8(red, green, blue);
 	auto* panel = GetColourPanel();
 	
@@ -341,7 +348,7 @@ program_external void SetColourPanelColour(ui8 red, ui8 green, ui8 blue) {
 			
 			f32 realColourAfter = 0;
 			f32 realLastColour = 0;
-			if(targetColour < colourAfterOnWheel && targetColour < lastColour) { // Lowest channel
+			if(targetColour <= colourAfterOnWheel && targetColour <= lastColour) { // Lowest channel
 				if(targetColour == 0.0f) { // Scaling towards black
 					// The starting colour will always have a channel == 255,
 					// otherwise the inner wheel angle != 0

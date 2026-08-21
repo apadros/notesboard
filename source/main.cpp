@@ -227,7 +227,7 @@ GUIAppEntryPoint(instance) {
 					if(Overlap(UnpackVector(osState.mousePos), UnpackVector(f->center), f->radius) == true) {
 						panel->favouriteSelected = it + 1;
 						if(f->inited == true) {
-							SetColourPanelColour(UnpackColourUI8(f->colour));
+							SetColourPanelWheels(UnpackColourUI8(f->colour));
 							SetColourPanelRGBHexText();
 						}
 						#if 0 // @COLOUR_PANEL_REWORK
@@ -250,7 +250,26 @@ GUIAppEntryPoint(instance) {
 					panel->innerWheel = panel->savedInnerWheelAngle;
 					SetColourPanelRGBHexText();
 				}
-				else if(osState.keyPressed != Null) { // Change of value
+				else if(IsBeingUpdated(panel->hex) == true && (osState.keyPressed != Null || osState.enterPressed == true)) { // Special case for hex field
+					if((osState.keyPressed >= 'a' && osState.keyPressed <= 'f' || osState.keyPressed <= 'A' && osState.keyPressed >= 'F' || osState.keyPressed >= '0' && osState.keyPressed <= '9') == false) // Chars must be hex
+						RemoveChar(panel->hex, GetCursorCharOffset() - 1);
+				
+					char* text = GetText(panel->hex);
+					if(GetLength(text) == 7 && text[0] == '#') { // Update only with full #xxxxxx format
+						auto string = AllocateString(text + 1);
+						ui32 b = ConvertHexToUI32(string + 4);
+						string[4] = '\0';
+						ui32 g = ConvertHexToUI32(string + 2);
+						string[2] = '\0';
+						ui32 r = ConvertHexToUI32(string);
+						
+						SetColourPanelWheels(r, g, b);
+						SetColourPanelRGBText(r, panel->red);
+						SetColourPanelRGBText(g, panel->green); // @BUG @TODO @WIP - This doesn't seem to translate correctly to hex field for some reason
+						SetColourPanelRGBText(b, panel->blue);
+					}
+				}
+				else if(osState.keyPressed != Null || osState.backspacePressed == true || osState.enterPressed == true) { // Change of value
 					// Check for new value and clamp between 0 and 255
 					if(IsBeingUpdated(panel->red) == true || IsBeingUpdated(panel->green) == true || IsBeingUpdated(panel->blue) == true) {
 						text_body* b = Null;
@@ -263,19 +282,13 @@ GUIAppEntryPoint(instance) {
 						
 						char* text = GetText(*b);
 						ui32  i = StringToInt(text, Null);
-						if(i >= 255) {
+						if(i > 255) {
 							ClearText(*b);
 							Insert("255", 3, *b, 0);
-							i = 255;
 						}
-						SetColourPanelRGBHexText();
 						
-						if(IsBeingUpdated(panel->red) == true)
-							SetColourPanelColour(i, StringToInt(GetText(panel->green), Null), StringToInt(GetText(panel->blue), Null));
-						else if(IsBeingUpdated(panel->green) == true)
-							SetColourPanelColour(StringToInt(GetText(panel->red), Null), i, StringToInt(GetText(panel->blue), Null));
-						else
-							SetColourPanelColour(StringToInt(GetText(panel->red), Null), StringToInt(GetText(panel->blue), Null), i);
+						SetColourPanelWheels(StringToInt(GetText(panel->red), Null), StringToInt(GetText(panel->green), Null), StringToInt(GetText(panel->blue), Null));
+						SetColourPanelHexText();
 					}	
 				}
 			}
@@ -754,7 +767,6 @@ GUIAppEntryPoint(instance) {
 				DrawCircleBorder(UnpackVector(GetCenter(wheel)), wheel.width / 2 - ColourWheelThickness, UIBorderThickness, 0, 0, 0);
 				
 				// Draw current colour selection
-				// DrawCircleBorder(UnpackVector(panel->currentColour.wheelSelection), 10, UIBorderThickness, 0, 0, 0); // @COLOUR_PANEL_REWORK
 				{
 					vector pos = GetCenter(wheel) + CreateVector(-Sine(panel->outerWheel), Cos(panel->outerWheel)) * (wheel.height / 2 - ColourWheelThickness / 2);
 					f32 radius = ColourWheelThickness / 2;
@@ -795,7 +807,6 @@ GUIAppEntryPoint(instance) {
 				DrawCircleBorder(UnpackVector(GetCenter(wheel)), wheel.width / 2 - ColourWheelThickness, UIBorderThickness, 0, 0, 0);
 				
 				// Draw current colour selection
-				// DrawCircleBorder(UnpackVector(panel->currentColour.wheelSelection), 10, UIBorderThickness, 0, 0, 0); // @COLOUR_PANEL_REWORK
 				{
 					vector pos = GetCenter(wheel) + CreateVector(-Sine(panel->innerWheel), Cos(panel->innerWheel)) * (wheel.height / 2 - ColourWheelThickness / 2);
 					f32 radius = ColourWheelThickness / 2;
@@ -820,19 +831,6 @@ GUIAppEntryPoint(instance) {
 				Win32FreeMemory(vertices);
 			}
 			
-			#if 0 // @COLOUR_PANEL_REWORK
-			// Get the current wheel colour selection
-			colour currentColour = GetCurrentColourPanelColour(panel->currentColour);
-			colour favouriteColours[GetArrayLength(panel->favourites)];
-			ForAll(GetArrayLength(panel->favourites)) {
-				if(ColourPanelColourIsInited(panel->favourites[it]) == true)
-					favouriteColours[it] = GetCurrentColourPanelColour(panel->favourites[it]);
-				else
-					favouriteColours[it] = CreateColourF32(1.0f, 1.0f, 1.0f);
-			}
-			
-			#endif
-
 			// RGB & hex panels
 			{
 				// Red
