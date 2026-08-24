@@ -8,10 +8,10 @@ Background
 	- Mac OS compatibility
 	
 Colour panel
-	- Possibility to manually set rgb & hex numbers
+	- Current approach isn't quite right, replace inner wheel with rectangle @WIP
+	- Copying and pasting to and from rgb & hex text fields
 		- Cut, copy and past contents - access to clipboard
 	- Arrows within or next to the rgb boxes
-	- Setting the colour wheel and slider with updates to the rgb & hex boxes -> conversion of rgb to colour wheel mechanics
 	
 Functionality
 	- Save canvas background colour to file

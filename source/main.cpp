@@ -265,7 +265,7 @@ GUIAppEntryPoint(instance) {
 						
 						SetColourPanelWheels(r, g, b);
 						SetColourPanelRGBText(r, panel->red);
-						SetColourPanelRGBText(g, panel->green); // @BUG @TODO @WIP - This doesn't seem to translate correctly to hex field for some reason
+						SetColourPanelRGBText(g, panel->green);
 						SetColourPanelRGBText(b, panel->blue);
 					}
 				}
