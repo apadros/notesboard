@@ -90,8 +90,8 @@ GUIAppEntryPoint(instance) {
 			if(ButtonClicked(panel->ok, osState) == true || ButtonClicked(panel->cancel, osState) == true) { // If OK or Cancel are clicked
 				// Store currently selected colour
 				if(ButtonClicked(panel->ok, osState) == true) {
-					panel->savedOuterWheelAngle = panel->outerWheel;
-					panel->savedInnerWheelAngle = panel->innerWheel;
+					panel->savedMainColour = panel->mainColour;
+					panel->savedShade = panel->shade;
 					
 					#if 0 // @COLOUR_PANEL_REWORK
 					if(panel->colourBeingUpdated != Null)
@@ -143,18 +143,18 @@ GUIAppEntryPoint(instance) {
 				BeginTextUpdate(panel->hex);
 			else if( // Begin outer colour wheel update
 							Win32MouseLeftDownThisFrame(osState) == true && 
-							Overlap(UnpackVector(GetCenter(GetColourPanelOuterWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelOuterWheelRectangle().height / 2) == true && 
-							Overlap(UnpackVector(GetCenter(GetColourPanelOuterWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelOuterWheelRectangle().height / 2 - ColourWheelThickness) == false) 
+							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().height / 2) == true && 
+							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().height / 2 - ColourWheelThickness) == false) 
 			{
-				panel->updatingOuterWheel = true;
+				panel->updatingMainColour = true;
 				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex)
 					EndTextUpdate();
 			}
-			else if(panel->updatingOuterWheel == true) { // Update current colour
+			else if(panel->updatingMainColour == true) { // Update current colour
 				if(osState.mouseLeftDown == true) {
 					// Angle of current selection
 					f32 angle = 0; // About the horizontal axis
-					vector vec = osState.mousePos - GetCenter(GetColourPanelOuterWheelRectangle());
+					vector vec = osState.mousePos - GetCenter(GetColourPanelWheelRectangle());
 					if(vec.x == 0)
 						angle = vec.y > 0 ? 90 : 270;
 					else if(vec.y == 0)
@@ -176,50 +176,30 @@ GUIAppEntryPoint(instance) {
 					if(angle < 0)
 						angle += 360;
 					
-					panel->outerWheel = angle;
+					panel->mainColour = angle;
 					
 					SetColourPanelRGBHexText();
 				}
 				else
-					panel->updatingOuterWheel = false;
+					panel->updatingMainColour = false;
 			}
-			else if( // Begin inner colour wheel update
+			else if( // Begin inner colour rectangle update
 							Win32MouseLeftDownThisFrame(osState) == true && 
-							Overlap(UnpackVector(GetCenter(GetColourPanelInnerWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelInnerWheelRectangle().height / 2) == true && 
-							Overlap(UnpackVector(GetCenter(GetColourPanelInnerWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelInnerWheelRectangle().height / 2 - ColourWheelThickness) == false)
-				panel->updatingInnerWheel = true;
-			else if(panel->updatingInnerWheel == true) { // Update inner wheel
+							Overlap(UnpackVector(osState.mousePos), UnpackRectangle(GetColourPanelRectangleRectangle())) == true)
+				panel->updatingShade = true;
+			else if(panel->updatingShade == true) { // Update shade rectangle
 				if(osState.mouseLeftDown == true) {
-					// Angle of current selection
-					f32 angle = 0; // About the horizontal axis
-					vector vec = osState.mousePos - GetCenter(GetColourPanelOuterWheelRectangle());
-					if(vec.x == 0)
-						angle = vec.y > 0 ? 90 : 270;
-					else if(vec.y == 0)
-						angle = vec.x > 0 ? 0 : 180;
-					else {
-						f32 a = Magnitude(vec.x);
-						f32 o = Magnitude(vec.y);
-						angle = ArcTan(o / a);
-						if(vec.x < 0 && vec.y > 0)
-							angle = 180 - angle;
-						else if(vec.x < 0 && vec.y < 0)
-							angle += 180;
-						else if(vec.x > 0 && vec.y < 0)
-							angle = 360 - angle;
-					}
-					
-					// Adjust angle to start from the vertical axis (red)
-					angle -= 90;
-					if(angle < 0)
-						angle += 360;
-					
-					panel->innerWheel = angle;
-					
+					auto rec = GetColourPanelRectangleRectangle();
+					vector vec = osState.mousePos - rec.pos;
+					Clamp(vec.x, 0, rec.width);
+					Clamp(vec.y, 0, rec.height);
+					vec.x /= rec.width;
+					vec.y /= rec.height;
+					panel->shade = vec;
 					SetColourPanelRGBHexText();
 				}
 				else
-					panel->updatingInnerWheel = false;
+					panel->updatingShade = false;
 			}
 			else if(Win32MouseLeftDownThisFrame(osState) == true) { // Check for selection of favourite colours
 				ForAll(GetArrayLength(panel->favourites)) {
@@ -227,7 +207,7 @@ GUIAppEntryPoint(instance) {
 					if(Overlap(UnpackVector(osState.mousePos), UnpackVector(f->center), f->radius) == true) {
 						panel->favouriteSelected = it + 1;
 						if(f->inited == true) {
-							SetColourPanelWheels(UnpackColourUI8(f->colour));
+							SetColourPanelColour(UnpackColourUI8(f->colour));
 							SetColourPanelRGBHexText();
 						}
 						#if 0 // @COLOUR_PANEL_REWORK
@@ -246,8 +226,8 @@ GUIAppEntryPoint(instance) {
 				if( // EndTextUpdate() was called within RunTextUpdatePipeline(). If ESC was pressed, return to what was there before
 						textUpdatePipelineData.bodyBeingUpdatedThisFrame != Null && osState.escapePressed == true) 
 				{
-					panel->outerWheel = panel->savedOuterWheelAngle;
-					panel->innerWheel = panel->savedInnerWheelAngle;
+					panel->mainColour = panel->savedMainColour;
+					panel->shade = panel->savedShade;
 					SetColourPanelRGBHexText();
 				}
 				else if(IsBeingUpdated(panel->hex) == true && (osState.keyPressed != Null || osState.enterPressed == true)) { // Special case for hex field
@@ -263,7 +243,7 @@ GUIAppEntryPoint(instance) {
 						string[2] = '\0';
 						ui32 r = ConvertHexToUI32(string);
 						
-						SetColourPanelWheels(r, g, b);
+						SetColourPanelColour(r, g, b);
 						SetColourPanelRGBText(r, panel->red);
 						SetColourPanelRGBText(g, panel->green);
 						SetColourPanelRGBText(b, panel->blue);
@@ -287,7 +267,7 @@ GUIAppEntryPoint(instance) {
 							Insert("255", 3, *b, 0);
 						}
 						
-						SetColourPanelWheels(StringToInt(GetText(panel->red), Null), StringToInt(GetText(panel->green), Null), StringToInt(GetText(panel->blue), Null));
+						SetColourPanelColour(StringToInt(GetText(panel->red), Null), StringToInt(GetText(panel->green), Null), StringToInt(GetText(panel->blue), Null));
 						SetColourPanelHexText();
 					}	
 				}
@@ -740,7 +720,7 @@ GUIAppEntryPoint(instance) {
 
 			// Draw outer colour wheel and current colour selection
 			{
-				rectangle wheel = GetColourPanelOuterWheelRectangle();
+				rectangle wheel = GetColourPanelWheelRectangle();
 				f32* outer = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2);
 				f32* inner = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2 - ColourWheelThickness);
 				
@@ -748,7 +728,7 @@ GUIAppEntryPoint(instance) {
 				ForAll(ColourWheelVertices) {
 					f32 angle = it * 360 / ColourWheelVertices;
 					
-					colour c = GetColourPanelOuterWheelColour(angle);
+					colour c = GetColourPanelWheelColour(angle);
 					glColor3f(UnpackColourF32(c));
 					
 					glVertex2f(inner[it * 2], inner[it * 2 + 1]);
@@ -768,7 +748,7 @@ GUIAppEntryPoint(instance) {
 				
 				// Draw current colour selection
 				{
-					vector pos = GetCenter(wheel) + CreateVector(-Sine(panel->outerWheel), Cos(panel->outerWheel)) * (wheel.height / 2 - ColourWheelThickness / 2);
+					vector pos = GetCenter(wheel) + CreateVector(-Sine(panel->mainColour), Cos(panel->mainColour)) * (wheel.height / 2 - ColourWheelThickness / 2);
 					f32 radius = ColourWheelThickness / 2;
 					DrawCircleFull(UnpackVector(pos), radius, 255, 255, 255, 1.0f);
 					DrawCircleBorder(UnpackVector(pos), radius, UIBorderThickness, 0, 0, 0);
@@ -778,37 +758,28 @@ GUIAppEntryPoint(instance) {
 			}
 			
 			// Determine outer wheel colour
-			colour outerWheelColour = GetColourPanelOuterWheelColour(panel->outerWheel);
+			colour outerWheelColour = GetColourPanelWheelColour(panel->mainColour);
 
-			// Draw inner colour wheel and current colour selection
+			// Draw inner colour rectangle and current colour selection
 			{
-				rectangle wheel = GetColourPanelInnerWheelRectangle();
-				f32* outer = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2);
-				f32* inner = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), wheel.height / 2 - ColourWheelThickness);
+				rectangle rec = GetColourPanelRectangleRectangle();
 				
-				glBegin(GL_TRIANGLE_STRIP);
-				ForAll(ColourWheelVertices) {
-					f32 angle = it * 360 / ColourWheelVertices;
-					colour c = GetColourPanelInnerWheelColour(angle, outerWheelColour);
-					glColor3f(UnpackColourF32(c));
-					glVertex2f(inner[it * 2], inner[it * 2 + 1]);
-					glVertex2f(outer[it * 2], outer[it * 2 + 1]);					
-				}
+				glBegin(GL_QUADS);
+				glColor3f(0, 0, 0);
+				glVertex2f(rec.left, rec.bottom);
+				glColor3f(1.0f, 1.0f, 1.0f);
+				glVertex2f(rec.left + rec.width, rec.bottom);
 				glColor3f(UnpackColourF32(outerWheelColour));
-				glVertex2f(inner[0], inner[1]);
-				glVertex2f(outer[0], outer[1]);
+				glVertex2f(rec.left + rec.width, rec.bottom + rec.height);
+				glColor3f(UnpackColourF32(outerWheelColour));
+				glVertex2f(rec.left, rec.bottom + rec.height);
 				glEnd();
 				
-				Win32FreeMemory(outer);
-				Win32FreeMemory(inner);
-
-				// Draw edges
-				DrawCircleBorder(UnpackVector(GetCenter(wheel)), wheel.width / 2, UIBorderThickness, 0, 0, 0);
-				DrawCircleBorder(UnpackVector(GetCenter(wheel)), wheel.width / 2 - ColourWheelThickness, UIBorderThickness, 0, 0, 0);
+				DrawRectangleBorder(UnpackRectangle(rec), UIBorderThickness, 0, 0, 0);
 				
 				// Draw current colour selection
 				{
-					vector pos = GetCenter(wheel) + CreateVector(-Sine(panel->innerWheel), Cos(panel->innerWheel)) * (wheel.height / 2 - ColourWheelThickness / 2);
+					vector pos = CreateVector(rec.left + panel->shade.x * rec.width, rec.bottom + panel->shade.y * rec.height);
 					f32 radius = ColourWheelThickness / 2;
 					DrawCircleFull(UnpackVector(pos), radius, 255, 255, 255, 1.0f);
 					DrawCircleBorder(UnpackVector(pos), radius, UIBorderThickness, 0, 0, 0);
@@ -819,15 +790,15 @@ GUIAppEntryPoint(instance) {
 			
 			// Draw final colour
 			{
-				// Final colour taking the inner wheel position into consideration
+				// Final colour taking the shade into consideration
 				auto colour = GetCurrentColourPanelColour();
 				
 				// Render
-				auto wheel = GetColourPanelOuterWheelRectangle();
+				auto wheel = GetColourPanelWheelRectangle();
 				f32  radius = ColourPanelFavouritesLayerHeight / 4;
 				f32* vertices = GenerateCircularCoords(ColourWheelVertices, UnpackVector(GetCenter(wheel)), radius);
-				DrawCircleFull(UnpackVector(GetCenter(wheel)), radius, UnpackColourUI8(colour), 1.0f);
-				DrawCircleBorder(UnpackVector(GetCenter(wheel)), radius, UIBorderThickness, 0, 0, 0);
+				DrawCircleBorder(wheel.left + radius, wheel.bottom - radius, radius, UIBorderThickness, 0, 0, 0);
+				DrawCircleFull(wheel.left + radius, wheel.bottom - radius, radius, UnpackColourUI8(colour), 1.0f);
 				Win32FreeMemory(vertices);
 			}
 			

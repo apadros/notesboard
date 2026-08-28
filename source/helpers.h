@@ -98,12 +98,12 @@ program_unique struct {
 	struct { // All cords in UI viewport space
 		bool display;
 		
-		f32  outerWheel; // Angle
-		f32  innerWheel; // Angle
-		bool updatingOuterWheel;
-		bool updatingInnerWheel;
-		f32  savedOuterWheelAngle;
-		f32  savedInnerWheelAngle; // 0 -> 1
+		f32  	 mainColour; // Angle
+		vector shade; 		 // Percentage from bottom left corner
+		bool 	 updatingMainColour;
+		bool 	 updatingShade;
+		f32    savedMainColour;
+		vector savedShade; // 0 -> 1
 		
 		#if 0 // @COLOUR_PANEL_REWORK
 		
@@ -151,12 +151,12 @@ bool    TitleIsBeingUpdated();
 // Colour panel
 colour 	  GetCurrentColourPanelColour();
 #define 	GetColourPanel() (&state.colourPanel)
-rectangle GetColourPanelInnerWheelRectangle();
-rectangle GetColourPanelOuterWheelRectangle();
-colour 		GetColourPanelInnerWheelColour(f32 angle, colour top);
-colour 		GetColourPanelOuterWheelColour(f32 angle);
+colour 		GetColourPanelWheelColour(f32 angle);
+rectangle GetColourPanelWheelRectangle();
+rectangle GetColourPanelRectangleRectangle();
+colour 		GetColourPanelRectangleColour(f32 angle, colour top);
 void 			OpenColourPanel();
-void 			SetColourPanelWheels(ui8 red, ui8 green, ui8 blue);
+void 			SetColourPanelColour(ui8 red, ui8 green, ui8 blue);
 void 			SetColourPanelHexText();
 void 			SetColourPanelRGBText(ui8 number, text_body& tb);
 void 			SetColourPanelRGBHexText();

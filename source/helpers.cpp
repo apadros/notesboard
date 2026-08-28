@@ -90,17 +90,17 @@ program_external bool NoteHasTitle(note* n) {
 	return IsValid(n->title);
 }
 
-program_external rectangle GetColourPanelOuterWheelRectangle() {
+program_external rectangle GetColourPanelWheelRectangle() {
 	auto* panel = GetColourPanel();	
 	f32 left = panel->frame.left + ColourPanelEdgeOffset;
 	f32 top = GetTopRight(panel->frame).y - ColourPanelEdgeOffset;
 	return CreateRectangle(left, top - ColourPanelWheelHeight, ColourPanelWheelHeight, ColourPanelWheelHeight);
 }
 
-program_external rectangle GetColourPanelInnerWheelRectangle() {
-	auto outer = GetColourPanelOuterWheelRectangle();
+program_external rectangle GetColourPanelRectangleRectangle() {
+	auto outer = GetColourPanelWheelRectangle();
 	auto center = GetCenter(outer);
-	f32  size = outer.height - ColourWheelThickness * 2 - ColourPanelRGBBoxOffset* 2;
+	f32  size = outer.height - ColourWheelThickness * 2 - ColourPanelRGBBoxOffset* 4;
 	return CreateRectangle(center.x - size / 2, center.y - size / 2, size, size);
 }
 
@@ -196,8 +196,14 @@ program_external void SetCanvasProjetionMatrix() {
 program_external colour GetCurrentColourPanelColour() {
 	auto* panel = GetColourPanel();
 	
-	colour outerWheelSelection = GetColourPanelOuterWheelColour(panel->outerWheel);
-	return GetColourPanelInnerWheelColour(panel->innerWheel, outerWheelSelection);
+	colour wheelSelection = GetColourPanelWheelColour(panel->mainColour);
+	
+	f32 hor = LERP(0.0f, 1.0f, panel->shade.x);
+	f32 red = LERP(hor, wheelSelection.red.f, panel->shade.y);
+	f32 green = LERP(hor, wheelSelection.green.f, panel->shade.y);
+	f32 blue = LERP(hor, wheelSelection.blue.f, panel->shade.y);
+	
+	return CreateColourF32(red, green, blue);
 }
 
 #include <stdio.h> // For conversion to hex
@@ -254,9 +260,9 @@ program_external void OpenColourPanel() {
 	panel->frame.height = ColourPanelEdgeOffset + ColourPanelWheelHeight + ColourPanelEdgeOffset + ColourPanelFavouritesLayerHeight + ColourPanelEdgeOffset + ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2 + ColourPanelEdgeOffset;
 	panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
 
-	auto wheel = GetColourPanelOuterWheelRectangle();
-	panel->outerWheel = panel->savedOuterWheelAngle;
-	panel->innerWheel = panel->savedInnerWheelAngle;
+	auto wheel = GetColourPanelWheelRectangle();
+	panel->mainColour = panel->savedMainColour;
+	panel->shade = panel->savedShade;
 		
 	// RGB & hex boxes
 	{
@@ -278,7 +284,7 @@ program_external void OpenColourPanel() {
 		f32 width = GetTextRenderSize("Save", 4, NoteTextHeight).width + NoteTextBorder * 2;
 		f32 left = panel->frame.left + panel->frame.width - ColourPanelEdgeOffset - width;
 		f32 height = NoteTextHeight + NoteTextBorder * 2;
-		f32 centerY = GetColourPanelOuterWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
+		f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
 		panel->save = AllocateButton(left, centerY - height / 2, width, height, "Save", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
 		panel->favouriteSelected = Null;
 	}
@@ -292,7 +298,7 @@ program_external void OpenColourPanel() {
 		auto* layouts = GetUIElementLayouts(start, end, count, 
 																				elementHeight, elementHeight, elementHeight, elementHeight,
 																				elementHeight, elementHeight, elementHeight, elementHeight);
-		f32 centerY = GetColourPanelOuterWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
+		f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
 		ForAll(count) {
 			auto* f = panel->favourites + it;
 			f->center = CreateVector(layouts[it].center, centerY);
@@ -312,25 +318,25 @@ program_external void OpenColourPanel() {
 	}
 }
 
-program_external void SetColourPanelWheels(ui8 red, ui8 green, ui8 blue) {
+program_external void SetColourPanelColour(ui8 red, ui8 green, ui8 blue) {
 	colour c = CreateColourUI8(red, green, blue);
 	auto* panel = GetColourPanel();
 	
 	if(c.red.i == c.green.i && c.green.i == c.blue.i) { // Black to white scale
-		panel->outerWheel = 0;
-		panel->innerWheel = 120 + c.red.f * 120;
+		panel->mainColour = 0;
+		panel->shade = CreateVector(c.red.f, 0);
 	}
 	else if(c.red.i == 255 && c.green.i == 0 && c.blue.i == 0) { // Pure red
-		panel->outerWheel = 0;
-		panel->innerWheel = 0;
+		panel->mainColour = 0;
+		panel->shade = CreateVector(0, 1.0f);
 	}
 	else if(c.red.i == 0 && c.green.i == 255 && c.blue.i == 0) { // Pure green
-		panel->outerWheel = 120;
-		panel->innerWheel = 0;
+		panel->mainColour = 120;
+		panel->shade = CreateVector(0, 1.0f);
 	}
 	else if(c.red.i == 0 && c.green.i == 0 && c.blue.i == 255) { // Pure blue
-		panel->outerWheel = 240;
-		panel->innerWheel = 0;
+		panel->mainColour = 240;
+		panel->shade = CreateVector(0, 1.0f);
 	}
 	else {
 		// The lowest number will determine the position of the inner wheel towards pure white,
@@ -353,20 +359,20 @@ program_external void SetColourPanelWheels(ui8 red, ui8 green, ui8 blue) {
 					// The starting colour will always have a channel == 255,
 					// otherwise the inner wheel angle != 0
 					
-					if(colourAfterOnWheel == 1.0f || lastColour == 1.0f) { // Inner wheel at angle == 0
-						panel->innerWheel = 0;
+					if(colourAfterOnWheel == 1.0f || lastColour == 1.0f) { // Shade at the top
+						panel->shade = CreateVector(0, 1.0f);
 						realColourAfter = colourAfterOnWheel;
 						realLastColour = lastColour;
 					}
 					else { // Scale back first
-						f32 beta = 1.0f - GetMax(colourAfterOnWheel, lastColour);
-						panel->innerWheel = beta * 120;
-						realColourAfter = ((beta * 0) - colourAfterOnWheel) / (beta - 1.0f);
-						realLastColour = ((beta * 0) - lastColour) / (beta - 1.0f);
+						f32 beta = GetMax(colourAfterOnWheel, lastColour);
+						panel->shade = CreateVector(0, beta);
+						realColourAfter = ((beta * 0) - colourAfterOnWheel) / beta;
+						realLastColour = ((beta * 0) - lastColour) / beta;
 					}
 				}
 				else { // Scaling towards white
-					panel->innerWheel = 360 - targetColour * 120;
+					panel->shade = CreateVector(1.0f, 1.0f - targetColour);
 					
 					// Need to scale the other 2 channels back. Carry out inverse LERP
 					f32 beta = targetColour;
@@ -380,7 +386,7 @@ program_external void SetColourPanelWheels(ui8 red, ui8 green, ui8 blue) {
 				else
 					angle = LERP(angle + 60, angle + 120, 1.0f - realColourAfter);
 				
-				panel->outerWheel = angle;
+				panel->mainColour = angle;
 				
 				break;
 			}
@@ -388,7 +394,7 @@ program_external void SetColourPanelWheels(ui8 red, ui8 green, ui8 blue) {
 	}
 }
 
-program_external colour GetColourPanelOuterWheelColour(f32 angle) {
+program_external colour GetColourPanelWheelColour(f32 angle) {
 	Assert(angle <= 360);
 	// Each colour is at full strength at center +- 60, then LERPs off to 0 at other colours' centers
 					
@@ -422,30 +428,4 @@ program_external colour GetColourPanelOuterWheelColour(f32 angle) {
 	}
 	
 	return CreateColourF32(red, green, blue);
-}
-
-program_external colour GetColourPanelInnerWheelColour(f32 angle, colour top) {
-	Assert(angle <= 360);
-	
-	// @TODO - Technically, if the inner wheel is 120 <= x <= 240, there is no need to check the outer wheel. Optimise.
-	f32 finalRed = 0.0f;
-	f32 finalGreen = 0.0f;
-	f32 finalBlue = 0.0f;
-	if(angle <= 120) { // Between target colour and black
-		finalRed = LERP(top.red.f, 0.0f, angle / 120);
-		finalGreen = LERP(top.green.f, 0.0f, angle / 120);
-		finalBlue = LERP(top.blue.f, 0.0f, angle / 120);
-	}
-	else if(angle <= 240) { // Between black and white
-		finalRed = LERP(0.0f, 1.0f, (angle - 120) / 120);
-		finalGreen = LERP(0.0f, 1.0f, (angle - 120) / 120);
-		finalBlue = LERP(0.0f, 1.0f, (angle - 120) / 120);
-	}
-	else { // Between target colour and white
-		finalRed = LERP(1.0f, top.red.f, (angle - 240) / 120);
-		finalGreen = LERP(1.0f, top.green.f, (angle - 240) / 120);
-		finalBlue = LERP(1.0f, top.blue.f, (angle - 240) / 120);
-	}
-	
-	return CreateColourF32(finalRed, finalGreen, finalBlue);
 }
