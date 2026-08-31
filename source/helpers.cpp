@@ -321,70 +321,150 @@ program_external void OpenColourPanel() {
 program_external void SetColourPanelColour(ui8 red, ui8 green, ui8 blue) {
 	colour c = CreateColourUI8(red, green, blue);
 	auto* panel = GetColourPanel();
-	
-	if(c.red.i == c.green.i && c.green.i == c.blue.i) { // Black to white scale
+		
+	if(red == green && green == blue) { // Pure gray
 		panel->mainColour = 0;
 		panel->shade = CreateVector(c.red.f, 0);
 	}
-	else if(c.red.i == 255 && c.green.i == 0 && c.blue.i == 0) { // Pure red
+	else if(red == 255 && green == 0 && blue == 0) { // Pure red
 		panel->mainColour = 0;
 		panel->shade = CreateVector(0, 1.0f);
 	}
-	else if(c.red.i == 0 && c.green.i == 255 && c.blue.i == 0) { // Pure green
+	else if(red == 0 && green == 255 && blue == 0) { // Pure green
 		panel->mainColour = 120;
 		panel->shade = CreateVector(0, 1.0f);
 	}
-	else if(c.red.i == 0 && c.green.i == 0 && c.blue.i == 255) { // Pure blue
+	else if(red == 0 && green == 0 && blue == 255) { // Pure blue
 		panel->mainColour = 240;
 		panel->shade = CreateVector(0, 1.0f);
 	}
 	else {
+		// First ensure at least 1 channel is at 255
+		ui8 scaledRed = red;
+		ui8 scaledGreen = green;
+		ui8 scaledBlue = blue;
+		
+		{
+			ui8 max = GetMax(GetMax(red, green), blue);
+			if(max < 255) {
+				f32 scale = 255.0f / max;
+				scaledRed = RoundToNearestInteger(red * scale);
+				scaledGreen = RoundToNearestInteger(green * scale);
+				scaledBlue = RoundToNearestInteger(blue * scale);
+				Assert(scaledRed == 255 || scaledGreen == 255 || scaledBlue == 255);
+			}
+		}
+		
+		// Set the main colour
+		if(scaledRed == 255) {
+			if(scaledGreen > scaledBlue)
+				panel->mainColour = (f32)scaledGreen / 255 * 60;
+			else
+				panel->mainColour = (f32)(255 - scaledBlue) / 255 * 60 + 300;
+		}
+		else if(scaledGreen == 255) {
+			if(scaledRed > scaledBlue)
+				panel->mainColour = (f32)(255 - scaledRed) / 255 * 60 + 60;
+			else
+				panel->mainColour = (f32)scaledBlue / 255 * 60 + 120;
+		}
+		else {
+			if(scaledGreen > scaledRed)
+				panel->mainColour = (f32)(255 - scaledGreen) / 255 * 60 + 180;
+			else
+				panel->mainColour = (f32)scaledRed / 255 * 60 + 240;
+		}
+		Assert(panel->mainColour <= 360);
+		
+		// At this point we have the original colour before the shade
+		f32 hors[] = { (f32)red / 255, (f32)green / 255, (f32)blue / 255 };
+		f32 verts[3];
+		f32 hor = (f32)GetMin(GetMin(red, green), blue) / 255;
+		verts[0] = ((f32)red / 255 - hor) / ((f32)scaledRed / 255 - hor);
+		verts[1] = ((f32)green / 255 - hor) / ((f32)scaledGreen / 255 - hor);
+		verts[2] = ((f32)blue / 255 - hor) / ((f32)scaledBlue / 255 - hor);
+		
+		// f32 hor = (f32)(red + green + blue) / 3;
+		f32 vert = (verts[0] + verts[1] + verts[2]) / 3;
+		panel->shade = CreateVector(hor, vert);
+		
+		// f32 hor = LERP(0.0f, 1.0f, panel->shade.x);
+		// f32 red = LERP(hor, wheelSelection.red.f, panel->shade.y);
+		// f32 green = LERP(hor, wheelSelection.green.f, panel->shade.y);
+		// f32 blue = LERP(hor, wheelSelection.blue.f, panel->shade.y);
+		
+		#if 0
+		// At this point smallest channel determines the progress towards the white end of the shade
+		{
+			ui8 min = GetMin(GetMin(scaledRed, scaledGreen), scaledBlue);
+			if(min > 0)
+				panel->shade = CreateVector(1.0f, (f32)min / 255);
+		}
+		#endif
+		
+		// Determine the shade
+	}
+	
+	#if 0
+	else {
 		// The lowest number will determine the position of the inner wheel towards pure white,
 		// whereas the other 2 numbers will determine the inner wheel's position towards pure black
 		ForAll(3) {
-			f32 targetColours[] = { c.red.f, c.green.f, c.blue.f };
-			f32 coloursAfterOnWheel[] = { c.green.f, c.blue.f, c.red.f };
-			f32 coloursAfterAngle[] = { 120, 240, 0 };
-			f32 lastColours[] = { c.blue.f, c.red.f, c.green.f };
+			ui8 targetColours[] = { c.red.i, c.green.i, c.blue.i };
+			ui8 coloursAfterOnWheel[] = { c.green.i, c.blue.i, c.red.i };
+			ui8 coloursAfterAngle[] = { 120, 240, 0 };
+			ui8 lastColours[] = { c.blue.i, c.red.i, c.green.i };
 			
-			f32 targetColour = targetColours[it];
-			f32 colourAfterOnWheel = coloursAfterOnWheel[it];
-			f32 colourAfterAngle = coloursAfterAngle[it];
-			f32 lastColour = lastColours[it];
+			ui8 targetColour = targetColours[it];
+			ui8 colourAfterOnWheel = coloursAfterOnWheel[it];
+			ui8 colourAfterAngle = coloursAfterAngle[it];
+			ui8 lastColour = lastColours[it];
 			
-			f32 realColourAfter = 0;
-			f32 realLastColour = 0;
+			ui8 realColourAfter = 0;
+			ui8 realLastColour = 0;
 			if(targetColour <= colourAfterOnWheel && targetColour <= lastColour) { // Lowest channel
-				if(targetColour == 0.0f) { // Scaling towards black
-					// The starting colour will always have a channel == 255,
-					// otherwise the inner wheel angle != 0
-					
-					if(colourAfterOnWheel == 1.0f || lastColour == 1.0f) { // Shade at the top
-						panel->shade = CreateVector(0, 1.0f);
+				if(targetColour == 0) { // Either pure 2 channel colour on the wheel or scaling towards black
+					// The starting colour will always have at least 1 channel == 255 at full strength
+					ui8 max = GetMax(colourAfterOnWheel, lastColour);
+					if(max < 255) { // We're tending towards black
+						f32 scale = 255.0f / max;
+						realColourAfter = RoundToNearestInteger(colourAfterOnWheel * scale);
+						realLastColour = RoundToNearestInteger(lastColour * scale);
+						panel->shade = CreateVector(0, (f32)max / 255);
+					}
+					else { // Otherwise no 'progress' towards pure black on the shade scale
 						realColourAfter = colourAfterOnWheel;
 						realLastColour = lastColour;
-					}
-					else { // Scale back first
-						f32 beta = GetMax(colourAfterOnWheel, lastColour);
-						panel->shade = CreateVector(0, beta);
-						realColourAfter = ((beta * 0) - colourAfterOnWheel) / beta;
-						realLastColour = ((beta * 0) - lastColour) / beta;
+						panel->shade = CreateVector(0, 1.0f);
 					}
 				}
+				else if(colourAfterOnWheel < 255 && lastColour < 255) { // Special case, blend between both extremes
+				
+				}
 				else { // Scaling towards white
-					panel->shade = CreateVector(1.0f, 1.0f - targetColour);
+					panel->shade = CreateVector(1.0f, 1.0f - (f32)targetColour / 255.0f);
 					
-					// Need to scale the other 2 channels back. Carry out inverse LERP
-					f32 beta = targetColour;
-					realColourAfter = ((beta * 1.0f) - colourAfterOnWheel) / (beta - 1.0f);
-					realLastColour = ((beta * 1.0f) - lastColour) / (beta - 1.0f);
+					// Need to scale the second highest channel back unless they are equal, since the other will == 255.
+					f32 scale = 1.0f + (f32)targetColour / 255;
+					if(colourAfterOnWheel == lastColour) {
+						realColourAfter = 255;
+						realLastColour = 255;
+					}
+					else if(colourAfterOnWheel < lastColour) {
+						realColourAfter = colourAfterOnWheel / scale;
+						realLastColour = 255;
+					}
+					else {
+						realColourAfter = 255;
+						realLastColour = lastColour / scale;
+					}
 				}
 				
 				f32 angle = colourAfterAngle; // Because current target channel strength == 0
-				if(realLastColour < 1.0f)
-					angle = LERP(angle, angle + 60, realLastColour);
+				if(realLastColour < 255)
+					angle = LERP(angle, angle + 60, (f32)realLastColour / 255);
 				else
-					angle = LERP(angle + 60, angle + 120, 1.0f - realColourAfter);
+					angle = LERP(angle + 60, angle + 120, 1.0f - (f32)realColourAfter / 255);
 				
 				panel->mainColour = angle;
 				
@@ -392,6 +472,7 @@ program_external void SetColourPanelColour(ui8 red, ui8 green, ui8 blue) {
 			}
 		}
 	}
+	#endif
 }
 
 program_external colour GetColourPanelWheelColour(f32 angle) {
