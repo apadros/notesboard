@@ -376,33 +376,31 @@ program_external void SetColourPanelColour(ui8 red, ui8 green, ui8 blue) {
 		}
 		Assert(panel->mainColour <= 360);
 		
+		// @TODO - This doesn't quite work, find proper formula
 		// At this point we have the original colour before the shade
-		f32 hors[] = { (f32)red / 255, (f32)green / 255, (f32)blue / 255 };
-		f32 verts[3];
-		f32 hor = (f32)GetMin(GetMin(red, green), blue) / 255;
-		verts[0] = ((f32)red / 255 - hor) / ((f32)scaledRed / 255 - hor);
-		verts[1] = ((f32)green / 255 - hor) / ((f32)scaledGreen / 255 - hor);
-		verts[2] = ((f32)blue / 255 - hor) / ((f32)scaledBlue / 255 - hor);
-		
-		// f32 hor = (f32)(red + green + blue) / 3;
-		f32 vert = (verts[0] + verts[1] + verts[2]) / 3;
-		panel->shade = CreateVector(hor, vert);
-		
-		// f32 hor = LERP(0.0f, 1.0f, panel->shade.x);
-		// f32 red = LERP(hor, wheelSelection.red.f, panel->shade.y);
-		// f32 green = LERP(hor, wheelSelection.green.f, panel->shade.y);
-		// f32 blue = LERP(hor, wheelSelection.blue.f, panel->shade.y);
-		
-		#if 0
-		// At this point smallest channel determines the progress towards the white end of the shade
+		#if 1
 		{
-			ui8 min = GetMin(GetMin(scaledRed, scaledGreen), scaledBlue);
-			if(min > 0)
-				panel->shade = CreateVector(1.0f, (f32)min / 255);
+			f32 hors[] = { (f32)red / 255, (f32)green / 255, (f32)blue / 255 };
+			f32 verts[3];
+			f32 hor = (f32)GetMin(GetMin(red, green), blue) / 255;
+			verts[0] = ((f32)red / 255 - hor) / ((f32)scaledRed / 255 - hor);
+			verts[1] = ((f32)green / 255 - hor) / ((f32)scaledGreen / 255 - hor);
+			verts[2] = ((f32)blue / 255 - hor) / ((f32)scaledBlue / 255 - hor);
+			
+			// Set the shade
+			hor = (hors[0] + hors[1] + hors[2]) / 3;
+			f32 vert = (verts[0] + verts[1] + verts[2]) / 3;
+			panel->shade = CreateVector(hor, vert);
+		}
+		#else
+		{
+			f32 hors[] = { (f32)red / 255, (f32)green / 255, (f32)blue / 255 };
+			f32 verts[] = { (f32)red / scaledRed, (f32)green / scaledGreen, (f32)blue / scaledBlue };
+			f32 hor = (hors[0] + hors[1] + hors[2]) / 3;
+			f32 vert = (verts[0] + verts[1] + verts[2]) / 3;
+			panel->shade = CreateVector(hor, vert);
 		}
 		#endif
-		
-		// Determine the shade
 	}
 	
 	#if 0

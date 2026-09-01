@@ -12,6 +12,7 @@ Colour panel
 	- Copying and pasting to and from rgb & hex text fields
 		- Cut, copy and past contents - access to clipboard
 	- Arrows within or next to the rgb boxes
+	- Setting the shade within the rectangle doesn't work properly - fix
 	
 Functionality
 	- Save canvas background colour to file
