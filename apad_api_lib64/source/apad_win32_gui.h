@@ -52,6 +52,8 @@ dll_import void   		 Win32EndGUIUpdateLoop(win32_state& state);
 
 dll_import void DisplayLastWin32Error();
 
+dll_import HWND Win32GetGUIWindowHandle();
+
 // ******************** Others ******************** //
 
 dll_import vector Win32GetProgramWindowClientSize();

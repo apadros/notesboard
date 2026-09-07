@@ -6,9 +6,10 @@
 	
 Background
 	- Mac OS compatibility
+	- Fonts - currently investigating Win32 API use with limited success, might be best to use https://freetype.org/ @WIP
+		- There might be patent issues with regards to operations of certain sections of freetype, investigate
 	
 Colour panel
-	- Current approach isn't quite right, replace inner wheel with rectangle @WIP
 	- Copying and pasting to and from rgb & hex text fields
 		- Cut, copy and past contents - access to clipboard
 	- Arrows within or next to the rgb boxes

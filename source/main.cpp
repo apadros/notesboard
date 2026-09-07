@@ -17,6 +17,37 @@
 GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", instance);
 	
+	{
+		// auto file = LoadFile("%windir%\\Fonts\\arial.ttf");
+		int ret = AddFontResourceA("arial.ttf");
+		Assert(ret == 1);
+		// SendMessage(HWND_BROADCAST, WM_FONTCHANGE, NULL, NULL);
+		
+		HWND windowHandle = Win32GetGUIWindowHandle();
+		HDC dc = GetDC(windowHandle);
+		BOOL B = TextOutA(dc, 500, 500, "sample text", 11);
+		
+		// @TODO - Add Gdi32.lib to build.bat before testing any of this
+		
+		{
+			GLYPHMETRICS gm = {};
+			MAT2 mt;
+			auto mem = AllocateMemory(KiB(1));
+			DWORD ret = GetGlyphOutlineA(dc, 'a', GGO_BITMAP, &gm, mem.size, mem.memory, &mt);
+			Assert(ret != GDI_ERROR);
+			int a= 01;
+			Free(mem);
+		}
+		#if 0
+		// Remove manually added font
+		{
+			auto ret = RemoveFontResourceA("arial.ttf");
+			if(ret != 0)
+				SendMessage(HWND_BROADCAST, WM_FONTCHANGE, NULL, NULL);
+		}
+		#endif
+	}
+	
 	// Init top menu
 	{
 		auto* m = GetTopMenu();
