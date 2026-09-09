@@ -105,18 +105,20 @@ program_unique struct {
 		f32    savedMainColour;
 		vector savedShade; // 0 -> 1
 		
-		#if 0 // @COLOUR_PANEL_REWORK
-		
-		colour_panel_colour* colourBeingUpdated;
-		#endif
-		
 		rectangle frame;
 		
-		text_body red;
-		text_body green;
-		text_body blue;
-		text_body hex; 
+		text_body  red;
+		text_body  green;
+		text_body  blue;
+		text_body  hex; 
 		text_body* bodyBeingUpdated; // RGB or hex
+		
+		button redArrowUp;
+		button redArrowDown;
+		button greenArrowUp;
+		button greenArrowDown;
+		button blueArrowUp;
+		button blueArrowDown;
 		
 		struct {
 			colour colour;

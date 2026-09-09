@@ -17,6 +17,8 @@
 GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", instance);
 	
+	// Win32 Font API stuff
+	#if 0
 	{
 		// auto file = LoadFile("%windir%\\Fonts\\arial.ttf");
 		int ret = AddFontResourceA("arial.ttf");
@@ -47,6 +49,7 @@ GUIAppEntryPoint(instance) {
 		}
 		#endif
 	}
+	#endif
 	
 	// Init top menu
 	{
@@ -106,7 +109,6 @@ GUIAppEntryPoint(instance) {
 			auto* panel = GetColourPanel();
 			
 			// If we're updating the any of the rgb/hex fields and click anywhere else, end text update
-			#if 0 // @COLOUR_PANEL_REWORK
 			if(TextIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true) {
 				text_body* bodies[] = { &panel->red, &panel->green, &panel->blue, &panel->hex };
 				ForAll(GetArrayLength(bodies)) {
@@ -116,23 +118,13 @@ GUIAppEntryPoint(instance) {
 					}
 				}
 			}
-			#endif
 					
 			if(ButtonClicked(panel->ok, osState) == true || ButtonClicked(panel->cancel, osState) == true) { // If OK or Cancel are clicked
 				// Store currently selected colour
 				if(ButtonClicked(panel->ok, osState) == true) {
 					panel->savedMainColour = panel->mainColour;
 					panel->savedShade = panel->shade;
-					
-					#if 0 // @COLOUR_PANEL_REWORK
-					if(panel->colourBeingUpdated != Null)
-						*panel->colourBeingUpdated = panel->currentColour;
-					#endif
 				}
-				#if 0 // @COLOUR_PANEL_REWORK
-				else if(panel->colourBeingUpdated != Null)
-					*panel->colourBeingUpdated = panel->savedCurrentColour;
-				#endif
 				
 				if(TextIsBeingUpdated() == true)
 					EndTextUpdate();
@@ -144,7 +136,6 @@ GUIAppEntryPoint(instance) {
 				FreeButtonText(panel->ok);
 				FreeButtonText(panel->cancel);
 				FreeButtonText(panel->save);
-				// panel->colourBeingUpdated = Null; @COLOUR_PANEL_REWORK
 				
 				panel->display = false;
 			}
@@ -161,6 +152,60 @@ GUIAppEntryPoint(instance) {
 							f->inited = true;
 							break;
 						}
+					}
+				}
+			}
+			else if( // Increase or decrease RGB fields by 1
+							ButtonClicked(panel->redArrowUp, osState) == true || ButtonClicked(panel->redArrowDown, osState) == true ||
+						  ButtonClicked(panel->greenArrowUp, osState) == true || ButtonClicked(panel->greenArrowDown, osState) == true ||
+						  ButtonClicked(panel->blueArrowUp, osState) == true || ButtonClicked(panel->blueArrowDown, osState) == true) 
+			{
+				button* buttons[] = { &panel->redArrowUp, &panel->redArrowDown, &panel->greenArrowUp, &panel->greenArrowDown, &panel->blueArrowUp, &panel->blueArrowDown };
+				ForAll(GetArrayLength(buttons)) {
+					auto* b = buttons[it];
+					if(ButtonClicked(*b, osState) == true) {
+						// Get the right text field string
+						char* text = Null;
+						if(it <= 1)
+							text = GetText(panel->red);
+						else if(it <= 3)
+							text = GetText(panel->green);
+						else
+							text = GetText(panel->blue);
+						
+						ui32 i = StringToInt(text, Null);
+						if(it % 2 == 0 && i < 255)
+							i += 1;
+						else if(it % 2 == 1 && i > 0)
+							i -= 1;
+							
+						// Pad the string with zeroes
+						if(i <= 9)
+							text = Concatenate(2, "00", ToString(i));
+						else if(i <= 99)
+							text = Concatenate(2, "0", ToString(i));
+						else
+							text = ToString(i);
+						
+						// Update text field
+						text_body* body = Null;
+						if(it <= 1)
+							body = &panel->red;
+						else if(it <= 3)
+							body = &panel->green;
+						else
+							body = &panel->blue;
+						ClearText(*body);
+						Insert(text, 3, *body, 0);
+						
+						// Free memory
+						Free(text);
+				
+						// Update rest of the colour panel
+						SetColourPanelColour(StringToInt(GetText(panel->red), Null), StringToInt(GetText(panel->green), Null), StringToInt(GetText(panel->blue), Null));
+						SetColourPanelHexText();
+						
+						break;
 					}
 				}
 			}
@@ -241,10 +286,7 @@ GUIAppEntryPoint(instance) {
 							SetColourPanelColour(UnpackColourUI8(f->colour));
 							SetColourPanelRGBHexText();
 						}
-						#if 0 // @COLOUR_PANEL_REWORK
-						if(panel->colourBeingUpdated != Null)
-							*panel->colourBeingUpdated = panel->currentColour;
-						#endif
+						
 						break;
 					}
 				}
@@ -606,12 +648,6 @@ GUIAppEntryPoint(instance) {
 		if(NoteTextIsBeingUpdated() == true || NoteTitleIsBeingUpdated() == true)
 			UpdateNoteContainers(GetCurrentNote());
 		
-		// If double clicking hasn't done anything else, allow it to update the canvas's background colour
-		#if 0 // @COLOUR_PANEL_REWORK
-		if(osState.mouseLeftDoubleClick == true && osState.mousePos.x > GetTopRight(GetToolBar()->background).width && osState.mousePos.y < GetTitleBar()->container.bottom)
-			OpenColourPanel(&state.canvas.colour);
-		#endif
-		
 		// @SECTION - Update scaling
 		if(osState.mouseWheelRotation != 0.0f) {
 			auto mousePosPre = ConvertToCanvasSpace(osState.mousePos);
@@ -725,8 +761,8 @@ GUIAppEntryPoint(instance) {
 			DrawRectangleFull(UnpackRectangle(m->background), 146, 139, 183, 1);
 
 			// Render text
-			Render(m->save, osState.mousePos);
-			Render(m->load, osState.mousePos);
+			Render(m->save, Null, osState.mousePos);
+			Render(m->load, Null, osState.mousePos);
 
 			// Draw separators
 			glColor3f(1, 1, 1);
@@ -833,27 +869,58 @@ GUIAppEntryPoint(instance) {
 				Win32FreeMemory(vertices);
 			}
 			
-			// RGB & hex panels
+			// RGB & hex panels & buttons
 			{
 				// Red
 				DrawRectangleBorder(UnpackRectangle(panel->red.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->red);
-				RenderText("Red", Null, GetTopRight(panel->red.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->red).bottom, panel->red.textHeight, false);
+				RenderText("Red", Null, GetTopRight(panel->redArrowUp.rectangle).x + ColourPanelEdgeOffset, GetTextRectangle(panel->red).bottom, panel->red.textHeight, false);
+				Render(panel->redArrowUp, UIBorderThickness, osState.mousePos);
+				Render(panel->redArrowDown, UIBorderThickness, osState.mousePos);
 
 				// Green
 				DrawRectangleBorder(UnpackRectangle(panel->green.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->green);
-				RenderText("Green", Null, GetTopRight(panel->green.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->green).bottom, panel->green.textHeight, false);
+				RenderText("Green", Null, GetTopRight(panel->greenArrowUp.rectangle).x + ColourPanelEdgeOffset, GetTextRectangle(panel->green).bottom, panel->green.textHeight, false);
+				Render(panel->greenArrowUp, UIBorderThickness, osState.mousePos);
+				Render(panel->greenArrowDown, UIBorderThickness, osState.mousePos);
 
 				// Blue
 				DrawRectangleBorder(UnpackRectangle(panel->blue.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->blue);
-				RenderText("Blue", Null, GetTopRight(panel->blue.container).x + ColourPanelEdgeOffset, GetTextRectangle(panel->blue).bottom, panel->blue.textHeight, false);
+				RenderText("Blue", Null, GetTopRight(panel->blueArrowUp.rectangle).x + ColourPanelEdgeOffset, GetTextRectangle(panel->blue).bottom, panel->blue.textHeight, false);
+				Render(panel->blueArrowUp, UIBorderThickness, osState.mousePos);
+				Render(panel->blueArrowDown, UIBorderThickness, osState.mousePos);
 				
 				// if(panel->updatingCurrentColour == true || panel->updatingSlider == true)
 				// 	SetColourPanelRGBHexText(panel->currentColour);
 				DrawRectangleBorder(UnpackRectangle(panel->hex.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->hex);
+				
+				// Render arrows
+				{
+					button* arrows[] = { &panel->redArrowUp, &panel->redArrowDown, &panel->greenArrowUp, &panel->greenArrowDown, &panel->blueArrowUp, &panel->blueArrowDown };
+					ForAll(GetArrayLength(arrows)) {
+						button* a = arrows[it];
+						f32 left = a->rectangle.left + a->rectangle.width / 3;
+						f32 right = a->rectangle.left + a->rectangle.width * 2 / 3;
+						f32 bottom = a->rectangle.bottom + a->rectangle.height / 3;
+						f32 top = a->rectangle.bottom + a->rectangle.height * 2 / 3;
+						glBegin(GL_TRIANGLE_FAN);
+						glColor3f(1.0f, 0, 0);
+						if(it % 2 == 0) {
+							glVertex2f(left, bottom);
+							glVertex2f(right, bottom);
+							glVertex2f(left + (right - left) / 2, top);
+						}
+						else {
+							glVertex2f(left, top);
+							glVertex2f(right, top);
+							glVertex2f(left + (right - left) / 2, bottom);
+						}
+						glEnd();
+					}
+				}
 			}
 
 			// Favourites
@@ -873,15 +940,13 @@ GUIAppEntryPoint(instance) {
 					DrawCircleBorder(UnpackVector(f->center), f->radius * 1.25f, UIBorderThickness , 0, 0, 0);
 				}
 				
-				Render(panel->save, osState.mousePos);
+				Render(panel->save, UIBorderThickness, osState.mousePos);
 				DrawRectangleBorder(UnpackRectangle(panel->save.rectangle), UIBorderThickness, 0, 0, 0);
 			}
 
 			// OK & cancel buttons
-			DrawRectangleBorder(UnpackRectangle(panel->ok.rectangle), UIBorderThickness, 0, 0, 0);
-			DrawRectangleBorder(UnpackRectangle(panel->cancel.rectangle), UIBorderThickness, 0, 0, 0);
-			Render(panel->ok, osState.mousePos);
-			Render(panel->cancel, osState.mousePos);
+			Render(panel->ok, UIBorderThickness, osState.mousePos);
+			Render(panel->cancel, UIBorderThickness, osState.mousePos);
 		}
 		
 		// Draw cursor if needed

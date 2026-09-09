@@ -249,12 +249,6 @@ program_external void OpenColourPanel() {
 			
 	panel->display = true;
 	
-	#if 0 // @COLOUR_PANEL_REWORK
-	panel->colourBeingUpdated = colourToUpdate;
-	if(panel->colourBeingUpdated != Null)
-		panel->savedCurrentColour = *colourToUpdate;
-	#endif
-	
 	// Create the panel
 	panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
 	panel->frame.height = ColourPanelEdgeOffset + ColourPanelWheelHeight + ColourPanelEdgeOffset + ColourPanelFavouritesLayerHeight + ColourPanelEdgeOffset + ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2 + ColourPanelEdgeOffset;
@@ -277,7 +271,26 @@ program_external void OpenColourPanel() {
 		SetColourPanelRGBHexText();
 	}
 	
-	panel->frame.width = GetTopRight(panel->green.container).x + ColourPanelEdgeOffset + GetTextRenderSize("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);
+	// Arrow buttons
+	{
+		text_body* bodies[] = { &panel->red, &panel->green, &panel->blue };
+		button* buttons[] = { &panel->redArrowUp, &panel->redArrowDown, &panel->greenArrowUp, &panel->greenArrowDown, &panel->blueArrowUp, &panel->blueArrowDown };
+		ForAll(GetArrayLength(bodies)) {
+			auto* body = bodies[it];
+			f32 left = GetTopRight(body->container).x;
+			f32 bottom = body->container.bottom;
+			f32 height = body->container.height / 2;
+			f32 width = height;
+			*(buttons[it * 2]) = AllocateButton(left, bottom + height, width, height, 
+																			    Null, Null, 
+																			    ColourPanelButtonsHighlightRGBA);
+			*(buttons[it * 2 + 1]) = AllocateButton(left, bottom, width, height, 
+																				 	    Null, Null, 
+																				 	    ColourPanelButtonsHighlightRGBA);
+		}
+	}
+	
+	panel->frame.width = GetTopRight(panel->redArrowUp.rectangle).x + ColourPanelEdgeOffset + GetTextRenderSize("Green", Null, panel->green.textHeight).width + ColourPanelEdgeOffset - (wheel.left - ColourPanelEdgeOffset);
 		
 	// Custom colour save button
 	{
