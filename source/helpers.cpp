@@ -252,7 +252,7 @@ program_external void OpenColourPanel() {
 	// Create the panel
 	panel->frame.left = GetTopRight(GetToolBar()->background).x + 100;
 	panel->frame.height = ColourPanelEdgeOffset + ColourPanelWheelHeight + ColourPanelEdgeOffset + ColourPanelFavouritesLayerHeight + ColourPanelEdgeOffset + ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2 + ColourPanelEdgeOffset;
-	panel->frame.bottom = GetCenter(GetToolBar()->buttons[3].background).y - panel->frame.height / 2;
+	panel->frame.bottom = GetCenter(GetToolBar()->colourPanel.rectangle).y - panel->frame.height / 2;
 
 	auto wheel = GetColourPanelWheelRectangle();
 	panel->mainColour = panel->savedMainColour;

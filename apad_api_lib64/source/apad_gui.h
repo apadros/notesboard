@@ -58,14 +58,15 @@ struct button {
 };
 
 dll_import button AllocateButton(f32 left, f32 bottom, f32 width, f32 height, 
-																 char* text, f32 textHeight, // These two are optional e.g. to display custom text on top of the button
+																 char* text, f32 textHeight, // These two are optional e.g. to display custom text
 																 ui8 highlightRed, ui8 highlightGreen, ui8 highlightBlue, f32 highlightAlpha);
 dll_import bool 	ButtonClicked(button& b, win32_state& state);
 dll_import void 	FreeButtonText(button& b); // Call only if text was supplied to AllocateButton()
-dll_import void 	Render( // Will render the text and highlight background colour
+dll_import void 	Render( // Will render the background highlight colour
 												 button& b, 
 												 ui8 		 borderThickness, // Set to Null if no border wanted
-												 vector  mousePos);
+												 vector  mousePos,
+												 bool    renderText);
 
 // ******************** Text body ******************** //
 

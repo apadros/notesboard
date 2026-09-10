@@ -75,19 +75,19 @@ GUIAppEntryPoint(instance) {
 		tb->background.height = GetTopMenu()->background.bottom - GetTitleBar()->container.height;
 
 		// Init buttons, starting at the top
-		tb->textHeight = ToolbarTextHeight;
-		ForAll(GetArrayLength(tb->buttons)) {
-			auto* b = tb->buttons + it;
-			b->background.width = ToobalIconWidth;
-			b->background.left = tb->background.left + tb->background.width / 2 - b->background.width / 2;
-			b->background.height = ToobalIconWidth;
-			b->background.bottom = tb->background.height - (ToolVerticalSpaceBetweenIcons + b->background.height + tb->textHeight * 2) * (it + 1);
-			b->textBottom = b->background.bottom - ToolbarTextHeight * 2;
+		button* buttons[] = { &tb->newNote, &tb->bulletPoint, &tb->noteTitle, &tb->colourPanel };
+		ForAll(GetArrayLength(buttons)) {
+			char* texts[] = { "Note", "Bullet point", "Note title", "Colour Panel" } ;
+			f32 width = ToobalIconWidth;
+			f32 height = ToobalIconWidth;
+			f32 textHeight = ToolbarTextHeight;
+			*(buttons[it]) = AllocateButton(tb->background.left + tb->background.width / 2 - width / 2, 
+																	 tb->background.height - (ToolVerticalSpaceBetweenIcons + height + textHeight * 2) * (it + 1), 
+																	 width, height, 
+																	 texts[it], textHeight,
+																	 ColourPanelButtonsHighlightRGBA);
 		}
-		tb->buttons[0].text = AllocateString("Note");
-		tb->buttons[1].text = AllocateString("Bullet point");
-		tb->buttons[2].text = AllocateString("Note Title");
-		tb->buttons[3].text = AllocateString("Colour Panel");
+		
 	}
 	
 	state.canvas.colour = CreateColourUI8(200, 200, 200);
@@ -493,7 +493,7 @@ GUIAppEntryPoint(instance) {
 			EndTextUpdate();
 
 		// @SECTION - Toolbar
-		if(Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[0].background) == true) { // Create new note
+		if(ButtonClicked(GetToolBar()->newNote, osState) == true) { // Create new note
 			auto pos = ConvertToCanvasSpace(0, osState.mousePos.y - NoteMinHeight / 2);
 			auto* n = CreateNote(pos, Null, Null);
 			state.notes.selected = n;
@@ -501,9 +501,9 @@ GUIAppEntryPoint(instance) {
 			state.notes.moving = true;
 			goto label_rendering;
 		}
-		else if(NoteTextIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[1].background) == true) // Add a bullet point
+		else if(NoteTextIsBeingUpdated() == true && ButtonClicked(GetToolBar()->bulletPoint, osState) == true) // Add a bullet point
 			InsertCharAtCursor(BulletPointChar); // Will check viability first
-		else if(GetCurrentNote() != Null && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[2].background) == true) { // Add a title to the currently selected note
+		else if(GetCurrentNote() != Null && ButtonClicked(GetToolBar()->noteTitle, osState) == true) { // Add a title to the currently selected note
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
 				auto textRec = GetTextRectangle(n->text);
@@ -512,7 +512,7 @@ GUIAppEntryPoint(instance) {
 				UpdateNoteContainers(n);
 			}
 		}
-		else if(GetColourPanel()->display == false && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, state.toolBar.buttons[3].background) == true) // Open colour panel
+		else if(GetColourPanel()->display == false && ButtonClicked(GetToolBar()->colourPanel, osState) == true) // Open colour panel
 			OpenColourPanel();
 
 		// @SECTION - Notes
@@ -711,13 +711,15 @@ GUIAppEntryPoint(instance) {
 		{
 			auto* tb = &state.toolBar;
 			DrawRectangleFull(UnpackRectangle(state.toolBar.background), 255, 255, 255, 1); // Background
-
-			ForAll(GetArrayLength(tb->buttons)) { // Buttons
-				auto* b = tb->buttons + it;
-				DrawRectangleFull(UnpackRectangle(b->background), 255, 0, 0, 1);
-				RenderText((char*)b->text, GetLength(b->text), GetCenter(b->background).x, b->textBottom, tb->textHeight, true);
+			
+			button* buttons[] = { &tb->newNote, &tb->bulletPoint, &tb->noteTitle, &tb->colourPanel };
+			ForAll(GetArrayLength(buttons)) { // Buttons
+				auto* b = buttons[it];
+				Render(*b, UIBorderThickness, osState.mousePos, false);
+				f32 bottom = b->rectangle.bottom - b->textHeight * 2;
+				RenderText(b->text, GetLength(b->text), GetCenter(b->rectangle).x, bottom, b->textHeight, true);
 			}
-
+			
 			// Draw separator
 			glLineWidth(UIBorderThickness);
 			glColor3f(0, 0, 0);
@@ -761,8 +763,8 @@ GUIAppEntryPoint(instance) {
 			DrawRectangleFull(UnpackRectangle(m->background), 146, 139, 183, 1);
 
 			// Render text
-			Render(m->save, Null, osState.mousePos);
-			Render(m->load, Null, osState.mousePos);
+			Render(m->save, Null, osState.mousePos, true);
+			Render(m->load, Null, osState.mousePos, true);
 
 			// Draw separators
 			glColor3f(1, 1, 1);
@@ -875,22 +877,22 @@ GUIAppEntryPoint(instance) {
 				DrawRectangleBorder(UnpackRectangle(panel->red.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->red);
 				RenderText("Red", Null, GetTopRight(panel->redArrowUp.rectangle).x + ColourPanelEdgeOffset, GetTextRectangle(panel->red).bottom, panel->red.textHeight, false);
-				Render(panel->redArrowUp, UIBorderThickness, osState.mousePos);
-				Render(panel->redArrowDown, UIBorderThickness, osState.mousePos);
+				Render(panel->redArrowUp, UIBorderThickness, osState.mousePos, false);
+				Render(panel->redArrowDown, UIBorderThickness, osState.mousePos, false);
 
 				// Green
 				DrawRectangleBorder(UnpackRectangle(panel->green.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->green);
 				RenderText("Green", Null, GetTopRight(panel->greenArrowUp.rectangle).x + ColourPanelEdgeOffset, GetTextRectangle(panel->green).bottom, panel->green.textHeight, false);
-				Render(panel->greenArrowUp, UIBorderThickness, osState.mousePos);
-				Render(panel->greenArrowDown, UIBorderThickness, osState.mousePos);
+				Render(panel->greenArrowUp, UIBorderThickness, osState.mousePos, false);
+				Render(panel->greenArrowDown, UIBorderThickness, osState.mousePos, false);
 
 				// Blue
 				DrawRectangleBorder(UnpackRectangle(panel->blue.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->blue);
 				RenderText("Blue", Null, GetTopRight(panel->blueArrowUp.rectangle).x + ColourPanelEdgeOffset, GetTextRectangle(panel->blue).bottom, panel->blue.textHeight, false);
-				Render(panel->blueArrowUp, UIBorderThickness, osState.mousePos);
-				Render(panel->blueArrowDown, UIBorderThickness, osState.mousePos);
+				Render(panel->blueArrowUp, UIBorderThickness, osState.mousePos, false);
+				Render(panel->blueArrowDown, UIBorderThickness, osState.mousePos, false);
 				
 				// if(panel->updatingCurrentColour == true || panel->updatingSlider == true)
 				// 	SetColourPanelRGBHexText(panel->currentColour);
@@ -940,13 +942,13 @@ GUIAppEntryPoint(instance) {
 					DrawCircleBorder(UnpackVector(f->center), f->radius * 1.25f, UIBorderThickness , 0, 0, 0);
 				}
 				
-				Render(panel->save, UIBorderThickness, osState.mousePos);
+				Render(panel->save, UIBorderThickness, osState.mousePos, true);
 				DrawRectangleBorder(UnpackRectangle(panel->save.rectangle), UIBorderThickness, 0, 0, 0);
 			}
 
 			// OK & cancel buttons
-			Render(panel->ok, UIBorderThickness, osState.mousePos);
-			Render(panel->cancel, UIBorderThickness, osState.mousePos);
+			Render(panel->ok, UIBorderThickness, osState.mousePos, true);
+			Render(panel->cancel, UIBorderThickness, osState.mousePos, true);
 		}
 		
 		// Draw cursor if needed

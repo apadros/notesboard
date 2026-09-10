@@ -42,6 +42,12 @@ bool 		  NoteHasTitle(note* n);
 bool 		  NoteMemoryIsInUse(note* n);
 void 		  UpdateNoteContainers(note* n); // Call after any updates to either text_body
 
+// ******************** Folders ******************** //
+
+struct folder {
+	memory_block notes;
+};
+
 // ******************** Misc ******************** //
 
 const ui8  TitleBarHeight = 100;
@@ -87,13 +93,11 @@ program_unique struct {
 	
 	struct {
 		rectangle background; // In viewport space
-		struct {
-			rectangle 	background;
-			const char* text;
-			ui16        textBottom;
-		} 						buttons[4];
-		ui16          textHeight;
-	} 							toolBar;
+		button    newNote;
+		button    bulletPoint;
+		button    noteTitle;
+		button    colourPanel;
+	} 					toolBar;
 	
 	struct { // All cords in UI viewport space
 		bool display;
