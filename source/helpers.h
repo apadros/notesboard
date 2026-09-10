@@ -23,16 +23,16 @@ struct note {
 	text_body text;  // Edges in canvas space
 };
 
-#define BeginNotesMemoryLoop(_varID) { ForAll(state.notes.memory.size / sizeof(note)) { \
-																		     note* _varID = (note*)state.notes.memory.memory + it;
-#define EndNotesMemoryLoop() 				 } }
+#define   BeginNotesMemoryLoop(_varID) { ForAll(state.notes.memory.size / sizeof(note)) { \
+				  														     note* _varID = (note*)state.notes.memory.memory + it;
+#define   EndNotesMemoryLoop() 				 } }
+				  
+#define   BeginNotesLoop(_varID) BeginNotesMemoryLoop(_varID)
+#define   EndNotesLoop() 				 EndNotesMemoryLoop()
 
-#define BeginNotesLoop(_varID) BeginNotesMemoryLoop(_varID)
-#define EndNotesLoop() 				 EndNotesMemoryLoop()
-
-note*   CreateNote(vector pos, const char* title, const char* text);
-note*   GetCurrentNote();
-note* 	SetCurrentNote(note* n); // Set n to Null to deselect current note
+note*     CreateNote(vector pos, const char* title, const char* text);
+note*     GetCurrentNote();
+note* 	  SetCurrentNote(note* n); // Set n to Null to deselect current note
 
 rectangle GetNoteOverallRectangle(note* n);
 bool 			NoteIsBeingUpdated();
@@ -45,8 +45,18 @@ void 		  UpdateNoteContainers(note* n); // Call after any updates to either text
 // ******************** Folders ******************** //
 
 struct folder {
+	vector       pos;
+	char* 			 text;
 	memory_block notes;
+	memory_block folders;
 };
+
+#define BeginFoldersMemoryLoop(_allocatedID, _folderID) { ForAll(state.folders.memory.size / (sizeof(b8) + sizeof(folder))) { \
+																													  void*   mem = (ui8*)state.folders.memory.memory + (sizeof(b8) + sizeof(folder)) * it; \
+																														b8*     _allocatedID = CastMemMovePtr(mem, b8); \
+																														folder* _folderID = (folder*)mem;
+#define EndFolderMemoryLoop() 													} }
+program_external folder* CreateFolder(vector pos, const char* text);
 
 // ******************** Misc ******************** //
 
@@ -97,6 +107,7 @@ program_unique struct {
 		button    bulletPoint;
 		button    noteTitle;
 		button    colourPanel;
+		button    createFolder;
 	} 					toolBar;
 	
 	struct { // All cords in UI viewport space
@@ -143,6 +154,13 @@ program_unique struct {
 		bool         moving;
 		bool 				 justCreated;
 	} 						 notes;
+	
+	struct {
+		memory_block memory;
+		note* 			 selected;
+		bool         moving;
+		bool 				 justCreated;
+	} 						 folders;
 } state;
 
 // Misc

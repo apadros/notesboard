@@ -51,7 +51,7 @@ GUIAppEntryPoint(instance) {
 	}
 	#endif
 	
-	// Init top menu
+	// @SECTION - Init top menu
 	{
 		auto* m = GetTopMenu();
 		m->background.left = 0;
@@ -62,11 +62,11 @@ GUIAppEntryPoint(instance) {
 		m->load = AllocateButton(TopMenuButtonWidth, m->background.bottom, TopMenuButtonWidth, TopMenuHeight, "Load", TopMenuTextHeight, 0, 0, 0, 1);
 	}
 
-	// Init title bar
+	// @SECTION - Init title bar
 	state.titleBar = AllocateTextBody(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, (TitleBarHeight - TitleBarTextHeight) / 2, TitleBarTextHeight, Null, TextBodyFlagLetters);
 	Insert("Title", GetLength("Title"), state.titleBar, 0);
 
-	// Init toolbar
+	// @SECTION - Init toolbar
 	{
 		auto* tb = &state.toolBar;
 		tb->background.left = 0;
@@ -75,9 +75,9 @@ GUIAppEntryPoint(instance) {
 		tb->background.height = GetTopMenu()->background.bottom - GetTitleBar()->container.height;
 
 		// Init buttons, starting at the top
-		button* buttons[] = { &tb->newNote, &tb->bulletPoint, &tb->noteTitle, &tb->colourPanel };
+		button* buttons[] = { &tb->newNote, &tb->bulletPoint, &tb->noteTitle, &tb->colourPanel, &tb->createFolder };
 		ForAll(GetArrayLength(buttons)) {
-			char* texts[] = { "Note", "Bullet point", "Note title", "Colour Panel" } ;
+			char* texts[] = { "Note", "Bullet point", "Note title", "Colour Panel", "Folder" } ;
 			f32 width = ToobalIconWidth;
 			f32 height = ToobalIconWidth;
 			f32 textHeight = ToolbarTextHeight;
@@ -514,6 +514,14 @@ GUIAppEntryPoint(instance) {
 		}
 		else if(GetColourPanel()->display == false && ButtonClicked(GetToolBar()->colourPanel, osState) == true) // Open colour panel
 			OpenColourPanel();
+		else if(ButtonClicked(GetToolBar()->createFolder, osState) == true) {
+			auto pos = ConvertToCanvasSpace(0, osState.mousePos.y - NoteMinHeight / 2);
+			auto* f = CreateFolder(pos, Null);
+			state.folders.selected = f;
+			state.folders.justCreated = true;
+			state.folders.moving = true;
+			goto label_rendering;
+		}
 
 		// @SECTION - Notes
 		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardless of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
@@ -703,6 +711,11 @@ GUIAppEntryPoint(instance) {
 			}
 		}
 		EndNotesLoop();
+		
+		// Render folders
+		{
+			// @WIP @TODO - Cycle through folders memory using BeingFoldersMemoryLoop() & render them
+		}
 
 		// Draw the overlying UI
 		SetGUIProjectionMatrix();
@@ -712,7 +725,7 @@ GUIAppEntryPoint(instance) {
 			auto* tb = &state.toolBar;
 			DrawRectangleFull(UnpackRectangle(state.toolBar.background), 255, 255, 255, 1); // Background
 			
-			button* buttons[] = { &tb->newNote, &tb->bulletPoint, &tb->noteTitle, &tb->colourPanel };
+			button* buttons[] = { &tb->newNote, &tb->bulletPoint, &tb->noteTitle, &tb->colourPanel, &tb->createFolder };
 			ForAll(GetArrayLength(buttons)) { // Buttons
 				auto* b = buttons[it];
 				Render(*b, UIBorderThickness, osState.mousePos, false);

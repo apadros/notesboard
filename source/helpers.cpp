@@ -54,6 +54,42 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 	return n;
 }
 
+program_external folder* CreateFolder(vector pos, const char* text) {
+	if(TextIsBeingUpdated() == true)
+		EndTextUpdate();
+
+	folder* f = Null;
+
+	// Search for a free slot
+	BeginFoldersMemoryLoop(allocated, folder) {
+		if(*allocated == false) {
+			f = folder;
+			*allocated = true;
+		}
+	EndFoldersMemoryLoop();
+		
+	// If not found, allocate more memory
+	if(f == Null) {
+		auto newBlock = AllocateMemory(state.folders.memory.size * 2);
+		Copy(state.folders.memory.memory, state.folders.memory.size, newBlock.memory);
+		Free(state.folders.memory);
+		state.folders.memory = newBlock;
+		void* mem = (ui8*)state.folders.memory.memory + state.folders.memory.size / 2;
+		b8* allocated = CaseMemMovePtr(mem, b8);
+		*allocated = true;
+		f = (folder*)mem;
+	}
+	Assert(f != Null);
+	Clear(f, sizeof(folder));
+
+	// Fill
+	f->pos = pos;
+	if(text != Null)
+		f->text = AllocateString(text, Null)
+
+	return f;
+}
+
 program_external void UpdateNoteContainers(note* n) {
 	Assert(n != Null);
 	
