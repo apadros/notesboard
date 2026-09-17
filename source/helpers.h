@@ -31,7 +31,7 @@ struct note {
 #define   EndNotesLoop() 				 EndNotesMemoryLoop()
 
 note*     CreateNote(vector pos, const char* title, const char* text);
-note*     GetCurrentNote();
+note*     GetCurrentNote(); // Will return Null if none
 note* 	  SetCurrentNote(note* n); // Set n to Null to deselect current note
 
 rectangle GetNoteOverallRectangle(note* n);
@@ -44,6 +44,8 @@ void 		  UpdateNoteContainers(note* n); // Call after any updates to either text
 
 // ******************** Folders ******************** //
 
+const ui8 FolderSize = 100;
+
 struct folder {
 	vector       pos;
 	char* 			 text;
@@ -55,7 +57,8 @@ struct folder {
 																													  void*   mem = (ui8*)state.folders.memory.memory + (sizeof(b8) + sizeof(folder)) * it; \
 																														b8*     _allocatedID = CastMemMovePtr(mem, b8); \
 																														folder* _folderID = (folder*)mem;
-#define EndFolderMemoryLoop() 													} }
+#define BreakFoldersMemoryLoop()													break
+#define EndFoldersMemoryLoop() 													} }
 program_external folder* CreateFolder(vector pos, const char* text);
 
 // ******************** Misc ******************** //
@@ -149,18 +152,18 @@ program_unique struct {
 	} colourPanel;
 
 	struct {
-		memory_block memory;
-		note* 			 selected;
-		bool         moving;
-		bool 				 justCreated;
-	} 						 notes;
+		memory_block  memory;
+		memory_offset selected;
+		bool          moving;
+		bool 				  justCreated;
+	} 						  notes;
 	
 	struct {
-		memory_block memory;
-		note* 			 selected;
-		bool         moving;
-		bool 				 justCreated;
-	} 						 folders;
+		memory_block  memory;
+		memory_offset selected;
+		bool          moving;
+		bool 				  justCreated;
+	} 						  folders;
 } state;
 
 // Misc

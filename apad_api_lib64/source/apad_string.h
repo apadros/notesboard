@@ -56,7 +56,7 @@ dll_import 			 char* ExtractSubstring( // Allocates a copy on API global memory
 																				ui16 				length); // Set to Null to extract until the null-character. If this is larger than the actual string length, extraction will stop after the null-character
 dll_import const char* FindSubstring(const char* sub, 
 																		 const char* string);
-dll_import 			 void  Free(char* string); // Only for strings allocated on API global memory
+dll_import 			 void  Free(void* string); // Only for strings allocated through this or the memroy APIs. Points to Free(void*) in apad_memory.cpp.
 dll_import 			 ui16  GetLength(const char* s); // Will return the length wihtout the null-character
 dll_import 			 char* Push( // If only a \0 is wanted, set string to Null and addEOS to true.
 														const char* 	string, 

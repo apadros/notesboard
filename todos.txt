@@ -6,7 +6,7 @@
 	
 Background
 	- Mac OS compatibility
-	- Fonts - currently investigating Win32 API use with limited success, might be best to use https://freetype.org/ @WIP
+	- Fonts - currently investigating Win32 API use with limited success, might be best to use https://freetype.org/
 		- There might be patent issues with regards to operations of certain sections of freetype, investigate
 	
 Colour panel
@@ -28,7 +28,7 @@ Functionality
 	- Setting a custom colour for the note background
 	- Boards / folders @WIP
 		- Collision detection
-		- Moving notes & other folders to once
+		- Moving notes & other folders to one
 		- 'Opening' one and going back to previous canvas
 		- Rendering @WIP
 	- Text container colours

@@ -61,21 +61,24 @@ program_external folder* CreateFolder(vector pos, const char* text) {
 	folder* f = Null;
 
 	// Search for a free slot
-	BeginFoldersMemoryLoop(allocated, folder) {
+	BeginFoldersMemoryLoop(allocated, ft) {
 		if(*allocated == false) {
-			f = folder;
+			f = ft;
 			*allocated = true;
+			BreakFoldersMemoryLoop();
 		}
+	}
 	EndFoldersMemoryLoop();
 		
 	// If not found, allocate more memory
 	if(f == Null) {
-		auto newBlock = AllocateMemory(state.folders.memory.size * 2);
-		Copy(state.folders.memory.memory, state.folders.memory.size, newBlock.memory);
-		Free(state.folders.memory);
-		state.folders.memory = newBlock;
-		void* mem = (ui8*)state.folders.memory.memory + state.folders.memory.size / 2;
-		b8* allocated = CaseMemMovePtr(mem, b8);
+		Assert(state.folders.memory.capacity == Null);
+		ui32 previousSize = state.folders.memory.size;
+		
+		Expand(state.folders.memory);
+		
+		void* mem = (ui8*)state.folders.memory.memory + previousSize;
+		b8* allocated = CastMemMovePtr(mem, b8);
 		*allocated = true;
 		f = (folder*)mem;
 	}
@@ -85,7 +88,7 @@ program_external folder* CreateFolder(vector pos, const char* text) {
 	// Fill
 	f->pos = pos;
 	if(text != Null)
-		f->text = AllocateString(text, Null)
+		f->text = AllocateString(text, Null);
 
 	return f;
 }
@@ -172,11 +175,18 @@ program_external bool TitleIsBeingUpdated() {
 }
 
 program_external note* GetCurrentNote() {
-	return state.notes.selected;
+	if(IsValid(state.notes.selected) == false)
+		return Null;
+	
+	return (note*)GetMemory(state.notes.selected);
 }
 
 program_external note* SetCurrentNote(note* n) {
-	return state.notes.selected = n;
+	if(n == Null)
+		ClearInstance(state.notes.selected);
+	else
+		state.notes.selected = GetOffset(n, state.notes.memory);
+	return n;
 }
 
 program_external bool NoteTextIsBeingUpdated() {
@@ -214,6 +224,8 @@ program_external void SetGUIProjectionMatrix() {
 	glLoadIdentity();
 	AssertOpenGL();
 
+	static ui32 counter = 0;
+	counter++;
 	auto size = Win32GetProgramWindowClientSize();
 	Assert(size.width > 0 && size.height > 0);
 	glOrtho(0, size.width, 0, size.height, -1, 1);

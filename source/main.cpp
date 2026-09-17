@@ -496,7 +496,7 @@ GUIAppEntryPoint(instance) {
 		if(ButtonClicked(GetToolBar()->newNote, osState) == true) { // Create new note
 			auto pos = ConvertToCanvasSpace(0, osState.mousePos.y - NoteMinHeight / 2);
 			auto* n = CreateNote(pos, Null, Null);
-			state.notes.selected = n;
+			SetCurrentNote(n);
 			state.notes.justCreated = true;
 			state.notes.moving = true;
 			goto label_rendering;
@@ -517,7 +517,7 @@ GUIAppEntryPoint(instance) {
 		else if(ButtonClicked(GetToolBar()->createFolder, osState) == true) {
 			auto pos = ConvertToCanvasSpace(0, osState.mousePos.y - NoteMinHeight / 2);
 			auto* f = CreateFolder(pos, Null);
-			state.folders.selected = f;
+			state.folders.selected = GetOffset(f, state.folders.memory);
 			state.folders.justCreated = true;
 			state.folders.moving = true;
 			goto label_rendering;
@@ -609,7 +609,7 @@ GUIAppEntryPoint(instance) {
 			state.notes.moving = false;
 
 			// If the note was just created, drop it outside of the toolbar
-			Assert(state.notes.selected != Null);
+			Assert(GetCurrentNote() != Null);
 			f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
 			if(GetCurrentNote()->text.container.pos.x < toolbarEdgeCanvas && state.notes.justCreated == true)
 				GetCurrentNote()->text.container.pos.x = toolbarEdgeCanvas;
@@ -620,7 +620,6 @@ GUIAppEntryPoint(instance) {
 			FreeText(GetCurrentNote()->text);
 			if(IsValid(GetCurrentNote()->title) == true)
 				FreeText(GetCurrentNote()->title);
-			Clear(state.notes.selected, sizeof(note));
 			SetCurrentNote(Null);
 		}
 		else if(NoteTitleIsBeingUpdated() == true && textUpdatePipelineData.wantToLeaveTextBodyDown == true) { // If we're updating a note title and want to move down, go to the text section
@@ -686,7 +685,7 @@ GUIAppEntryPoint(instance) {
 		BeginNotesMemoryLoop(n) {
 			if(NoteMemoryIsInUse(n) == true) {
 				bool draw = true;
-				if(state.notes.selected != Null && state.notes.selected == n && state.notes.justCreated == true) // Recently created notes will be drawn in front of the UI, further down
+				if(GetCurrentNote() == n && state.notes.justCreated == true) // Recently created notes will be drawn in front of the UI, further down
 					draw = false;
 
 				if(draw == true) {
@@ -713,9 +712,16 @@ GUIAppEntryPoint(instance) {
 		EndNotesLoop();
 		
 		// Render folders
-		{
+		#if 0
+		BeginFoldersMemoryLoop(allocated, f) {
 			// @WIP @TODO - Cycle through folders memory using BeingFoldersMemoryLoop() & render them
+			
+			if(*allocated == true) {
+				DrawRectangleFull(UnpackVector(f->pos), FolderSize, FolderSize, 0, 255, 0);
+			}
 		}
+		EndFoldersMemoryLoop();
+		#endif
 
 		// Draw the overlying UI
 		SetGUIProjectionMatrix();
@@ -761,7 +767,7 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// If a note was just created, draw in front of the tool bar
-		if(state.notes.selected != Null && state.notes.justCreated == true) {
+		if(GetCurrentNote() != Null && state.notes.justCreated == true) {
 			SetCanvasProjetionMatrix();
 			auto rec = GetNoteOverallRectangle(GetCurrentNote());
 			DrawRectangleFull(UnpackRectangle(rec), 255, 255, 255, 1);

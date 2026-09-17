@@ -17,25 +17,37 @@
 dll_import void Clear(void* memory, ui32 size);
 #define 				ClearInstance(_s) Clear(&(_s), sizeof(_s))
 dll_import void Copy(void* source, ui32 size, void* destination);
+#define         CopyInstance(_s, _destination) Copy(&(_s), sizeof(_s), _destination)
 
-// ******************** Memory blocks ******************** //
+// ******************** Memory block and offset ******************** //
 
 struct memory_block {
-  void* memory;
+  void* memory; // Never store this! Store the whole memory_block
   ui32  size;
 	ui32  capacity; // Stack functionality, will == 0 if not used this way
 };
 #define NullMemoryBlock memory_block()
 
-typedef memory_block memory_stack;
-
-dll_import memory_block AllocateMemory(ui32 size);
-dll_import void*        GetMemory(memory_block block);
+dll_import memory_block AllocateMemory(ui32 size); // Pointer to block in global API memory
+dll_import void 			  Expand(memory_block& b); // Works for memory_stacks too. Will allocate new block with size or capacity * 2
 dll_import void         Free(memory_block& block); // Clears block afterwards
+dll_import void         Free(void* memory); // Only for memory allocated through this API or at the OS level
 dll_import bool         IsValid(memory_block block);
-dll_import void         SetInvalid(memory_block& block);
+dll_import void         SetInvalid(memory_block& block); // Will not free memory
+
+// Use this to store pointers into memory_blocks since the latter's memory may be reallocated through its lifecycle
+struct memory_offset {
+	memory_block* block;
+	ui32          offset;
+};
+
+dll_import memory_offset GetOffset(void* memory, memory_block& block);
+dll_import void* 	 			 GetMemory(memory_offset offset);
+dll_import bool 				 IsValid(memory_offset offset);
 
 // ******************** Stack functionality ******************** //
+
+typedef memory_block memory_stack;
 
 dll_import memory_stack AllocateStack(ui32 capacity = Null);
 dll_import void 				Free(memory_stack& stack);
