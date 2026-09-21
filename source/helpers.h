@@ -48,7 +48,7 @@ const ui8 FolderSize = 100;
 
 struct folder {
 	vector       pos;
-	char* 			 text;
+	text_body 	 text; // Container pos & size need to be checked separately from the folder itself
 	memory_block notes;
 	memory_block folders;
 };
@@ -170,6 +170,7 @@ program_unique struct {
 #define GetTitleBar() (&state.titleBar)
 #define GetToolBar() 	(&state.toolBar)
 #define GetTopMenu() 	(&state.topMenu)
+bool 		MouseIsWithinCanvasSpace(win32_state& osState);
 bool    MouseIsWithinToolbar(win32_state& osState);
 bool    MouseOverlapsCanvas(win32_state& osState, rectangle& r);
 bool    MouseOverlapsGUI(win32_state& osState, rectangle& r);

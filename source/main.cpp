@@ -93,6 +93,7 @@ GUIAppEntryPoint(instance) {
 	state.canvas.colour = CreateColourUI8(200, 200, 200);
 	
 	state.notes.memory = AllocateMemory(sizeof(note) * 10);
+	state.folders.memory = AllocateMemory(sizeof(folder) * 10);
 
 	while(true) {
 		auto osState = Win32BeginGUIUpdateLoop();
@@ -435,7 +436,6 @@ GUIAppEntryPoint(instance) {
 					}
 					
 					// Extract custom colours
-					// Store custom colours
 					{
 						auto* panel = GetColourPanel();
 						
@@ -528,6 +528,7 @@ GUIAppEntryPoint(instance) {
 			auto* previouslySelected = GetCurrentNote();
 			SetCurrentNote(Null);
 
+			// Set current note
 			BeginNotesLoop(n) {
 				if(NoteMemoryIsInUse(n) == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(n)) == true) {
 					SetCurrentNote(n);
@@ -537,10 +538,7 @@ GUIAppEntryPoint(instance) {
 			}
 			EndNotesLoop();
 
-			// If we selected a different note or text was being written elsewhere, end writing first
-			if(TextIsBeingUpdated() == true && (GetCurrentNote() == Null || previouslySelected != GetCurrentNote()))
-				EndTextUpdate();
-
+			// Decide whether to update the title of the text body
 			if(GetCurrentNote() != Null) {
 				auto* n = GetCurrentNote();
 
@@ -589,8 +587,7 @@ GUIAppEntryPoint(instance) {
 			Assert(n != Null);
 
 			// Mouse moves in viewport space
-			vector newPosCanvas = { n->text.container.pos.x + (f32)osState.mouseTranslation.x / state.canvas.scale,
-														  n->text.container.pos.y + (f32)osState.mouseTranslation.y / state.canvas.scale };
+			vector newPosCanvas = n->text.container.pos + ConvertToCanvasSpace(osState.mouseTranslation);
 
 			// When moving a new note outside of the toolbar, ensure it can't be moved back in
 			if(state.notes.justCreated == true) {
@@ -655,6 +652,50 @@ GUIAppEntryPoint(instance) {
 		if(NoteTextIsBeingUpdated() == true || NoteTitleIsBeingUpdated() == true)
 			UpdateNoteContainers(GetCurrentNote());
 		
+		// @SECTION - Folders
+		if(Win32MouseLeftDownThisFrame(osState) == true && MouseIsWithinCanvasSpace(osState) == true) { // Check for selection
+			vector mousePos = ConvertToCanvasSpace(osState.mousePos);
+			BeginFoldersMemoryLoop(allocated, f) {
+				if(Overlap(UnpackVector(mousePos), UnpackVector(f->pos), FolderSize, FolderSize) == true) {
+					if(TextIsBeingUpdated() == true && IsBeingUpdated(f->text) == true)
+						EndTextUpdate();
+					
+					state.folders.selected = GetOffset(f, state.folders.memory);
+					state.folders.moving = true;
+					
+					BreakFoldersMemoryLoop();
+				}
+			}
+			EndFoldersMemoryLoop()
+		}
+		else if(state.folders.moving == true) { // Moving
+			auto* f = (folder*)GetMemory(state.folders.selected);
+			Assert(f != Null);
+			
+			if(osState.mouseLeftDown == true) { // Moving
+				// When moving a new folder outside of the toolbar, ensure it can't be moved back in
+				vector newPosCanvas = f->pos + ConvertToCanvasSpace(osState.mouseTranslation);
+				
+				if(state.folders.justCreated == true) {
+					f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
+					if(newPosCanvas.x >= toolbarEdgeCanvas)
+						state.folders.justCreated = false;
+				}
+				
+				f->pos = newPosCanvas;
+			}
+			else { // Dop
+				state.folders.moving = false;
+	
+				// If the folderwas just created, drop it outside of the toolbar
+				f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
+				if(f->pos.x < toolbarEdgeCanvas && state.folders.justCreated == true)
+					f->pos.x = toolbarEdgeCanvas;
+	
+				state.folders.justCreated = false;
+			}
+		}
+		
 		// @SECTION - Update scaling
 		if(osState.mouseWheelRotation != 0.0f) {
 			auto mousePosPre = ConvertToCanvasSpace(osState.mousePos);
@@ -711,17 +752,13 @@ GUIAppEntryPoint(instance) {
 		}
 		EndNotesLoop();
 		
-		// Render folders
-		#if 0
+		// @SECTION - Render folders
 		BeginFoldersMemoryLoop(allocated, f) {
-			// @WIP @TODO - Cycle through folders memory using BeingFoldersMemoryLoop() & render them
-			
 			if(*allocated == true) {
 				DrawRectangleFull(UnpackVector(f->pos), FolderSize, FolderSize, 0, 255, 0);
 			}
 		}
 		EndFoldersMemoryLoop();
-		#endif
 
 		// Draw the overlying UI
 		SetGUIProjectionMatrix();
@@ -772,6 +809,13 @@ GUIAppEntryPoint(instance) {
 			auto rec = GetNoteOverallRectangle(GetCurrentNote());
 			DrawRectangleFull(UnpackRectangle(rec), 255, 255, 255, 1);
 			DrawRectangleBorder(UnpackRectangle(rec), UIBorderThickness, 0, 0, 0);
+		}
+		
+		// If a folde was just created, draw in front of the tool bar
+		if(GetMemory(state.folders.selected) != Null && state.folders.justCreated == true) {
+			SetCanvasProjetionMatrix();
+			auto* f = (folder*)GetMemory(state.folders.selected);
+			DrawRectangleFull(UnpackVector(f->pos), FolderSize, FolderSize, 0, 255, 0);
 		}
 
 		// @SECTION - Render top menu
