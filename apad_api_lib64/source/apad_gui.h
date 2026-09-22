@@ -92,7 +92,7 @@ dll_import void 		 FreeText(text_body& tb);
 dll_import char* 		 FindChar(char c, ui16 pos, bool scanForward, text_body& tb);
 dll_import char* 		 GetText(text_body& tb);
 dll_import ui32 		 GetTextLength(text_body& tb);
-dll_import rectangle GetTextRectangle(text_body& tb); // Will have a min height of tb.textHeight, width will be 0 if it doesn't contain any text																 
+dll_import rectangle GetTextRectangle(text_body& tb); // Will have a min height of tb.textHeight, width will be 0 if it doesn't contain any text. Absolute coords.
 dll_import ui16      Insert(char* string, ui32 length, text_body& tb, ui32 pos); // Returns chars inserted
 dll_import bool 		 IsValid(text_body& tb);
 dll_import void 		 RemoveChar(text_body& tb, ui32 pos);
@@ -103,7 +103,7 @@ dll_import void 		 Render(text_body& tb);
 const ui8 BulletPointChar = '\b';
 const ui8 NewlineChar = 		'\n';
 
-dll_import void  BeginTextUpdate(text_body& text); // Calls EndTextUpdate() first, will place the cursor at the end of the text body
+dll_import void  BeginTextUpdate(text_body& text, vector mousePos); // Checks if text is already being updated and calls EndTextUpdate() if not
 dll_import void  EndTextUpdate();
 dll_import f32 	 GetTextLineHeight(f32 textHeight);
 dll_import bool  IsBeingUpdated(text_body& tb);
@@ -127,9 +127,8 @@ dll_import text_update_pipeline_data RunTextUpdatePipeline(win32_state& osState)
 dll_import f32    GetCursorAlphaValue();
 dll_import vector GetCursorPos(); // Will be relative to the bottom-left of the current text body
 dll_import void   MoveCursor(si8 charOffset); // Current offset clamped between 0 and current text_body length
-dll_import void   SetCursorCharOffset(ui16 offset); // Offset clamped to current text_body length
-
-dll_import void 	_SetCursorPos(f32 x, f32 y); // Coords are relative to text_body origin, will be clamped to within its boundaries.
+dll_import void   _SetCursorPos(si16 charOffset); // charOffset clamped to current text_body length. Set to -1 to place at the end of the text_body
+dll_import void 	_SetCursorPos(f32 x, f32 y); // Coords are absolute, will be clamped to within its boundaries. Set them both to Null to place cursor at the end of the text_body
 #define           SetCursorPos _SetCursorPos // Windows already has a SetCursorPos function
 
 // ******************** Rendering ******************** //

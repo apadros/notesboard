@@ -87,8 +87,11 @@ program_external folder* CreateFolder(vector pos, const char* text) {
 
 	// Fill
 	f->pos = pos;
-	if(text != Null)
-		f->text = AllocateString(text, Null);
+	f->text = AllocateTextBody(pos.x, pos.y, FolderSize, NoteTextBorder, NoteTextHeight, Null, TextBodyFlagLetters); 
+	if(text == Null)
+		Insert("Folder", GetLength("Folder"), f->text, Null);
+	else
+		Insert((char*)text, GetLength(text), f->text, Null);
 
 	return f;
 }

@@ -211,13 +211,13 @@ GUIAppEntryPoint(instance) {
 				}
 			}
 			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->red.container) == true) // Interact with red field
-				BeginTextUpdate(panel->red);
+				BeginTextUpdate(panel->red, NullVector);
 			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->green.container) == true) // Interact with green field
-				BeginTextUpdate(panel->green);
+				BeginTextUpdate(panel->green, NullVector);
 			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->blue.container) == true) // Interact with blue field
-				BeginTextUpdate(panel->blue);
+				BeginTextUpdate(panel->blue, NullVector);
 			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->hex.container) == true) // Interact with hex field
-				BeginTextUpdate(panel->hex);
+				BeginTextUpdate(panel->hex, NullVector);
 			else if( // Begin outer colour wheel update
 							Win32MouseLeftDownThisFrame(osState) == true && 
 							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().height / 2) == true && 
@@ -477,15 +477,7 @@ GUIAppEntryPoint(instance) {
 		// @SECTION - Title bar
 		if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, GetTitleBar()->container) == true) {
 			auto* tb = GetTitleBar();
-
-			if(TextIsBeingUpdated() == true && TitleIsBeingUpdated() == false)
-				EndTextUpdate();
-			
-			if(TitleIsBeingUpdated() == false)
-				BeginTextUpdate(*tb);
-
-			SetCursorPos(UnpackVector(osState.mousePos - GetTextRectangle(*tb).pos));
-			
+			BeginTextUpdate(*tb, osState.mousePos);
 			goto label_rendering;
 		}
 		else if( // Clicking out of the title bar while updating it
@@ -544,22 +536,12 @@ GUIAppEntryPoint(instance) {
 
 				auto mousePosCanvas = ConvertToCanvasSpace(osState.mousePos);
 				if(NoteHasTitle(n) == true && MouseOverlapsCanvas(osState, n->title.container) == true) { // Update title
-					BeginTextUpdate(GetCurrentNote()->title);
-
-					// Position mouse cursor more precisely
-					f32 x = mousePosCanvas.x - GetTextRectangle(n->title).left;
-					SetCursorPos(x, 0);
-					
+					BeginTextUpdate(GetCurrentNote()->title, mousePosCanvas);
 					goto label_rendering;
 				}
 				else if(MouseOverlapsCanvas(osState, n->text.container) == true) { // Update text
 					auto* n = GetCurrentNote();
-
-					BeginTextUpdate(n->text);
-
-					vector pos = mousePosCanvas - GetTextRectangle(n->text).pos;
-					SetCursorPos(pos.x, pos.y);
-					
+					BeginTextUpdate(n->text, mousePosCanvas);					
 					goto label_rendering;
 				}
 			}
@@ -624,8 +606,7 @@ GUIAppEntryPoint(instance) {
 
 			f32 cursorXAbs = GetTextRectangle(n->title).left + GetCursorPos().x;
 
-			EndTextUpdate();
-			BeginTextUpdate(n->text);
+			BeginTextUpdate(n->text, NullVector);
 
 			auto textRec = GetTextRectangle(n->text);
 			f32 xRel = cursorXAbs - textRec.left;
@@ -637,8 +618,7 @@ GUIAppEntryPoint(instance) {
 
 			f32 cursorXAbs = GetTextRectangle(n->text).left + GetCursorPos().x;
 
-			EndTextUpdate();
-			BeginTextUpdate(n->title);
+			BeginTextUpdate(n->title, NullVector);
 
 			f32 xRel = cursorXAbs - GetTextRectangle(n->title).left;
 			f32 yRel = GetTextRectangle(n->text).height;

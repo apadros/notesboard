@@ -42,7 +42,7 @@ struct memory_offset {
 };
 
 dll_import memory_offset GetOffset(void* memory, memory_block& block);
-dll_import void* 	 			 GetMemory(memory_offset offset);
+dll_import void* 	 			 GetMemory(memory_offset offset); // Will return Null if offset is invalid
 dll_import bool 				 IsValid(memory_offset offset);
 
 // ******************** Stack functionality ******************** //

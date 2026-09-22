@@ -19,6 +19,7 @@ struct vector {
 	dll_import vector operator-(vector& v);
 	dll_import void   operator+=(vector& v);
 	dll_import void   operator-=(vector& v);
+	dll_import void   operator==(vector& v);
 	dll_import vector operator*(f32 f);
 	dll_import vector operator/(f32 f);
 };
@@ -59,6 +60,7 @@ dll_import vector    GetTopRight(rectangle& r);
 dll_import f32       LERP(f32 min, f32 max, f32 perc); // Linear interpolation
 dll_export f32 			 Magnitude(f32 f);
 dll_export f32 			 Magnitude(vector& v);
+#define               NullVector CreateVector(Null, Null)
 dll_import bool      Overlap(f32 x0, f32 y0, f32 left1, f32 bottom1, f32 width1, f32 height1); // Point-rectangle collision detection
 dll_import bool 		 Overlap(f32 x0, f32 y0, f32 x1, f32 y1, f32 testDistance); // Circle-circle collision detection
 dll_import f32       RoundToNearestInteger(f32 value);
