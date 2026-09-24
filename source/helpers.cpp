@@ -87,7 +87,7 @@ program_external folder* CreateFolder(vector pos, const char* text) {
 
 	// Fill
 	f->pos = pos;
-	f->text = AllocateTextBody(pos.x, pos.y, FolderSize, NoteTextBorder, NoteTextHeight, Null, TextBodyFlagLetters); 
+	f->text = AllocateTextBody(pos.x, pos.y - NoteTextHeight - NoteTextBorder * 2, FolderSize, NoteTextBorder, NoteTextHeight, Null, TextBodyFlagLetters); 
 	if(text == Null)
 		Insert("Folder", GetLength("Folder"), f->text, Null);
 	else
@@ -575,4 +575,28 @@ program_external colour GetColourPanelWheelColour(f32 angle) {
 	}
 	
 	return CreateColourF32(red, green, blue);
+}
+
+program_external void DeleteNote(note* n) {
+	if(IsValid(n->title) == true)
+		FreeText(n->title);
+	FreeText(n->text);
+	Clear(n, sizeof(note));
+}
+
+program_external bool MouseOverlapsFolder(win32_state& osState) {
+	if(MouseIsWithinCanvasSpace(osState) == false)
+		return false;
+	
+	auto mousePos = ConvertToCanvasSpace(osState.mousePos);
+	BeginFoldersMemoryLoop(allocated, f) {
+		if(*allocated == true) {
+			Assert(IsValid(f->text) == true);
+			if(Overlap(UnpackVector(mousePos), UnpackVector(f->pos), FolderSize, FolderSize) == true || Overlap(UnpackVector(mousePos), UnpackRectangle(GetTextRectangle(f->text))) == true) // The folder itself or the text
+				return f;
+		}
+	}
+	EndFoldersMemoryLoop()
+	
+	return Null;
 }

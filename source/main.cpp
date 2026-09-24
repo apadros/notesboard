@@ -578,6 +578,7 @@ GUIAppEntryPoint(instance) {
 					state.notes.justCreated = false;
 			}
 
+			// Move
 			n->text.container.pos = newPosCanvas;
 			if(NoteHasTitle(n) == true) {
 				n->title.container.left = n->text.container.left;
@@ -585,15 +586,26 @@ GUIAppEntryPoint(instance) {
 			}
 		}
 		else if(state.notes.moving == true && osState.mouseLeftDown == false) { // Drop
+			auto* n = GetCurrentNote();
+			Assert(n != Null);
+			
 			state.notes.moving = false;
 
 			// If the note was just created, drop it outside of the toolbar
 			Assert(GetCurrentNote() != Null);
 			f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
-			if(GetCurrentNote()->text.container.pos.x < toolbarEdgeCanvas && state.notes.justCreated == true)
-				GetCurrentNote()->text.container.pos.x = toolbarEdgeCanvas;
+			if(n->text.container.pos.x < toolbarEdgeCanvas && state.notes.justCreated == true)
+				n->text.container.pos.x = toolbarEdgeCanvas;
 
 			state.notes.justCreated = false;
+			
+			// Check if dropped into a folder
+			auto* f = MouseOverlapsFolder(osState);
+			if(f != Null) {
+				// @WIP
+				// @TODO - Set target global memory, will need to do this when opening folders anyway
+				// @TODO - Move note memory 
+			}
 		}
 		else if(GetCurrentNote() != Null && TextIsBeingUpdated() == false && (osState.deletePressed == true || osState.backspacePressed == true)) { // Delete note
 			FreeText(GetCurrentNote()->text);
@@ -635,18 +647,35 @@ GUIAppEntryPoint(instance) {
 		// @SECTION - Folders
 		if(Win32MouseLeftDownThisFrame(osState) == true && MouseIsWithinCanvasSpace(osState) == true) { // Check for selection
 			vector mousePos = ConvertToCanvasSpace(osState.mousePos);
+			bool selected = false;
 			BeginFoldersMemoryLoop(allocated, f) {
-				if(Overlap(UnpackVector(mousePos), UnpackVector(f->pos), FolderSize, FolderSize) == true) {
-					if(TextIsBeingUpdated() == true && IsBeingUpdated(f->text) == true)
-						EndTextUpdate();
-					
-					state.folders.selected = GetOffset(f, state.folders.memory);
-					state.folders.moving = true;
-					
-					BreakFoldersMemoryLoop();
+				if(*allocated == true) {
+					Assert(IsValid(f->text) == true);
+					if(Overlap(UnpackVector(mousePos), UnpackVector(f->pos), FolderSize, FolderSize) == true) { // Select folder itself
+						if(TextIsBeingUpdated() == true)
+							EndTextUpdate();
+						state.folders.selected = GetOffset(f, state.folders.memory);
+						state.folders.moving = true;
+						selected = true;
+						BreakFoldersMemoryLoop();
+					}
+					else if(Overlap(UnpackVector(mousePos), UnpackRectangle(GetTextRectangle(f->text))) == true) { // Rename
+						BeginTextUpdate(f->text, mousePos);
+						state.folders.selected = GetOffset(f, state.folders.memory);
+						selected = true;
+						BreakFoldersMemoryLoop();
+					}
 				}
 			}
 			EndFoldersMemoryLoop()
+			
+			if(selected == false)
+				SetInvalid(state.folders.selected);
+		}
+		else if(IsValid(state.folders.selected) == true && textUpdatePipelineData.bodyBeingUpdatedThisFrame == &(((folder*)GetMemory(state.folders.selected))->text) == true) { // If EndTextUpdate() is called while editing a folder's text
+			auto* f = (folder*)GetMemory(state.folders.selected);
+			if(GetTextLength(f->text) == 0)
+				Insert("Folder", 6, f->text, 0);
 		}
 		else if(state.folders.moving == true) { // Moving
 			auto* f = (folder*)GetMemory(state.folders.selected);
@@ -662,15 +691,19 @@ GUIAppEntryPoint(instance) {
 						state.folders.justCreated = false;
 				}
 				
-				f->pos = newPosCanvas;
+				vector delta = newPosCanvas - f->pos;
+				f->pos += delta;
+				f->text.container.pos += delta;
 			}
-			else { // Dop
+			else { // Drop
 				state.folders.moving = false;
 	
 				// If the folderwas just created, drop it outside of the toolbar
 				f32 toolbarEdgeCanvas = ConvertToCanvasSpace(state.toolBar.background.left + state.toolBar.background.width, Null).x;
-				if(f->pos.x < toolbarEdgeCanvas && state.folders.justCreated == true)
+				if(f->pos.x < toolbarEdgeCanvas && state.folders.justCreated == true) {
 					f->pos.x = toolbarEdgeCanvas;
+					f->text.container.left = toolbarEdgeCanvas;
+				}
 	
 				state.folders.justCreated = false;
 			}
@@ -736,6 +769,8 @@ GUIAppEntryPoint(instance) {
 		BeginFoldersMemoryLoop(allocated, f) {
 			if(*allocated == true) {
 				DrawRectangleFull(UnpackVector(f->pos), FolderSize, FolderSize, 0, 255, 0);
+				Assert(IsValid(f->text) == true);
+				Render(f->text);
 			}
 		}
 		EndFoldersMemoryLoop();

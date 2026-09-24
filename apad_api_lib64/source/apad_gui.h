@@ -77,6 +77,7 @@ const ui8 TextBodyFlagBulletPoints = 1 << 1;
 const ui8 TextBodyFlagNewlines = 		 1 << 2;
 const ui8 TextBodyFlagLeftAligned =  1 << 3; // If not present text is assumed to be center-aligned
 
+// Do not create copies is the memory pointer to by the memory_stack will be the same
 struct text_body {
 	memory_stack memory;
 	rectangle    container;
@@ -90,7 +91,7 @@ dll_import text_body AllocateTextBody(f32 left, f32 bottom, f32 width, f32 textB
 dll_import void 		 ClearText(text_body& tb);
 dll_import void 		 FreeText(text_body& tb);
 dll_import char* 		 FindChar(char c, ui16 pos, bool scanForward, text_body& tb);
-dll_import char* 		 GetText(text_body& tb);
+dll_import char* 		 GetText(text_body& tb); // Do not use this to check for presence of text in text_body memory
 dll_import ui32 		 GetTextLength(text_body& tb);
 dll_import rectangle GetTextRectangle(text_body& tb); // Will have a min height of tb.textHeight, width will be 0 if it doesn't contain any text. Absolute coords.
 dll_import ui16      Insert(char* string, ui32 length, text_body& tb, ui32 pos); // Returns chars inserted

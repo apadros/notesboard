@@ -62,6 +62,7 @@ dll_export f32 			 Magnitude(f32 f);
 dll_export f32 			 Magnitude(vector& v);
 #define               NullVector CreateVector(Null, Null)
 dll_import bool      Overlap(f32 x0, f32 y0, f32 left1, f32 bottom1, f32 width1, f32 height1); // Point-rectangle collision detection
+dll_import bool 		 Overlap(f32 left1, f32 bottom1, f32 width1, f32 height1, f32 left2, f32 bottom2, f32 width2, f32 height2); // Rectangle-rectangle collision detection
 dll_import bool 		 Overlap(f32 x0, f32 y0, f32 x1, f32 y1, f32 testDistance); // Circle-circle collision detection
 dll_import f32       RoundToNearestInteger(f32 value);
 dll_import f32 			 Sine(f32 degs);

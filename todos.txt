@@ -27,12 +27,8 @@ Functionality
 		- Change the mouse image to the cursor and back
 	- Setting a custom colour for the note background
 	- Boards / folders @WIP
-		- Moving notes & other folders to one
+		- Moving notes & other folders to one @WIP
 		- 'Opening' one and going back to previous canvas
-		- Adding text to them underneath
-			- Give them default "folder" text, do not allow text_field to ever be empty
-				- If text updated and deleted by the user, resort to default "folder" text
-		- Rendering the text underneath
 	- Text container colours
 	- Horizontal (main) menu under the program title bar
 		- Bug where option continues to be highlighted when moving the mouse to the window title

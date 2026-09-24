@@ -31,6 +31,7 @@ struct note {
 #define   EndNotesLoop() 				 EndNotesMemoryLoop()
 
 note*     CreateNote(vector pos, const char* title, const char* text);
+void 			DeleteNote(note* n);
 note*     GetCurrentNote(); // Will return Null if none
 note* 	  SetCurrentNote(note* n); // Set n to Null to deselect current note
 
@@ -59,7 +60,9 @@ struct folder {
 																														folder* _folderID = (folder*)mem;
 #define BreakFoldersMemoryLoop()													break
 #define EndFoldersMemoryLoop() 													} }
+
 program_external folder* CreateFolder(vector pos, const char* text);
+program_external folder* MouseOverlapsFolder(win32_state& osState); // Will return Null if none
 
 // ******************** Misc ******************** //
 

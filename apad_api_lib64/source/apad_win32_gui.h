@@ -14,7 +14,7 @@ dll_import void Win32InitGUI(const char* windowTitle /* Can be set to Null */, H
 struct win32_state {
 	bool mouseLeftDown; // If false it is up
 	bool mouseRightDown; // If false it is up
-	bool mouseLeftDoubleClick; // Check this before mouseLeftDown
+	bool mouseLeftDoubleClick; // This will be true at the same time as Win32MouseLeftDownThisFrame()
 	
 	bool   mouseMoved;
 	vector mousePos;
