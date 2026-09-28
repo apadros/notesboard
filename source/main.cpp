@@ -602,9 +602,14 @@ GUIAppEntryPoint(instance) {
 			// Check if dropped into a folder
 			auto* f = MouseOverlapsFolder(osState);
 			if(f != Null) {
-				// @WIP
-				// @TODO - Set target global memory, will need to do this when opening folders anyway
-				// @TODO - Move note memory 
+				// Temporarily switch to target folder and create new note, then delete old one
+				PushDirectory(f);
+				char* title = Null;
+				if(NoteHasTitle(n) == true)
+					title = GetText(n->title);
+				CreateNote(NullVector, title, GetText(n->text)); // Create on target folder memory
+				PopDirectory();
+				DeleteNote(n);
 			}
 		}
 		else if(GetCurrentNote() != Null && TextIsBeingUpdated() == false && (osState.deletePressed == true || osState.backspacePressed == true)) { // Delete note

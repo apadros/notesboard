@@ -77,7 +77,7 @@ const ui8 TextBodyFlagBulletPoints = 1 << 1;
 const ui8 TextBodyFlagNewlines = 		 1 << 2;
 const ui8 TextBodyFlagLeftAligned =  1 << 3; // If not present text is assumed to be center-aligned
 
-// Do not create copies is the memory pointer to by the memory_stack will be the same
+// Do not create copies as the memory pointer to by the memory_stack will be the same
 struct text_body {
 	memory_stack memory;
 	rectangle    container;

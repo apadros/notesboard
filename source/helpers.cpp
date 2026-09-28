@@ -16,6 +16,7 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 
 	note* n = Null;
 
+	// @WIP	- This section needs to be automated - pool allocate mechanics when not enough memory
 	// Search for a free slot
 	BeginNotesMemoryLoop(t) {
 		if(NoteMemoryIsInUse(t) == false) {
@@ -584,9 +585,9 @@ program_external void DeleteNote(note* n) {
 	Clear(n, sizeof(note));
 }
 
-program_external bool MouseOverlapsFolder(win32_state& osState) {
+program_external folder* MouseOverlapsFolder(win32_state& osState) {
 	if(MouseIsWithinCanvasSpace(osState) == false)
-		return false;
+		return Null;
 	
 	auto mousePos = ConvertToCanvasSpace(osState.mousePos);
 	BeginFoldersMemoryLoop(allocated, f) {
@@ -599,4 +600,34 @@ program_external bool MouseOverlapsFolder(win32_state& osState) {
 	EndFoldersMemoryLoop()
 	
 	return Null;
+}
+
+program_external void PushDirectory(folder* f) {
+	Assert(f != Null);
+	
+	PushInstance(state.notes.memory, state.directories);
+	PushInstance(state.folders.memory, state.directories);
+	
+	SetInvalid(state.notes.selected);
+	ClearInstance(state.notes);
+	SetInvalid(state.folders.selected);
+	ClearInstance(state.folders);
+	
+	state.notes.memory = f->notes;
+	state.folders.memory = f->folders;
+	
+	// @TODO - Copy the target folder text onto title bar / somewhere and add go back button
+}
+
+program_external void PopDirectory() {
+	ui32 totalSize = sizeof(state.notes.memory) + sizeof(state.folders.memory);
+	if(state.directories.size >= totalSize) {
+		void* mem = (ui8*)state.directories.memory + state.directories.size - totalSize;
+		Copy(mem, totalSize / 2, &(state.notes.memory));
+		MovePtr(mem, sizeof(memory_block));
+		Copy(mem, totalSize / 2, &(state.folders.memory));
+		Pop(totalSize, state.directories);
+	}
+	
+	// @TODO - Pop folder text from target space above canvas
 }

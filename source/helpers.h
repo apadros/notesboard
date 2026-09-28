@@ -43,7 +43,7 @@ bool 		  NoteHasTitle(note* n);
 bool 		  NoteMemoryIsInUse(note* n);
 void 		  UpdateNoteContainers(note* n); // Call after any updates to either text_body
 
-// ******************** Folders ******************** //
+// ******************** Folders & Directories ******************** //
 
 const ui8 FolderSize = 100;
 
@@ -61,8 +61,11 @@ struct folder {
 #define BreakFoldersMemoryLoop()													break
 #define EndFoldersMemoryLoop() 													} }
 
-program_external folder* CreateFolder(vector pos, const char* text);
-program_external folder* MouseOverlapsFolder(win32_state& osState); // Will return Null if none
+folder* CreateFolder(vector pos, const char* text);
+folder* MouseOverlapsFolder(win32_state& osState); // Will return Null if none
+
+void PopDirectory();
+void PushDirectory(folder* f);
 
 // ******************** Misc ******************** //
 
@@ -167,6 +170,8 @@ program_unique struct {
 		bool          moving;
 		bool 				  justCreated;
 	} 						  folders;
+	
+	memory_stack directories; // Keep track of folders opened
 } state;
 
 // Misc

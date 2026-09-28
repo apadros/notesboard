@@ -28,7 +28,7 @@ struct memory_block {
 };
 #define NullMemoryBlock memory_block()
 
-dll_import memory_block AllocateMemory(ui32 size); // Pointer to block in global API memory
+dll_import memory_block AllocateMemory(ui32 size); // No need to call as Push() will call it on first use unless strict memory capacity is required
 dll_import void 			  Expand(memory_block& b); // Works for memory_stacks too. Will allocate new block with size or capacity * 2
 dll_import void         Free(memory_block& block); // Clears block afterwards
 dll_import void         Free(void* memory); // Only for memory allocated through this API or at the OS level
@@ -54,12 +54,15 @@ dll_import memory_stack AllocateStack(ui32 capacity = Null);
 dll_import void 				Free(memory_stack& stack);
 dll_import void* 				Insert(ui32 size, ui32 offset, memory_stack& stack);
 
+dll_export void 				Pop(ui32 size, memory_stack& stack); // If size >= stack.size, stack.size will be set to 0
 // All of these will allocate a new stack with a minimum of 2x capacity if not enough space is available for the push.
 // As such it is strongly discouraged to store pointers into stack memory and to treat it as a single block.
-dll_import void*  			Push(ui32 size, memory_stack& stack);
-dll_import void*			  Push(void* memory, ui32 size, memory_stack& stack); 
+dll_import void*  			Push(ui32 size, memory_stack& stack); // Will initialise stack on first use
+dll_import void*			  Push(void* memory, ui32 size, memory_stack& stack); // Will initialise stack on first use
 #define                 PushInstance(_inst, _stack) \
 												  Push(&(_inst), sizeof(_inst), (_stack))
+#define                 PushPointer(_ptr, _stack) \
+													Push((void*)(_ptr), sizeof(*(_ptr)), _stack);
 #define 								PushType(_type, _stack) \
 													(_type*)Push(sizeof(_type), (_stack))
 
