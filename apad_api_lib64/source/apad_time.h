@@ -3,7 +3,7 @@
 
 #include "apad_base_types.h"
 #include "apad_intrinsics.h"
-#include "apad_string.h"
+#include "apad_string_args.h"
 
 struct date {
   ui8  dayOfTheWeek; // 1 -> 7
@@ -19,13 +19,13 @@ struct date {
  * - date[[+ | -]days] e.g. today+5
  */
 												// Return string will be allocated on global API memory.
-dll_import char* DateToString(date d); // Returned string format is dd/mm/yyyy
+dll_import char* DateToString(date d); // Returned string format is dd/mm/yyyy, needs to be freed
 dll_import date  GetDate(si32 offsetDays);
-dll_import bool  IsDateAndValid(const char* s);
-dll_import date  StringToDate(const char* s); // IsDate() should always be called before this
+dll_import bool  IsDateAndValid(string_args(string)); 
+dll_import date  StringToDate(string_args(string)); // IsDateAndValid() should always be called before this
 
 typedef ui64 time_marker;
-dll_export char* 			 GetTimeNow(); // Returns string with format hh:mm:ss
+dll_export char* 			 GetTimeNow(); // Returns string with format hh:mm:ss, needs to be freed
 dll_import time_marker GetTimeMarker();
 dll_import f32 			   GetTimeElapsedMilli(time_marker markerStart, time_marker markerEnd);
 

@@ -30,7 +30,7 @@ struct note {
 #define   BeginNotesLoop(_varID) BeginNotesMemoryLoop(_varID)
 #define   EndNotesLoop() 				 EndNotesMemoryLoop()
 
-note*     CreateNote(vector pos, const char* title, const char* text);
+note*     CreateNote(vector pos, char* title, char* text);
 void 			DeleteNote(note* n);
 note*     GetCurrentNote(); // Will return Null if none
 note* 	  SetCurrentNote(note* n); // Set n to Null to deselect current note
@@ -48,20 +48,18 @@ void 		  UpdateNoteContainers(note* n); // Call after any updates to either text
 const ui8 FolderSize = 100;
 
 struct folder {
-	vector       pos;
-	text_body 	 text; // Container pos & size need to be checked separately from the folder itself
-	memory_block notes;
-	memory_block folders;
+	vector      pos;
+	text_body 	text; // Container pos & size need to be checked separately from the folder itself
+	memory_pool notes;
+	memory_pool folders;
 };
 
-#define BeginFoldersMemoryLoop(_allocatedID, _folderID) { ForAll(state.folders.memory.size / (sizeof(b8) + sizeof(folder))) { \
-																													  void*   mem = (ui8*)state.folders.memory.memory + (sizeof(b8) + sizeof(folder)) * it; \
-																														b8*     _allocatedID = CastMemMovePtr(mem, b8); \
-																														folder* _folderID = (folder*)mem;
+#define BeginFoldersMemoryLoop(_allocatedID, _folderID) { BeginMemoryPoolLoop(state.folders.memory, _allocatedID, _memPtrID)
+																														folder* _folderID = (folder*)_memPtrID;
 #define BreakFoldersMemoryLoop()													break
-#define EndFoldersMemoryLoop() 													} }
+#define EndFoldersMemoryLoop() 													  EndMemoryPoolLoop() }
 
-folder* CreateFolder(vector pos, const char* text);
+folder* CreateFolder(vector pos, char* text);
 folder* MouseOverlapsFolder(win32_state& osState); // Will return Null if none
 
 void PopDirectory();
@@ -158,14 +156,14 @@ program_unique struct {
 	} colourPanel;
 
 	struct {
-		memory_block  memory;
+		memory_pool   memory;
 		memory_offset selected;
 		bool          moving;
 		bool 				  justCreated;
 	} 						  notes;
 	
 	struct {
-		memory_block  memory;
+		memory_pool   memory;
 		memory_offset selected;
 		bool          moving;
 		bool 				  justCreated;

@@ -4,6 +4,7 @@
 #include "apad_base_types.h"
 #include "apad_memory.h"
 #include "apad_maths.h"
+#include "apad_string_args.h"
 
 // ******************** Layouts ******************** //
 
@@ -58,16 +59,16 @@ struct button {
 };
 
 dll_import button AllocateButton(f32 left, f32 bottom, f32 width, f32 height, 
-																 char* text, f32 textHeight, // These two are optional e.g. to display custom text
+																 string_args(text), f32 textHeight, // These two are optional e.g. to display custom text
 																 ui8 highlightRed, ui8 highlightGreen, ui8 highlightBlue, f32 highlightAlpha);
 struct win32_state;
 dll_import bool 	ButtonClicked(button& b, win32_state& state);
 dll_import void 	FreeButtonText(button& b); // Call only if text was supplied to AllocateButton()
 dll_import void 	Render( // Will render the background highlight colour
-												 button& b, 
-												 ui8 		 borderThickness, // Set to Null if no border wanted
-												 vector  mousePos,
-												 bool    renderText);
+												  button& b, 
+												  ui8 		borderThickness, // Set to Null if no border wanted
+												  vector  mousePos,
+												  bool    renderText);
 
 // ******************** Text body ******************** //
 
@@ -87,14 +88,23 @@ struct text_body {
 	ui8          flags;
 };
 
-dll_import text_body AllocateTextBody(f32 left, f32 bottom, f32 width, f32 textBorderOffset, f32 textHeight, ui16 maxLength /* Set to Null for no limit */, ui8 flags);
+dll_import text_body AllocateTextBody(f32  containerLeft, 
+																			f32  containerBottom, 
+																			f32  containerWidth, 
+																			f32  textBorderOffset, 
+																			f32  textHeight, 
+																			ui16 maxLength, // Set to Null for no limit 
+																			ui8  flags);
 dll_import void 		 ClearText(text_body& tb);
 dll_import void 		 FreeText(text_body& tb);
 dll_import char* 		 FindChar(char c, ui16 pos, bool scanForward, text_body& tb);
 dll_import char* 		 GetText(text_body& tb); // Do not use this to check for presence of text in text_body memory
 dll_import ui32 		 GetTextLength(text_body& tb);
-dll_import rectangle GetTextRectangle(text_body& tb); // Will have a min height of tb.textHeight, width will be 0 if it doesn't contain any text. Absolute coords.
-dll_import ui16      Insert(char* string, ui32 length, text_body& tb, ui32 pos); // Returns chars inserted
+dll_import rectangle // Absolute coords
+										 // width will be 0 if it doesn't contain any text
+										 // Will have a min height of tb.textHeight
+										 GetTextRectangle(text_body& tb);
+dll_import ui16      Insert(string_args(string), text_body& tb, ui32 pos); // Returns chars inserted
 dll_import bool 		 IsValid(text_body& tb);
 dll_import void 		 RemoveChar(text_body& tb, ui32 pos);
 dll_import void 		 Render(text_body& tb);
@@ -147,14 +157,9 @@ dll_import void 		 DrawCircleFull(f32 centerX, f32 centerY, f32 radius,
 dll_import void      DrawRectangleFull(f32 left, f32 bottom, f32 width, f32 height, 
 																			 ui8 r, ui8 g, ui8 b, f32 a);
 dll_import vector    GetTextRenderSize( // Will return a minimum y of height even if no text present, but x will equal 0
-									   									 char* text, 
-																			 ui32 length, // Set to Null to read the entire string
-																			 f32 height); 
-dll_import rectangle RenderText(char* text, 
-																ui32  length, // Set to Null to render entire string
-																f32   x, 
-																f32   y, 
-																f32 	height, 
-																bool  center);
+									   									 string_args(text), f32 height); 
+dll_import rectangle RenderText(string_args(text), 
+																f32 x, f32 y, f32 height, 
+																bool center);
 
 #endif

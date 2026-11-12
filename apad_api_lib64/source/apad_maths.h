@@ -4,6 +4,8 @@
 #include "apad_base_types.h"
 #include "apad_intrinsics.h"
 
+// ******************** Vector ******************** //
+
 struct vector {
 	union {
 		f32 x;
@@ -19,10 +21,17 @@ struct vector {
 	dll_import vector operator-(vector& v);
 	dll_import void   operator+=(vector& v);
 	dll_import void   operator-=(vector& v);
-	dll_import void   operator==(vector& v);
+	dll_import bool   operator==(vector& v);
 	dll_import vector operator*(f32 f);
 	dll_import vector operator/(f32 f);
 };
+
+dll_import vector CreateVector(f32 x, f32 y);
+dll_export f32 		Magnitude(vector& v);
+#define           NullVector CreateVector(Null, Null)
+#define           UnpackVector(_v) (_v).x, (_v).y
+
+// ******************** Rectangle  ******************** //
 
 struct rectangle {
 	union {
@@ -42,33 +51,36 @@ struct rectangle {
 	};
 };
 
-dll_import f32 			 ArcCos(f32 f);
-dll_import f32 			 ArcSine(f32 f);
-dll_import f32 			 ArcTan(f32 f);
-#define 				     Clamp(_value, _min, _max) { if((_value) < (_min)) (_value) = (_min); \
-								     													   else if((_value) > (_max)) (_value) = (_max); }
-dll_import ui32 		 ConvertHexToUI32(char* hex); // Max 8 hex digits
-dll_import f32 			 Cos(f32 degs);
 dll_import rectangle CreateRectangle(f32 left, f32 bottom, f32 width, f32 height);
 dll_export rectangle CreateRectangle(vector pos, vector size);
-dll_import vector 	 CreateVector(f32 x, f32 y);
-dll_import f32* 		 GenerateCircularCoords(ui8 count, f32 centerX, f32 centerY, f32 radius); // Coords will start at the 12 O'Clock position. Must be freed with Win32FreeMemory()
 dll_import vector    GetCenter(rectangle r);
-#define 				     GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))
-#define 				     GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
 dll_import vector    GetTopRight(rectangle& r);
-dll_import f32       LERP(f32 min, f32 max, f32 perc); // Linear interpolation
-dll_export f32 			 Magnitude(f32 f);
-dll_export f32 			 Magnitude(vector& v);
-#define               NullVector CreateVector(Null, Null)
-dll_import bool      Overlap(f32 x0, f32 y0, f32 left1, f32 bottom1, f32 width1, f32 height1); // Point-rectangle collision detection
-dll_import bool 		 Overlap(f32 left1, f32 bottom1, f32 width1, f32 height1, f32 left2, f32 bottom2, f32 width2, f32 height2); // Rectangle-rectangle collision detection
-dll_import bool 		 Overlap(f32 x0, f32 y0, f32 x1, f32 y1, f32 testDistance); // Circle-circle collision detection
-dll_import f32       RoundToNearestInteger(f32 value);
-dll_import f32 			 Sine(f32 degs);
-dll_import f32 			 SquareRoot(f32 f);
-dll_import f32 			 Tan(f32 degs);
 #define              UnpackRectangle(_r) (_r).left, (_r).bottom, (_r).width, (_r).height
-#define              UnpackVector(_v) (_v).x, (_v).y
+
+// ******************** Trigonometry ******************** //
+
+dll_import f32 ArcCos(f32 f);
+dll_import f32 ArcSine(f32 f);
+dll_import f32 ArcTan(f32 f);
+dll_import f32 Cos(f32 degs);
+dll_import f32 Sine(f32 degs);
+dll_import f32 Tan(f32 degs);
+
+// ******************** Generic ******************** //
+
+#define 				Clamp(_value, _min, _max) { if((_value) < (_min)) (_value) = (_min); \
+								    												else if((_value) > (_max)) (_value) = (_max); }
+dll_import ui32 ConvertHexToUI32(char* hex, ui8 length); // Max 8 hex digits
+dll_import f32* // [count] number of pairs
+								GenerateCircularCoords(ui8 count, f32 centerX, f32 centerY, f32 radius); // Coords will start at the 12 O'Clock position. Must be freed with Win32FreeMemory()
+#define 				GetMin(_a, _b) ((_a) < (_b) ? (_a) : (_b))
+#define 				GetMax(_a, _b) ((_a) > (_b) ? (_a) : (_b))
+dll_import f32  LERP(f32 min, f32 max, f32 perc); // Linear interpolation
+dll_export f32 	Magnitude(f32 f);
+dll_import bool Overlap(f32 x0, f32 y0, f32 left1, f32 bottom1, f32 width1, f32 height1); // Point-rectangle collision detection
+dll_import bool Overlap(f32 left1, f32 bottom1, f32 width1, f32 height1, f32 left2, f32 bottom2, f32 width2, f32 height2); // Rectangle-rectangle collision detection
+dll_import bool Overlap(f32 x0, f32 y0, f32 x1, f32 y1, f32 testDistance); // Point-circle collision detection, can also be considered circle-circle if both radii are added up
+dll_import si32 RoundToNearestInteger(f32 value);
+dll_import f32 	SquareRoot(f32 f);
 
 #endif

@@ -5,7 +5,8 @@
 
 // ******************** Generic ******************** //
 
-dll_import void DisplayError(const char* string); // Prints the string without adding anything
+dll_import void DisplayError( // Prints the string without adding anything
+															char* string); // Needs to contain an EOR char at the end
 
 dll_import void ExitProgram(bool error);
 dll_import void RegisterExitFunction(void (*function)()); // Function to be called within ExitProgram()
@@ -47,16 +48,16 @@ dll_import void SetCallExitInAPIAssertions(bool b);  // True by default
 #define Assert(_condition) { \
 	ClearAssertionHit(); \
 	if(!(_condition)) { \
-	  dll_import bool AssertionHit; \
+	  dll_import program_external bool AssertionHit; \
 		AssertionHit = true; \
 		\
 	  char buffer[256] = {}; \
-		program_external const char* GetFileNameAndExtension(const char*); \
+		program_external char* GetFileNameAndExtension(char*, ui16 length); \
 	  sprintf(buffer, "Assertion failed \
 	  								 \n  [Condition] %s \
 	  								 \n  [File]      %s \
-	  								 \n  [Line]      %lu", #_condition, GetFileNameAndExtension(__FILE__), __LINE__); \
-	  DisplayError((const char*)buffer); \
+	  								 \n  [Line]      %lu", #_condition, GetFileNameAndExtension(__FILE__, Null), __LINE__); \
+	  DisplayError((char*)buffer); \
 		\
 		dll_import program_external bool PrintAssertionsBacktrace; \
 		if(PrintAssertionsBacktrace == true) { \

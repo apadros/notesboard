@@ -10,30 +10,11 @@
 #include "apad_win32_gui.h"
 #include "helpers.h"
 
-program_external note* CreateNote(vector pos, const char* title, const char* text) {
+program_external note* CreateNote(vector pos, char* title, char* text) {
 	if(TextIsBeingUpdated() == true)
 		EndTextUpdate();
-
-	note* n = Null;
-
-	// @WIP	- This section needs to be automated - pool allocate mechanics when not enough memory
-	// Search for a free slot
-	BeginNotesMemoryLoop(t) {
-		if(NoteMemoryIsInUse(t) == false) {
-			n = t;
-			break;
-		}
-	}
-	EndNotesMemoryLoop();
-
-	// If not found, allocate more memory
-	if(n == Null) {
-		auto newBlock = AllocateMemory(state.notes.memory.size * 2);
-		Copy(state.notes.memory.memory, state.notes.memory.size, newBlock.memory);
-		Free(state.notes.memory);
-		state.notes.memory = newBlock;
-		n = (note*)((ui8*)state.notes.memory.memory + state.notes.memory.size / 2);
-	}
+	
+	note* n = (note*)Allocate(state.notes.memory);
 	Assert(n != Null);
 
 	// Text
@@ -55,37 +36,13 @@ program_external note* CreateNote(vector pos, const char* title, const char* tex
 	return n;
 }
 
-program_external folder* CreateFolder(vector pos, const char* text) {
+program_external folder* CreateFolder(vector pos, char* text) {
 	if(TextIsBeingUpdated() == true)
 		EndTextUpdate();
 
-	folder* f = Null;
-
-	// Search for a free slot
-	BeginFoldersMemoryLoop(allocated, ft) {
-		if(*allocated == false) {
-			f = ft;
-			*allocated = true;
-			BreakFoldersMemoryLoop();
-		}
-	}
-	EndFoldersMemoryLoop();
-		
-	// If not found, allocate more memory
-	if(f == Null) {
-		Assert(state.folders.memory.capacity == Null);
-		ui32 previousSize = state.folders.memory.size;
-		
-		Expand(state.folders.memory);
-		
-		void* mem = (ui8*)state.folders.memory.memory + previousSize;
-		b8* allocated = CastMemMovePtr(mem, b8);
-		*allocated = true;
-		f = (folder*)mem;
-	}
+	folder* f = (folder*)Allocate(state.folders.memory);
 	Assert(f != Null);
-	Clear(f, sizeof(folder));
-
+	
 	// Fill
 	f->pos = pos;
 	f->text = AllocateTextBody(pos.x, pos.y - NoteTextHeight - NoteTextBorder * 2, FolderSize, NoteTextBorder, NoteTextHeight, Null, TextBodyFlagLetters); 
@@ -193,7 +150,7 @@ program_external note* SetCurrentNote(note* n) {
 	if(n == Null)
 		ClearInstance(state.notes.selected);
 	else
-		state.notes.selected = GetOffset(n, state.notes.memory);
+		state.notes.selected = GetOffset(n, state.notes.memory.memory);
 	return n;
 }
 
@@ -338,10 +295,10 @@ program_external void OpenColourPanel() {
 			f32 height = body->container.height / 2;
 			f32 width = height;
 			*(buttons[it * 2]) = AllocateButton(left, bottom + height, width, height, 
-																			    Null, Null, 
+																			    NullStringArgs, Null, 
 																			    ColourPanelButtonsHighlightRGBA);
 			*(buttons[it * 2 + 1]) = AllocateButton(left, bottom, width, height, 
-																				 	    Null, Null, 
+																				 	    NullStringArgs, Null, 
 																				 	    ColourPanelButtonsHighlightRGBA);
 		}
 	}
@@ -354,7 +311,7 @@ program_external void OpenColourPanel() {
 		f32 left = panel->frame.left + panel->frame.width - ColourPanelEdgeOffset - width;
 		f32 height = NoteTextHeight + NoteTextBorder * 2;
 		f32 centerY = GetColourPanelWheelRectangle().bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight / 2;
-		panel->save = AllocateButton(left, centerY - height / 2, width, height, "Save", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
+		panel->save = AllocateButton(left, centerY - height / 2, width, height, "Save", Null, NoteTextHeight, ColourPanelButtonsHighlightRGBA);
 		panel->favouriteSelected = Null;
 	}
 	
@@ -382,8 +339,8 @@ program_external void OpenColourPanel() {
 		f32 height = ColourPanelOKCancelTextHeight + ColourPanelOKCancelTextOffset * 2;
 		f32 bottom = wheel.bottom - ColourPanelEdgeOffset - ColourPanelFavouritesLayerHeight - ColourPanelEdgeOffset - height;
 		f32 offset = (panel->frame.width - width * 2) / 3;
-		panel->ok = AllocateButton(panel->frame.left + offset, bottom, width, height, "OK", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
-		panel->cancel = AllocateButton(panel->frame.left + offset + width + offset, bottom, width, height, "Cancel", NoteTextHeight, ColourPanelButtonsHighlightRGBA);
+		panel->ok = AllocateButton(panel->frame.left + offset, bottom, width, height, "OK", Null, NoteTextHeight, ColourPanelButtonsHighlightRGBA);
+		panel->cancel = AllocateButton(panel->frame.left + offset + width + offset, bottom, width, height, "Cancel", Null, NoteTextHeight, ColourPanelButtonsHighlightRGBA);
 	}
 }
 

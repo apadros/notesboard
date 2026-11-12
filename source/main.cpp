@@ -86,14 +86,13 @@ GUIAppEntryPoint(instance) {
 																	 width, height, 
 																	 texts[it], textHeight,
 																	 ColourPanelButtonsHighlightRGBA);
-		}
-		
+		}	
 	}
 	
 	state.canvas.colour = CreateColourUI8(200, 200, 200);
 	
-	state.notes.memory = AllocateMemory(sizeof(note) * 10);
-	state.folders.memory = AllocateMemory(sizeof(folder) * 10);
+	state.notes.memory = AllocatePool(sizeof(note), Null);
+	state.folders.memory = AllocatePool(sizeof(folder), Null);
 
 	while(true) {
 		auto osState = Win32BeginGUIUpdateLoop();
