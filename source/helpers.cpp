@@ -80,11 +80,6 @@ program_external void UpdateNoteContainers(note* n) {
 		n->title.container.bottom = GetTopRight(n->text.container).y;
 }
 
-program_external bool NoteMemoryIsInUse(note* n) {
-	Assert(n != Null);
-	return IsValid(n->text);
-}
-
 program_external bool NoteHasTitle(note* n) {
 	Assert(n != Null);
 	return IsValid(n->title);
@@ -579,7 +574,7 @@ program_external void PushDirectory(folder* f) {
 program_external void PopDirectory() {
 	ui32 totalSize = sizeof(state.notes.memory) + sizeof(state.folders.memory);
 	if(state.directories.size >= totalSize) {
-		void* mem = (ui8*)state.directories.memory + state.directories.size - totalSize;
+		void* mem = (ui8*)GetMemory(state.directories) + state.directories.size - totalSize;
 		Copy(mem, totalSize / 2, &(state.notes.memory));
 		MovePtr(mem, sizeof(memory_block));
 		Copy(mem, totalSize / 2, &(state.folders.memory));

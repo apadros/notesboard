@@ -23,12 +23,9 @@ struct note {
 	text_body text;  // Edges in canvas space
 };
 
-#define   BeginNotesMemoryLoop(_varID) { ForAll(state.notes.memory.size / sizeof(note)) { \
-				  														     note* _varID = (note*)state.notes.memory.memory + it;
-#define   EndNotesMemoryLoop() 				 } }
-				  
-#define   BeginNotesLoop(_varID) BeginNotesMemoryLoop(_varID)
-#define   EndNotesLoop() 				 EndNotesMemoryLoop()
+#define   BeginNotesMemoryLoop(_allocatedBoolPtrID, _noteID) BeginMemoryPoolLoop(state.notes.memory, _allocatedBoolPtrID, _memPtrID) \
+																														   note* _noteID = (note*)_memPtrID;
+#define   EndNotesMemoryLoop() 				                       EndMemoryPoolLoop()
 
 note*     CreateNote(vector pos, char* title, char* text);
 void 			DeleteNote(note* n);
@@ -40,7 +37,6 @@ bool 			NoteIsBeingUpdated();
 bool 		  NoteTextIsBeingUpdated();
 bool 			NoteTitleIsBeingUpdated();
 bool 		  NoteHasTitle(note* n);
-bool 		  NoteMemoryIsInUse(note* n);
 void 		  UpdateNoteContainers(note* n); // Call after any updates to either text_body
 
 // ******************** Folders & Directories ******************** //
@@ -54,10 +50,10 @@ struct folder {
 	memory_pool folders;
 };
 
-#define BeginFoldersMemoryLoop(_allocatedID, _folderID) { BeginMemoryPoolLoop(state.folders.memory, _allocatedID, _memPtrID)
-																														folder* _folderID = (folder*)_memPtrID;
-#define BreakFoldersMemoryLoop()													break
-#define EndFoldersMemoryLoop() 													  EndMemoryPoolLoop() }
+#define BeginFoldersMemoryLoop(_allocatedBoolPtrID, _folderID) BeginMemoryPoolLoop(state.folders.memory, _allocatedBoolPtrID, _memPtrID) \
+																														     folder* _folderID = (folder*)_memPtrID;
+#define BreakFoldersMemoryLoop()													     break
+#define EndFoldersMemoryLoop() 													       EndMemoryPoolLoop()
 
 folder* CreateFolder(vector pos, char* text);
 folder* MouseOverlapsFolder(win32_state& osState); // Will return Null if none

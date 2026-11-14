@@ -15,7 +15,7 @@
 #include <stdio.h> // For conversion to hex
 
 GUIAppEntryPoint(instance) {
-	Win32InitGUI("Bola Pad v0.0", instance);
+	Win32InitGUI("Bola Pad v0.0", Null, instance);
 	
 	// Win32 Font API stuff
 	#if 0
@@ -58,13 +58,13 @@ GUIAppEntryPoint(instance) {
 		m->background.width = Win32GetProgramWindowClientSize().x;
 		m->background.height = TopMenuHeight;
 		m->background.bottom = Win32GetProgramWindowClientSize().y - m->background.height;
-		m->save = AllocateButton(0, m->background.bottom, TopMenuButtonWidth, TopMenuHeight, "Save", TopMenuTextHeight, 0, 0, 0, 1);
-		m->load = AllocateButton(TopMenuButtonWidth, m->background.bottom, TopMenuButtonWidth, TopMenuHeight, "Load", TopMenuTextHeight, 0, 0, 0, 1);
+		m->save = AllocateButton(0, m->background.bottom, TopMenuButtonWidth, TopMenuHeight, "Save", Null, TopMenuTextHeight, 0, 0, 0, 1);
+		m->load = AllocateButton(TopMenuButtonWidth, m->background.bottom, TopMenuButtonWidth, TopMenuHeight, "Load", Null, TopMenuTextHeight, 0, 0, 0, 1);
 	}
 
 	// @SECTION - Init title bar
 	state.titleBar = AllocateTextBody(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, (TitleBarHeight - TitleBarTextHeight) / 2, TitleBarTextHeight, Null, TextBodyFlagLetters);
-	Insert("Title", GetLength("Title"), state.titleBar, 0);
+	Insert("Title", Null, state.titleBar, 0);
 
 	// @SECTION - Init toolbar
 	{
@@ -84,7 +84,7 @@ GUIAppEntryPoint(instance) {
 			*(buttons[it]) = AllocateButton(tb->background.left + tb->background.width / 2 - width / 2, 
 																	 tb->background.height - (ToolVerticalSpaceBetweenIcons + height + textHeight * 2) * (it + 1), 
 																	 width, height, 
-																	 texts[it], textHeight,
+																	 texts[it], Null, textHeight,
 																	 ColourPanelButtonsHighlightRGBA);
 		}	
 	}
@@ -309,12 +309,9 @@ GUIAppEntryPoint(instance) {
 				
 					char* text = GetText(panel->hex);
 					if(GetLength(text) == 7 && text[0] == '#') { // Update only with full #xxxxxx format
-						auto string = AllocateString(text + 1);
-						ui32 b = ConvertHexToUI32(string + 4);
-						string[4] = '\0';
-						ui32 g = ConvertHexToUI32(string + 2);
-						string[2] = '\0';
-						ui32 r = ConvertHexToUI32(string);
+						ui32 b = ConvertHexToUI32(text + 4, Null);
+						ui32 g = ConvertHexToUI32(text + 2, 2);
+						ui32 r = ConvertHexToUI32(text, 2);
 						
 						SetColourPanelColour(r, g, b);
 						SetColourPanelRGBText(r, panel->red);
@@ -354,13 +351,15 @@ GUIAppEntryPoint(instance) {
 			auto* m = GetTopMenu();
 			if(ButtonClicked(m->save, osState) == true) {
 				// Set correct directory
-				if(AreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
-					if(Win32DirectoryExists("Boards") == false)
-						Win32CreateDirectory("Boards");
-					Win32SetCurrentDirectory("Boards");
+				char* current = Win32GetCurrentDirectory();
+				if(AreEqual(current, Null, "Boards", Null) == false) {
+					if(Win32DirectoryExists("Boards", Null) == false)
+						Win32CreateDirectory("Boards", Null);
+					Win32SetCurrentDirectory("Boards", Null);
 				}
+				Free(current);
 
-				char* path = SaveFileAsGUI(Null, "Bola boards\0*.bb\0\0"); // Get save file path
+				char* path = SaveFileAsGUI(Null, Null, "Bola boards\0*.bb\0\0", Null); // Get save file path
 				if(path != Null) {
 					auto memory = AllocateStack();
 
@@ -385,8 +384,9 @@ GUIAppEntryPoint(instance) {
 					}
 					
 					// Notes
-					BeginNotesLoop(n) {
-						if(NoteMemoryIsInUse(n) == true) {
+					#if 0 // @WIP @TODO - Reenable
+					BeingNotesMemoryLoop(allocated, n) {
+						if(*allocated == true) {
 							// Store the pos
 							f32* f = PushType(f32, memory);
 							*f = n->text.container.pos.x;
@@ -403,28 +403,32 @@ GUIAppEntryPoint(instance) {
 							Push(Null, true, memory);
 						}
 					}
-					EndNotesLoop();
+					EndNotesMemoryLoop();
+					#endif
 
-					SaveFile(memory.memory, memory.size, path);
-					Win32DisplayInfoBox("File saved!", false);
+					SaveFile(GetMemory(memory), memory.size, path, Null);
+					Win32DisplayInfoBox("File saved!", Null, false);
 
 					Free(memory);
 				}
 			}
 			else if(ButtonClicked(m->load, osState) == true) {
 				// Set correct directory
-				if(AreEqual(Win32GetCurrentDirectory(), "Boards") == false) {
-					if(Win32DirectoryExists("Boards") == false) {
-						Win32DisplayInfoBox("No files to load yet", false);
+				auto* current = Win32GetCurrentDirectory();
+				if(AreEqual(current, Null, "Boards", Null) == false) {
+					if(Win32DirectoryExists("Boards", Null) == false) {
+						Win32DisplayInfoBox("No files to load yet", Null, false);
+						Free(current);
 						goto label_rendering; // Nothing to open if the directory didn't even exist
 					}
-					Win32SetCurrentDirectory("Boards");
+					Win32SetCurrentDirectory("Boards", Null);
 				}
+				Free(current);
 
-				char* path = OpenFileGUI(".\\Boards", "Bola boards\0*.bb\0\0"); // Get open file path
-				if(path != Null && FileExists(path) == true) {
-					auto file = LoadFile(path);
-					void* data = file.memory;
+				char* path = OpenFileGUI(".\\Boards", Null, "Bola boards\0*.bb\0\0", Null); // Get open file path
+				if(path != Null && FileExists(path, Null) == true) {
+					auto file = LoadFile(path, Null);
+					void* data = GetMemory(file);
 
 					// Extract board title
 					char* boardTitle = (char*)data;
@@ -499,7 +503,7 @@ GUIAppEntryPoint(instance) {
 			if(NoteHasTitle(n) == false) {
 				auto textRec = GetTextRectangle(n->text);
 				n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, NoteMinWidth, NoteTextBorder, NoteTitleTextHeight, Null, TextBodyFlagLetters);
-				Insert("Title", GetLength("Title"), n->title, 0);
+				Insert("Title", Null, n->title, 0);
 				UpdateNoteContainers(n);
 			}
 		}
@@ -520,14 +524,14 @@ GUIAppEntryPoint(instance) {
 			SetCurrentNote(Null);
 
 			// Set current note
-			BeginNotesLoop(n) {
-				if(NoteMemoryIsInUse(n) == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(n)) == true) {
+			BeingNotesMemoryLoop(allocated, n) {
+				if(*allocated == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(n)) == true) {
 					SetCurrentNote(n);
 					state.notes.moving = false;
 					break;
 				}
 			}
-			EndNotesLoop();
+			EndNotesMemoryLoop();
 
 			// Decide whether to update the title of the text body
 			if(GetCurrentNote() != Null) {
@@ -550,14 +554,14 @@ GUIAppEntryPoint(instance) {
 			SetCurrentNote(Null);
 
 			auto mousePosCanvas = ConvertToCanvasSpace(osState.mousePos.x, osState.mousePos.y);
-			BeginNotesLoop(n) {
-				if(NoteMemoryIsInUse(n) == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(n)) == true) {
+			BeingNotesMemoryLoop(allocated, n) {
+				if(*allocated == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(n)) == true) {
 					SetCurrentNote(n);
 					state.notes.moving = true;
 					break;
 				}
 			}
-			EndNotesLoop();
+			EndNotesMemoryLoop();
 
 			// If we selected a different note or text was being written elsewhere, end writing
 			if(TextIsBeingUpdated() == true && (GetCurrentNote() == Null || previouslySelected != GetCurrentNote()))
@@ -741,7 +745,7 @@ GUIAppEntryPoint(instance) {
 		
 		// @SECTION - Render notes
 		BeginNotesMemoryLoop(n) {
-			if(NoteMemoryIsInUse(n) == true) {
+			if(*allocated == true) {
 				bool draw = true;
 				if(GetCurrentNote() == n && state.notes.justCreated == true) // Recently created notes will be drawn in front of the UI, further down
 					draw = false;
@@ -759,15 +763,15 @@ GUIAppEntryPoint(instance) {
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
 		// Render notes text and title if it has one, then update note background rectangle
-		BeginNotesLoop(n) {
-			if(NoteMemoryIsInUse(n) == true) {
+		BeingNotesMemoryLoop(allocated, n) {
+			if(*allocated == true) {
 				if(GetTextLength(n->text) > 0)
 					Render(n->text);
 				if(NoteHasTitle(n) == true && GetTextLength(n->title) > 0)
 					Render(n->title);
 			}
 		}
-		EndNotesLoop();
+		EndNotesMemoryLoop();
 		
 		// @SECTION - Render folders
 		BeginFoldersMemoryLoop(allocated, f) {
