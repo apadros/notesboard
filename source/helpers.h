@@ -23,9 +23,9 @@ struct note {
 	text_body text;  // Edges in canvas space
 };
 
-#define   BeginNotesMemoryLoop(_allocatedBoolPtrID, _noteID) BeginMemoryPoolLoop(state.notes.memory, _allocatedBoolPtrID, _memPtrID) \
-																														   note* _noteID = (note*)_memPtrID;
-#define   EndNotesMemoryLoop() 				                       EndMemoryPoolLoop()
+#define   BeginNotesMemoryLoop(_allocatedBoolPtrID, _notePtrID) BeginMemoryPoolLoop(state.notes.memory, _allocatedBoolPtrID, _memPtrID) { \
+																														      note* _notePtrID = (note*)_memPtrID;
+#define   EndNotesMemoryLoop() 				                          } EndMemoryPoolLoop()
 
 note*     CreateNote(vector pos, char* title, char* text);
 void 			DeleteNote(note* n);

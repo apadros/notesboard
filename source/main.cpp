@@ -12,8 +12,6 @@
 #include "apad_win32_gui.h"
 #include "helpers.h"
 
-#include <stdio.h> // For conversion to hex
-
 GUIAppEntryPoint(instance) {
 	Win32InitGUI("Bola Pad v0.0", Null, instance);
 	
@@ -384,8 +382,7 @@ GUIAppEntryPoint(instance) {
 					}
 					
 					// Notes
-					#if 0 // @WIP @TODO - Reenable
-					BeingNotesMemoryLoop(allocated, n) {
+					BeginNotesMemoryLoop(allocated, n) {
 						if(*allocated == true) {
 							// Store the pos
 							f32* f = PushType(f32, memory);
@@ -404,8 +401,7 @@ GUIAppEntryPoint(instance) {
 						}
 					}
 					EndNotesMemoryLoop();
-					#endif
-
+					
 					SaveFile(GetMemory(memory), memory.size, path, Null);
 					Win32DisplayInfoBox("File saved!", Null, false);
 
@@ -458,8 +454,8 @@ GUIAppEntryPoint(instance) {
 					}
 					
 					// Extract notes
-					Clear(state.notes.memory.memory, state.notes.memory.size);
-					while(data < (ui8*)file.memory + file.size) {
+					Clear(state.notes.memory);
+					while(data < (ui8*)GetMemory(file) + GetSize(file)) {
 						f32 x = ReadMemMovePtr(data, f32);
 						f32 y = ReadMemMovePtr(data, f32);
 
@@ -512,7 +508,7 @@ GUIAppEntryPoint(instance) {
 		else if(ButtonClicked(GetToolBar()->createFolder, osState) == true) {
 			auto pos = ConvertToCanvasSpace(0, osState.mousePos.y - NoteMinHeight / 2);
 			auto* f = CreateFolder(pos, Null);
-			state.folders.selected = GetOffset(f, state.folders.memory);
+			state.folders.selected = GetOffset(f, state.folders.memory.memory);
 			state.folders.justCreated = true;
 			state.folders.moving = true;
 			goto label_rendering;
@@ -524,7 +520,7 @@ GUIAppEntryPoint(instance) {
 			SetCurrentNote(Null);
 
 			// Set current note
-			BeingNotesMemoryLoop(allocated, n) {
+			BeginNotesMemoryLoop(allocated, n) {
 				if(*allocated == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(n)) == true) {
 					SetCurrentNote(n);
 					state.notes.moving = false;
@@ -554,7 +550,7 @@ GUIAppEntryPoint(instance) {
 			SetCurrentNote(Null);
 
 			auto mousePosCanvas = ConvertToCanvasSpace(osState.mousePos.x, osState.mousePos.y);
-			BeingNotesMemoryLoop(allocated, n) {
+			BeginNotesMemoryLoop(allocated, n) {
 				if(*allocated == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(n)) == true) {
 					SetCurrentNote(n);
 					state.notes.moving = true;
@@ -662,14 +658,14 @@ GUIAppEntryPoint(instance) {
 					if(Overlap(UnpackVector(mousePos), UnpackVector(f->pos), FolderSize, FolderSize) == true) { // Select folder itself
 						if(TextIsBeingUpdated() == true)
 							EndTextUpdate();
-						state.folders.selected = GetOffset(f, state.folders.memory);
+						state.folders.selected = GetOffset(f, state.folders.memory.memory);
 						state.folders.moving = true;
 						selected = true;
 						BreakFoldersMemoryLoop();
 					}
 					else if(Overlap(UnpackVector(mousePos), UnpackRectangle(GetTextRectangle(f->text))) == true) { // Rename
 						BeginTextUpdate(f->text, mousePos);
-						state.folders.selected = GetOffset(f, state.folders.memory);
+						state.folders.selected = GetOffset(f, state.folders.memory.memory);
 						selected = true;
 						BreakFoldersMemoryLoop();
 					}
@@ -744,7 +740,7 @@ GUIAppEntryPoint(instance) {
 		SetCanvasProjetionMatrix();
 		
 		// @SECTION - Render notes
-		BeginNotesMemoryLoop(n) {
+		BeginNotesMemoryLoop(allocated, n) {
 			if(*allocated == true) {
 				bool draw = true;
 				if(GetCurrentNote() == n && state.notes.justCreated == true) // Recently created notes will be drawn in front of the UI, further down
@@ -763,7 +759,7 @@ GUIAppEntryPoint(instance) {
 		// @TODO - Is Win32GetMousePoswidthinClient() needed anymore?
 
 		// Render notes text and title if it has one, then update note background rectangle
-		BeingNotesMemoryLoop(allocated, n) {
+		BeginNotesMemoryLoop(allocated, n) {
 			if(*allocated == true) {
 				if(GetTextLength(n->text) > 0)
 					Render(n->text);
