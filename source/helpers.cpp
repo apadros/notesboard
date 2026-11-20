@@ -21,7 +21,7 @@ program_external note* CreateNote(vector pos, char* title, char* text) {
 	n->text = AllocateTextBody(pos.x, pos.y, NoteMinWidth, NoteTextBorder, NoteTextHeight, Null,
 														 TextBodyFlagLetters | TextBodyFlagBulletPoints | TextBodyFlagNewlines | TextBodyFlagLeftAligned);
 	if(text != Null) {
-		Insert((char*)text, GetLength(text), n->text, 0);
+		Insert((char*)text, Null, n->text, 0);
 		UpdateNoteContainers(n);
 	}		
 
@@ -534,7 +534,7 @@ program_external void DeleteNote(note* n) {
 	if(IsValid(n->title) == true)
 		FreeText(n->title);
 	FreeText(n->text);
-	Clear(n, sizeof(note));
+	Deallocate(n, state.notes.memory);
 }
 
 program_external folder* MouseOverlapsFolder(win32_state& osState) {
@@ -566,7 +566,12 @@ program_external void PushDirectory(folder* f) {
 	ClearInstance(state.folders);
 	
 	state.notes.memory = f->notes;
+	if(IsValid(state.notes.memory) == false)
+		state.notes.memory = AllocatePool(sizeof(note));
+	
 	state.folders.memory = f->folders;
+	if(IsValid(state.folders.memory) == false)
+		state.folders.memory = AllocatePool(sizeof(folder));
 	
 	// @TODO - Copy the target folder text onto title bar / somewhere and add go back button
 }
@@ -575,9 +580,9 @@ program_external void PopDirectory() {
 	ui32 totalSize = sizeof(state.notes.memory) + sizeof(state.folders.memory);
 	if(state.directories.size >= totalSize) {
 		void* mem = (ui8*)GetMemory(state.directories) + state.directories.size - totalSize;
-		Copy(mem, totalSize / 2, &(state.notes.memory));
-		MovePtr(mem, sizeof(memory_block));
-		Copy(mem, totalSize / 2, &(state.folders.memory));
+		Copy(mem, sizeof(state.notes.memory), &(state.notes.memory));
+		MovePtr(mem, sizeof(state.notes.memory));
+		Copy(mem, sizeof(state.folders.memory), &(state.folders.memory));
 		Pop(totalSize, state.directories);
 	}
 	

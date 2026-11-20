@@ -21,6 +21,7 @@ const ui16 NoteTitleTextHeight = NoteTextHeight * 1.5f;
 struct note {
 	text_body title; // Edges in canvas space
 	text_body text;  // Edges in canvas space
+									 // Call GetTextLength(note->text) (APAD API) for the real length
 };
 
 #define   BeginNotesMemoryLoop(_allocatedBoolPtrID, _notePtrID) BeginMemoryPoolLoop(state.notes.memory, _allocatedBoolPtrID, _memPtrID) { \

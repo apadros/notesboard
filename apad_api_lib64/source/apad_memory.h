@@ -95,5 +95,6 @@ dll_import void 				 Deallocate(void* memory, memory_pool& pool); // Must be cal
 dll_import void 			 	 Deallocate(memory_offset offset, memory_pool& pool);
 dll_import void 				 Free(memory_pool& pool);
 dll_import ui32 				 GetCapacity(memory_pool& pool);
+dll_import bool 				 IsValid(memory_pool& pool);
 
 #endif

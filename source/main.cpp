@@ -603,10 +603,10 @@ GUIAppEntryPoint(instance) {
 			if(f != Null) {
 				// Temporarily switch to target folder and create new note, then delete old one
 				PushDirectory(f);
-				char* title = Null;
-				if(NoteHasTitle(n) == true)
-					title = GetText(n->title);
-				CreateNote(NullVector, title, GetText(n->text)); // Create on target folder memory
+				CreateNote( // Create on target folder memory
+									 NullVector, 
+									 NoteHasTitle(n) == true ? GetText(n->title) : Null, 
+									 GetTextLength(n->text) > 0 ? GetText(n->text) : Null);
 				PopDirectory();
 				DeleteNote(n);
 			}
@@ -739,6 +739,20 @@ GUIAppEntryPoint(instance) {
 		
 		SetCanvasProjetionMatrix();
 		
+		// @SECTION - Render folders
+		BeginFoldersMemoryLoop(allocated, f) {
+			if(*allocated == true) {
+				if(state.notes.moving == true && Overlap(UnpackVector(osState.mousePos), UnpackVector(f->pos), FolderSize, FolderSize) == true) // If moving a note and overlaps with folder
+					DrawRectangleFull(UnpackVector(f->pos), FolderSize, FolderSize, 255, 0, 0); // Render red
+				else
+					DrawRectangleFull(UnpackVector(f->pos), FolderSize, FolderSize, 0, 255, 0);
+				Assert(IsValid(f->text) == true);
+				Render(f->text);
+			}
+		}
+		EndFoldersMemoryLoop();
+
+		
 		// @SECTION - Render notes
 		BeginNotesMemoryLoop(allocated, n) {
 			if(*allocated == true) {
@@ -769,16 +783,6 @@ GUIAppEntryPoint(instance) {
 		}
 		EndNotesMemoryLoop();
 		
-		// @SECTION - Render folders
-		BeginFoldersMemoryLoop(allocated, f) {
-			if(*allocated == true) {
-				DrawRectangleFull(UnpackVector(f->pos), FolderSize, FolderSize, 0, 255, 0);
-				Assert(IsValid(f->text) == true);
-				Render(f->text);
-			}
-		}
-		EndFoldersMemoryLoop();
-
 		// Draw the overlying UI
 		SetGUIProjectionMatrix();
 
