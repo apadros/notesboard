@@ -55,6 +55,7 @@ struct memory_stack {
 dll_import memory_stack AllocateStack(ui32 capacity = Null);
 dll_import void 				Free(memory_stack&);
 dll_import ui32 				GetCapacity(memory_stack stack);
+dll_import void* 				GetEnd(memory_stack stack);
 dll_import void* 				GetMemory(memory_stack stack);
 dll_import void* 				Insert(ui32 size, ui32 offset, memory_stack&);
 dll_import bool 				IsValid(memory_stack&);

@@ -47,7 +47,7 @@ dll_import void  Free(void* string); // Only for strings allocated through this-
 dll_import ui16  // Will == Null if no EOS char is found within 300 chars from string start
 								 // If not == Null, will not include the EOS
 								 GetLength(char* s);
-dll_import char* Push(string_args(string), bool addEOS, memory_stack& stack); // If only an EOS char is wanted, set string & length to Null and addEOS to true.
+dll_import char* Push(string_args(string), bool addEOS, memory_stack& stack); // If only an EOS char is wanted, set string_args to Null, Null and addEOS to true.
 dll_import bool  StringIsEqualToAny(string_args(string), char** strings, ui8 count);
 
 #endif

@@ -6,6 +6,7 @@
 #include "apad_maths.h"
 #include "apad_memory.h"
 #include "apad_opengl.h"
+#include "apad_string_args.h"
 #include "apad_string.h"
 #include "apad_win32_gui.h"
 #include "helpers.h"
@@ -554,7 +555,7 @@ program_external folder* MouseOverlapsFolder(win32_state& osState) {
 	return Null;
 }
 
-program_external void PushDirectory(folder* f) {
+program_external void OpenFolder(folder* f) {
 	Assert(f != Null);
 	
 	PushInstance(state.notes.memory, state.directories);
@@ -573,18 +574,70 @@ program_external void PushDirectory(folder* f) {
 	if(IsValid(state.folders.memory) == false)
 		state.folders.memory = AllocatePool(sizeof(folder));
 	
-	// @TODO - Copy the target folder text onto title bar / somewhere and add go back button
-}
-
-program_external void PopDirectory() {
-	ui32 totalSize = sizeof(state.notes.memory) + sizeof(state.folders.memory);
-	if(state.directories.size >= totalSize) {
-		void* mem = (ui8*)GetMemory(state.directories) + state.directories.size - totalSize;
-		Copy(mem, sizeof(state.notes.memory), &(state.notes.memory));
-		MovePtr(mem, sizeof(state.notes.memory));
-		Copy(mem, sizeof(state.folders.memory), &(state.folders.memory));
-		Pop(totalSize, state.directories);
+	// Store the the current board title and its length
+	{
+		auto* bar = GetTitleBar();
+		ui8   length = GetTextLength(*bar);
+		if(length > 0) {
+			Push(GetText(*bar), length, false, state.directories);
+			ClearText(*bar);
+		}
+		PushInstance(length, state.directories); // Push length regardless
 	}
 	
-	// @TODO - Pop folder text from target space above canvas
+	// Update title
+	auto* folderTitle = GetFolderTitle(f);
+	if(folderTitle != Null) {
+		UpdateTitleText(folderTitle, Null);
+		Free(folderTitle);
+	}
+	
+	// @WIP
+	// @TODO - Add a go back button
+}
+
+program_external void CloseCurrentFolder() {
+	if(state.directories.size > 0) {
+		void* mem = GetEnd(state.directories);
+		
+		// Extract previous board title and update
+		MovePtr(mem, -1);
+		ui8 length = *((ui8*)mem);
+		MovePtr(mem, -length);
+		UpdateTitleText((char*)mem, length);
+		
+		MovePtr(mem, -sizeof(state.folders.memory));
+		Copy(mem, sizeof(state.folders.memory), &(state.folders.memory));
+		
+		MovePtr(mem, -sizeof(state.notes.memory));
+		Copy(mem, sizeof(state.notes.memory), &(state.notes.memory));
+		
+		ui32 popSize = (ui8*)GetEnd(state.directories) - (ui8*)mem;
+		Pop(popSize, state.directories);
+	}
+}
+
+program_external char* GetFolderTitle(folder* f) {
+	Assert(f != Null);
+	auto length = GetTextLength(f->text);
+	if(length > 0)
+		return AllocateString(GetText(f->text), length);
+	else
+		return Null;
+}
+
+program_external void UpdateTitleText(string_args(text)) {
+	CheckStringArgs(UnpackStringArgs(text));
+	if(GetTextLength(state.titleBar) > 0)
+		ClearText(state.titleBar);
+	Insert(text, stringArgsLength(text), state.titleBar, 0);
+}
+
+program_external char* GetTitleText() {
+	auto* bar = GetTitleBar();
+	if(GetTextLength(*bar) > 0) {
+		return AllocateString(GetText(*bar), GetTextLength(*bar));
+	}
+	else
+		return Null;
 }

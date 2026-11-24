@@ -62,7 +62,7 @@ GUIAppEntryPoint(instance) {
 
 	// @SECTION - Init title bar
 	state.titleBar = AllocateTextBody(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, (TitleBarHeight - TitleBarTextHeight) / 2, TitleBarTextHeight, Null, TextBodyFlagLetters);
-	Insert("Title", Null, state.titleBar, 0);
+	UpdateTitleText("Title", Null);
 
 	// @SECTION - Init toolbar
 	{
@@ -362,9 +362,14 @@ GUIAppEntryPoint(instance) {
 					auto memory = AllocateStack();
 
 					// Store board title
-					if(GetTextLength(*GetTitleBar()) > 0)
-						Push(GetText(*GetTitleBar()), false, memory);
-					Push(Null, true, memory);
+					{
+						auto text = GetTitleText();
+						if(text != Null) {
+							Push(text, Null, false, memory);
+							Push(Null, true, memory);
+							Free(text);
+						}
+					}
 					
 					// Store custom colours
 					{
@@ -429,10 +434,8 @@ GUIAppEntryPoint(instance) {
 					// Extract board title
 					char* boardTitle = (char*)data;
 					MovePtr(data, GetLength(boardTitle) + 1);
-					if(boardTitle[0] != '\0') {
-						ClearText(*GetTitleBar());
-						Insert(boardTitle, GetLength(boardTitle), *GetTitleBar(), 0);
-					}
+					if(boardTitle[0] != '\0')
+						UpdateTitleText(boardTitle, Null);
 					
 					// Extract custom colours
 					{
@@ -602,12 +605,12 @@ GUIAppEntryPoint(instance) {
 			auto* f = MouseOverlapsFolder(osState);
 			if(f != Null) {
 				// Temporarily switch to target folder and create new note, then delete old one
-				PushDirectory(f);
+				OpenFolder(f);
 				CreateNote( // Create on target folder memory
-									 NullVector, 
-									 NoteHasTitle(n) == true ? GetText(n->title) : Null, 
-									 GetTextLength(n->text) > 0 ? GetText(n->text) : Null);
-				PopDirectory();
+									  NullVector, 
+									  NoteHasTitle(n) == true ? GetText(n->title) : Null, 
+									  GetTextLength(n->text) > 0 ? GetText(n->text) : Null);
+				CloseCurrentFolder();
 				DeleteNote(n);
 			}
 		}
@@ -649,7 +652,14 @@ GUIAppEntryPoint(instance) {
 			UpdateNoteContainers(GetCurrentNote());
 		
 		// @SECTION - Folders
-		if(Win32MouseLeftDownThisFrame(osState) == true && MouseIsWithinCanvasSpace(osState) == true) { // Check for selection
+		if(osState.mouseLeftDoubleClick == true && MouseOverlapsFolder(osState) != Null) { // Open or rename folder
+			auto* folder = MouseOverlapsFolder(osState);
+			if(Overlap(UnpackVector(osState.mousePos), UnpackRectangle(GetTextRectangle(folder->text))) == true) // Rename
+				BeginTextUpdate(folder->text, osState.mousePos);
+			else // Open
+				OpenFolder(folder);
+		}
+		else if(Win32MouseLeftDownThisFrame(osState) == true && MouseIsWithinCanvasSpace(osState) == true) { // Check for selection
 			vector mousePos = ConvertToCanvasSpace(osState.mousePos);
 			bool selected = false;
 			BeginFoldersMemoryLoop(allocated, f) {
@@ -660,12 +670,6 @@ GUIAppEntryPoint(instance) {
 							EndTextUpdate();
 						state.folders.selected = GetOffset(f, state.folders.memory.memory);
 						state.folders.moving = true;
-						selected = true;
-						BreakFoldersMemoryLoop();
-					}
-					else if(Overlap(UnpackVector(mousePos), UnpackRectangle(GetTextRectangle(f->text))) == true) { // Rename
-						BeginTextUpdate(f->text, mousePos);
-						state.folders.selected = GetOffset(f, state.folders.memory.memory);
 						selected = true;
 						BreakFoldersMemoryLoop();
 					}

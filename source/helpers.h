@@ -6,6 +6,7 @@
 #include "apad_intrinsics.h."
 #include "apad_maths.h"
 #include "apad_memory.h"
+#include "apad_string_args.h"
 #include "apad_time.h"
 #include "apad_win32_gui.h"
 
@@ -40,7 +41,7 @@ bool 			NoteTitleIsBeingUpdated();
 bool 		  NoteHasTitle(note* n);
 void 		  UpdateNoteContainers(note* n); // Call after any updates to either text_body
 
-// ******************** Folders & Directories ******************** //
+// ******************** Folders ******************** //
 
 const ui8 FolderSize = 100;
 
@@ -57,10 +58,12 @@ struct folder {
 #define EndFoldersMemoryLoop() 													       EndMemoryPoolLoop()
 
 folder* CreateFolder(vector pos, char* text);
-folder* MouseOverlapsFolder(win32_state& osState); // Will return Null if none
+char* 	// Needs to be freed with Free(char*) if not Null
+				GetFolderTitle(folder* f);
+folder* MouseOverlapsFolder(win32_state& osState); // Returns folder if mouse overlaps the folder itself or the text. Will return Null if none.
 
-void PopDirectory();
-void PushDirectory(folder* f);
+void CloseCurrentFolder();
+void OpenFolder(folder* f);
 
 // ******************** Misc ******************** //
 
@@ -171,6 +174,7 @@ program_unique struct {
 
 // Misc
 #define GetTitleBar() (&state.titleBar)
+char* 	GetTitleText(); // Return needs to be freed
 #define GetToolBar() 	(&state.toolBar)
 #define GetTopMenu() 	(&state.topMenu)
 bool 		MouseIsWithinCanvasSpace(win32_state& osState);
@@ -178,6 +182,7 @@ bool    MouseIsWithinToolbar(win32_state& osState);
 bool    MouseOverlapsCanvas(win32_state& osState, rectangle& r);
 bool    MouseOverlapsGUI(win32_state& osState, rectangle& r);
 bool    TitleIsBeingUpdated();
+void 		UpdateTitleText(string_args(text));
 
 // Colour panel
 colour 	  GetCurrentColourPanelColour();

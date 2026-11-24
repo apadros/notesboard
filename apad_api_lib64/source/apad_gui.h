@@ -51,7 +51,7 @@ dll_import f32    UI8ColourToF32(ui8 u);
 // ******************** Buttons ******************** //
 
 struct button {
-	char* 		text;
+	char* 		text; // Will not contain a null char
 	f32       textHeight;
 	rectangle rectangle;
 	colour    highlightColour;
@@ -98,7 +98,9 @@ dll_import text_body AllocateTextBody(f32  containerLeft,
 dll_import void 		 ClearText(text_body& tb);
 dll_import void 		 FreeText(text_body& tb);
 dll_import char* 		 FindChar(char c, ui16 pos, bool scanForward, text_body& tb);
-dll_import char* 		 GetText(text_body& tb); // Do not use this to check for presence of text in text_body memory
+dll_import char* 		 // Does NOT contains a null char, use GetTextLength(text_body&) for the length
+										 GetText( // Do not use this to check for presence of text in text_body memory, use GetTextLength(text_body&) instead
+															text_body& tb);
 dll_import ui32 		 GetTextLength(text_body& tb);
 dll_import rectangle // Absolute coords
 										 // width will be 0 if it doesn't contain any text

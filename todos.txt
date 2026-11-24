@@ -37,7 +37,7 @@ Functionality
 		- Bug where option continues to be highlighted when moving the mouse to the window title
 			- Need to add ability to highlight text and use shift + arrow keys - APAD_GUI
 			- Mouse pos isn't updated when moving beyond the client area, so same value continues to be used in overlap checks
-		- Back button - go back to previous board
+		- Back button - go back to previous board @WIP
 	- Updating the GUI layout with changes to the client window (gl viewport)
 		
 Vertical toolbar
