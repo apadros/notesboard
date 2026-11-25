@@ -100,7 +100,10 @@ program_unique struct {
 		f32    scale = 1.0f;
 	} 			 canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
 	
-	text_body titleBar; // Coords in viewport space
+	struct {
+		text_body textBody; // Coords in viewport space
+		button    backButton;
+	}           titleBar;
 	
 	struct {
 		rectangle background;
@@ -173,16 +176,19 @@ program_unique struct {
 } state;
 
 // Misc
-#define GetTitleBar() (&state.titleBar)
-char* 	GetTitleText(); // Return needs to be freed
 #define GetToolBar() 	(&state.toolBar)
 #define GetTopMenu() 	(&state.topMenu)
 bool 		MouseIsWithinCanvasSpace(win32_state& osState);
 bool    MouseIsWithinToolbar(win32_state& osState);
 bool    MouseOverlapsCanvas(win32_state& osState, rectangle& r);
 bool    MouseOverlapsGUI(win32_state& osState, rectangle& r);
-bool    TitleIsBeingUpdated();
-void 		UpdateTitleText(string_args(text));
+
+// Title bar
+#define    GetTitleBar() (&state.titleBar)
+char* 	   GetTitleText(); // Return needs to be freed
+text_body& GetTitleTextBody();
+bool       TitleIsBeingUpdated();
+void 		   UpdateTitleText(string_args(text));
 
 // Colour panel
 colour 	  GetCurrentColourPanelColour();

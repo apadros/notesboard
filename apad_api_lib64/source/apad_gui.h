@@ -64,11 +64,13 @@ dll_import button AllocateButton(f32 left, f32 bottom, f32 width, f32 height,
 struct win32_state;
 dll_import bool 	ButtonClicked(button& b, win32_state& state);
 dll_import void 	FreeButtonText(button& b); // Call only if text was supplied to AllocateButton()
+dll_import bool   IsValid(button b);
 dll_import void 	Render( // Will render the background highlight colour
 												  button& b, 
 												  ui8 		borderThickness, // Set to Null if no border wanted
 												  vector  mousePos,
 												  bool    renderText);
+dll_export void   SetInvalid(button& b); // Does not free text
 
 // ******************** Text body ******************** //
 
@@ -78,7 +80,7 @@ const ui8 TextBodyFlagBulletPoints = 1 << 1;
 const ui8 TextBodyFlagNewlines = 		 1 << 2;
 const ui8 TextBodyFlagLeftAligned =  1 << 3; // If not present text is assumed to be center-aligned
 
-// Do not create copies as the memory pointer to by the memory_stack will be the same
+// Do not create copies as the memory pointed to by the memory_stack will be the same
 struct text_body {
 	memory_stack memory;
 	rectangle    container;

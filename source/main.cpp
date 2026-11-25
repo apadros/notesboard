@@ -61,7 +61,7 @@ GUIAppEntryPoint(instance) {
 	}
 
 	// @SECTION - Init title bar
-	state.titleBar = AllocateTextBody(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, (TitleBarHeight - TitleBarTextHeight) / 2, TitleBarTextHeight, Null, TextBodyFlagLetters);
+	GetTitleTextBody() = AllocateTextBody(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, (TitleBarHeight - TitleBarTextHeight) / 2, TitleBarTextHeight, Null, TextBodyFlagLetters);
 	UpdateTitleText("Title", Null);
 
 	// @SECTION - Init toolbar
@@ -70,7 +70,7 @@ GUIAppEntryPoint(instance) {
 		tb->background.left = 0;
 		tb->background.bottom = 0;
 		tb->background.width = ToolbarWidth;
-		tb->background.height = GetTopMenu()->background.bottom - GetTitleBar()->container.height;
+		tb->background.height = GetTopMenu()->background.bottom - GetTitleTextBody().container.height;
 
 		// Init buttons, starting at the top
 		button* buttons[] = { &tb->newNote, &tb->bulletPoint, &tb->noteTitle, &tb->colourPanel, &tb->createFolder };
@@ -477,15 +477,21 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// @SECTION - Title bar
-		if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, GetTitleBar()->container) == true) {
-			auto* tb = GetTitleBar();
-			BeginTextUpdate(*tb, osState.mousePos);
-			goto label_rendering;
+		{
+			auto* bar = GetTitleBar();
+			
+			if(MouseOverlapsGUI(osState, GetTitleTextBody().container) == true && IsValid(bar->backButton) == true && ButtonClicked(bar->backButton, osState) == true) // Back button clicked
+				CloseCurrentFolder();
+			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, GetTitleTextBody().container) == true) { // Change title text
+				auto& tb = GetTitleTextBody();
+				BeginTextUpdate(tb, osState.mousePos);
+				goto label_rendering;
+			}
+			else if( // Clicking out of the title bar while updating it
+							TitleIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, GetTitleTextBody().container) == false)
+				EndTextUpdate();
 		}
-		else if( // Clicking out of the title bar while updating it
-						TitleIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, GetTitleBar()->container) == false)
-			EndTextUpdate();
-
+		
 		// @SECTION - Toolbar
 		if(ButtonClicked(GetToolBar()->newNote, osState) == true) { // Create new note
 			auto pos = ConvertToCanvasSpace(0, osState.mousePos.y - NoteMinHeight / 2);
@@ -815,17 +821,24 @@ GUIAppEntryPoint(instance) {
 
 		// @SECTION - Render the ritle bar
 		{
-			auto* tb = GetTitleBar();
-			DrawRectangleFull(UnpackRectangle(tb->container), 255, 255, 255, 1);
-			if(GetTextLength(*tb) > 1)
-				Render(*tb);
+			auto& tb = GetTitleTextBody();
+			DrawRectangleFull(UnpackRectangle(tb.container), 255, 255, 255, 1);
+			if(GetTextLength(tb) > 1)
+				Render(tb);
+			
+			// Back button
+			{
+				auto& b = GetTitleBar()->backButton;
+				if(IsValid(b) == true)
+					Render(b, UIBorderThickness, osState.mousePos, true);
+			}
 
 			// Draw separator
 			glLineWidth(UIBorderThickness);
 			glColor3f(0, 0, 0);
 			glBegin(GL_LINES);
-			glVertex2s(tb->container.left, tb->container.bottom);
-			glVertex2s(tb->container.left + tb->container.width, tb->container.bottom);
+			glVertex2s(tb.container.left, tb.container.bottom);
+			glVertex2s(tb.container.left + tb.container.width, tb.container.bottom);
 			glEnd();
 			AssertOpenGL();
 		}

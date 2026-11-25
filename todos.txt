@@ -28,10 +28,10 @@ Functionality
 	- Setting a custom colour for the note background
 	- Boards / folders @WIP
 		- Moving notes & other folders to one @WIP
-		- 'Opening' one and going back to previous canvas 
+		- 'Opening' one and going back to previous canvas @WIP
 			- Display within the board title
 			- Reset all matrix transformations
-			- Add return button when pushing directories
+			- Changing the board title when inside a folder should change the folder text when going back
 	- Text container colours
 	- Horizontal (main) menu under the program title bar
 		- Bug where option continues to be highlighted when moving the mouse to the window title

@@ -2,6 +2,7 @@
 #include <gl\gl.h>
 #include "apad_array.h"
 #include "apad_error.h"
+#include "apad_gui.h"
 #include "apad_intrinsics.h"
 #include "apad_maths.h"
 #include "apad_memory.h"
@@ -119,12 +120,12 @@ program_external bool MouseOverlapsGUI(win32_state& osState, rectangle& r) {
 }
 
 program_external bool MouseIsWithinCanvasSpace(win32_state& osState) {
-	return osState.mousePos.x > GetTopRight(GetToolBar()->background).x && osState.mousePos.y < GetTitleBar()->container.bottom;
+	return osState.mousePos.x > GetTopRight(GetToolBar()->background).x && osState.mousePos.y < GetTitleTextBody().container.bottom;
 }
 
 program_external bool MouseOverlapsCanvas(win32_state& osState, rectangle& r) {
 	// Check first if within GUI space
-	if(osState.mousePos.x <= GetTopRight(GetToolBar()->background).x || osState.mousePos.y >= GetTitleBar()->container.bottom)
+	if(osState.mousePos.x <= GetTopRight(GetToolBar()->background).x || osState.mousePos.y >= GetTitleTextBody().container.bottom)
 		return false;
 	
 	auto pos = ConvertToCanvasSpace(osState.mousePos);
@@ -132,7 +133,7 @@ program_external bool MouseOverlapsCanvas(win32_state& osState, rectangle& r) {
 }
 
 program_external bool TitleIsBeingUpdated() {
-	return TextIsBeingUpdated() == true && GetCurrentTextBody() == GetTitleBar();
+	return TextIsBeingUpdated() == true && GetCurrentTextBody() == &GetTitleTextBody();
 }
 
 program_external note* GetCurrentNote() {
@@ -576,11 +577,11 @@ program_external void OpenFolder(folder* f) {
 	
 	// Store the the current board title and its length
 	{
-		auto* bar = GetTitleBar();
-		ui8   length = GetTextLength(*bar);
+		auto& tb = GetTitleTextBody();
+		ui8   length = GetTextLength(tb);
 		if(length > 0) {
-			Push(GetText(*bar), length, false, state.directories);
-			ClearText(*bar);
+			Push(GetText(tb), length, false, state.directories);
+			ClearText(tb);
 		}
 		PushInstance(length, state.directories); // Push length regardless
 	}
@@ -592,8 +593,17 @@ program_external void OpenFolder(folder* f) {
 		Free(folderTitle);
 	}
 	
-	// @WIP
-	// @TODO - Add a go back button
+	// Add a go back button
+	{
+		auto& tb = GetTitleTextBody();
+		f32   left = (tb.container.height - tb.textHeight) / 2;
+		f32   bottom = tb.container.bottom + left; // Same offset from bottom as for left from screen edge
+		f32   height = tb.textHeight;
+		
+		auto* bar = GetTitleBar();
+		Assert(IsValid(bar->backButton) == false);
+		bar->backButton = AllocateButton(left, bottom, 200, height, "Back", Null, height / 2, ColourPanelButtonsHighlightRGBA);
+	}
 }
 
 program_external void CloseCurrentFolder() {
@@ -614,6 +624,11 @@ program_external void CloseCurrentFolder() {
 		
 		ui32 popSize = (ui8*)GetEnd(state.directories) - (ui8*)mem;
 		Pop(popSize, state.directories);
+		
+		auto* bar = GetTitleBar();
+		Assert(IsValid(bar->backButton) == true);
+		FreeButtonText(bar->backButton);
+		SetInvalid(bar->backButton);
 	}
 }
 
@@ -628,16 +643,21 @@ program_external char* GetFolderTitle(folder* f) {
 
 program_external void UpdateTitleText(string_args(text)) {
 	CheckStringArgs(UnpackStringArgs(text));
-	if(GetTextLength(state.titleBar) > 0)
-		ClearText(state.titleBar);
-	Insert(text, stringArgsLength(text), state.titleBar, 0);
+	auto& tb = GetTitleTextBody();
+	if(GetTextLength(tb) > 0)
+		ClearText(tb);
+	Insert(text, stringArgsLength(text), tb, 0);
 }
 
 program_external char* GetTitleText() {
-	auto* bar = GetTitleBar();
-	if(GetTextLength(*bar) > 0) {
-		return AllocateString(GetText(*bar), GetTextLength(*bar));
+	auto& tb = GetTitleTextBody();
+	if(GetTextLength(tb) > 0) {
+		return AllocateString(GetText(tb), GetTextLength(tb));
 	}
 	else
 		return Null;
+}
+
+program_external text_body& GetTitleTextBody() {
+	return state.titleBar.textBody;
 }
