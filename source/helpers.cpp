@@ -16,18 +16,20 @@ program_external note* CreateNote(vector pos, char* title, char* text) {
 	if(TextIsBeingUpdated() == true)
 		EndTextUpdate();
 	
-	note* n = (note*)Allocate(state.notes.memory);
+	auto* current = GetCurrentBoard();
+	if(IsValid(current->notes) == false)
+		current->notes = AllocatePool(sizeof(note));
+	
+	note* n = (note*)Allocate(current->notes);
 	Assert(n != Null);
 
-	// Text
 	n->text = AllocateTextBody(pos.x, pos.y, NoteMinWidth, NoteTextBorder, NoteTextHeight, Null,
 														 TextBodyFlagLetters | TextBodyFlagBulletPoints | TextBodyFlagNewlines | TextBodyFlagLeftAligned);
 	if(text != Null) {
 		Insert((char*)text, Null, n->text, 0);
 		UpdateNoteContainers(n);
-	}		
+	}
 
-	// Title
 	if(title != Null) {
 		auto textRec = GetTextRectangle(n->text);
 		n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, textRec.width, NoteTextBorder, NoteTitleTextHeight, Null, TextBodyFlagLetters);
@@ -38,20 +40,28 @@ program_external note* CreateNote(vector pos, char* title, char* text) {
 	return n;
 }
 
-program_external folder* CreateFolder(vector pos, char* text) {
+program_external board* CreateBoard(vector pos, char* text) {
 	if(TextIsBeingUpdated() == true)
 		EndTextUpdate();
-
-	folder* f = (folder*)Allocate(state.folders.memory);
-	Assert(f != Null);
 	
-	// Fill
-	f->pos = pos;
-	f->text = AllocateTextBody(pos.x, pos.y - NoteTextHeight - NoteTextBorder * 2, FolderSize, NoteTextBorder, NoteTextHeight, Null, TextBodyFlagLetters); 
+	auto* current = GetCurrentBoard();
+
+	if(IsValid(b->boards) == false)
+		b->boards = AllocatePool(sizeof(board));
+	
+	board* b = (board*)Allocate(current->boards);
+	Assert(b != Null);
+	
+	b->pos = pos;
+	
+	b->title = AllocateTextBody(pos.x, pos.y - NoteTextHeight - NoteTextBorder * 2, BoardIconSize, NoteTextBorder, NoteTextHeight, Null, TextBodyFlagLetters); 
 	if(text == Null)
-		Insert("Folder", GetLength("Folder"), f->text, Null);
+		Insert("Folder", Null, b->title, Null);
 	else
-		Insert((char*)text, GetLength(text), f->text, Null);
+		Insert((char*)text, Null, b->title, Null);
+	
+	b->canvas.colour = CreateColourUI8(200, 200, 200);
+	b->canvas.scale = 1.0f;
 
 	return f;
 }
@@ -112,23 +122,23 @@ program_external rectangle GetNoteOverallRectangle(note* n) {
 }
 
 program_external bool MouseIsWithinToolbar(win32_state& osState) {
-	return Overlap(osState.mousePos.x, osState.mousePos.y, UnpackRectangle(state.toolBar.background));
+	return Overlap(osprogramState.mousePos.x, osprogramState.mousePos.y, UnpackRectangle(programState.toolBar.background));
 }
 
 program_external bool MouseOverlapsGUI(win32_state& osState, rectangle& r) {
-	return Overlap(osState.mousePos.x, osState.mousePos.y, UnpackRectangle(r));
+	return Overlap(osprogramState.mousePos.x, osprogramState.mousePos.y, UnpackRectangle(r));
 }
 
 program_external bool MouseIsWithinCanvasSpace(win32_state& osState) {
-	return osState.mousePos.x > GetTopRight(GetToolBar()->background).x && osState.mousePos.y < GetTitleTextBody().container.bottom;
+	return osprogramState.mousePos.x > GetTopRight(GetToolBar()->background).x && osprogramState.mousePos.y < GetTitleTextBody().container.bottom;
 }
 
 program_external bool MouseOverlapsCanvas(win32_state& osState, rectangle& r) {
 	// Check first if within GUI space
-	if(osState.mousePos.x <= GetTopRight(GetToolBar()->background).x || osState.mousePos.y >= GetTitleTextBody().container.bottom)
+	if(osprogramState.mousePos.x <= GetTopRight(GetToolBar()->background).x || osprogramState.mousePos.y >= GetTitleTextBody().container.bottom)
 		return false;
 	
-	auto pos = ConvertToCanvasSpace(osState.mousePos);
+	auto pos = ConvertToCanvasSpace(osprogramState.mousePos);
 	return Overlap(pos.x, pos.y, UnpackRectangle(r));
 }
 
@@ -137,17 +147,17 @@ program_external bool TitleIsBeingUpdated() {
 }
 
 program_external note* GetCurrentNote() {
-	if(IsValid(state.notes.selected) == false)
+	if(IsValid(programState.notes.selected) == false)
 		return Null;
 	
-	return (note*)GetMemory(state.notes.selected);
+	return (note*)GetMemory(programState.notes.selected);
 }
 
 program_external note* SetCurrentNote(note* n) {
 	if(n == Null)
-		ClearInstance(state.notes.selected);
+		ClearInstance(programState.notes.selected);
 	else
-		state.notes.selected = GetOffset(n, state.notes.memory.memory);
+		programState.notes.selected = GetOffset(n, programState.notes.memory.memory);
 	return n;
 }
 
@@ -165,8 +175,8 @@ program_external bool NoteIsBeingUpdated() {
 
 program_external vector ConvertToCanvasSpace(f32 x, f32 y) {
 	vector p = {};
-	p.x = (x - state.canvas.translation.x) / state.canvas.scale;
-	p.y = (y - state.canvas.translation.y) / state.canvas.scale;
+	p.x = (x - programState.canvas.translation.x) / programState.canvas.scale;
+	p.y = (y - programState.canvas.translation.y) / programState.canvas.scale;
 	return p;
 }
 
@@ -176,8 +186,8 @@ program_external vector ConvertToCanvasSpace(vector pos) {
 
 program_external vector ConvertToViewportSpace(vector pos) {
 	vector p = {};
-	p.x = pos.x * state.canvas.scale + state.canvas.translation.x;
-	p.y = pos.y * state.canvas.scale + state.canvas.translation.y;
+	p.x = pos.x * programState.canvas.scale + programState.canvas.translation.x;
+	p.y = pos.y * programState.canvas.scale + programState.canvas.translation.y;
 	return p;
 }
 
@@ -196,10 +206,10 @@ program_external void SetGUIProjectionMatrix() {
 
 program_external void SetCanvasProjetionMatrix() {
 	SetGUIProjectionMatrix();
-	if(state.canvas.scale != 1.0f)
-		glScalef(state.canvas.scale, state.canvas.scale, 1.0f);
-	if(state.canvas.translation.x != 0 || state.canvas.translation.y != 0)
-		glTranslatef(state.canvas.translation.x / state.canvas.scale, state.canvas.translation.y / state.canvas.scale, Null);
+	if(programState.canvas.scale != 1.0f)
+		glScalef(programState.canvas.scale, programState.canvas.scale, 1.0f);
+	if(programState.canvas.translation.x != 0 || programState.canvas.translation.y != 0)
+		glTranslatef(programState.canvas.translation.x / programState.canvas.scale, programState.canvas.translation.y / programState.canvas.scale, Null);
 	AssertOpenGL();
 }
 
@@ -536,58 +546,67 @@ program_external void DeleteNote(note* n) {
 	if(IsValid(n->title) == true)
 		FreeText(n->title);
 	FreeText(n->text);
-	Deallocate(n, state.notes.memory);
+	Deallocate(n, programState.notes.memory);
 }
 
-program_external folder* MouseOverlapsFolder(win32_state& osState) {
+program_external board* MouseOverlapsBoard(win32_state& osState) {
 	if(MouseIsWithinCanvasSpace(osState) == false)
 		return Null;
 	
-	auto mousePos = ConvertToCanvasSpace(osState.mousePos);
-	BeginFoldersMemoryLoop(allocated, f) {
+	auto mousePos = ConvertToCanvasSpace(osprogramState.mousePos);
+	BeginBoardsMemoryLoop(allocated, f) {
 		if(*allocated == true) {
 			Assert(IsValid(f->text) == true);
-			if(Overlap(UnpackVector(mousePos), UnpackVector(f->pos), FolderSize, FolderSize) == true || Overlap(UnpackVector(mousePos), UnpackRectangle(GetTextRectangle(f->text))) == true) // The folder itself or the text
+			if(Overlap(UnpackVector(mousePos), UnpackVector(f->pos), BoardIconSize, BoardIconSize) == true || Overlap(UnpackVector(mousePos), UnpackRectangle(GetTextRectangle(f->text))) == true) // The folder itself or the text
 				return f;
 		}
 	}
-	EndFoldersMemoryLoop()
+	EndBoardsMemoryLoop()
 	
 	return Null;
 }
 
-program_external void OpenFolder(folder* f) {
+program_external void OpenBoard(board* f) {
 	Assert(f != Null);
 	
-	PushInstance(state.notes.memory, state.directories);
-	PushInstance(state.folders.memory, state.directories);
+	PushPtr(f);
 	
-	SetInvalid(state.notes.selected);
-	ClearInstance(state.notes);
-	SetInvalid(state.folders.selected);
-	ClearInstance(state.folders);
+	// Update text_body container and text to title bar dimensions
+	f->textHeight = TitleBarTextHeight;
+	f->container = CreateRectangle(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, TitleBarHeight);
+	f->textBorderOffset = f->container.height - f->textHeight;
 	
-	state.notes.memory = f->notes;
-	if(IsValid(state.notes.memory) == false)
-		state.notes.memory = AllocatePool(sizeof(note));
+	// @WIP 
 	
-	state.folders.memory = f->folders;
-	if(IsValid(state.folders.memory) == false)
-		state.folders.memory = AllocatePool(sizeof(folder));
+	PushInstance(programState.notes.memory, programState.directories);
+	PushInstance(programState.folders.memory, programState.directories);
+	
+	SetInvalid(programState.notes.selected);
+	ClearInstance(programState.notes);
+	SetInvalid(programState.folders.selected);
+	ClearInstance(programState.folders);
+	
+	programState.notes.memory = f->notes;
+	if(IsValid(programState.notes.memory) == false)
+		programState.notes.memory = AllocatePool(sizeof(note));
+	
+	programState.folders.memory = f->folders;
+	if(IsValid(programState.folders.memory) == false)
+		programState.folders.memory = AllocatePool(sizeof(folder));
 	
 	// Store the the current board title and its length
 	{
 		auto& tb = GetTitleTextBody();
 		ui8   length = GetTextLength(tb);
 		if(length > 0) {
-			Push(GetText(tb), length, false, state.directories);
+			Push(GetText(tb), length, false, programState.directories);
 			ClearText(tb);
 		}
-		PushInstance(length, state.directories); // Push length regardless
+		PushInstance(length, programState.directories); // Push length regardless
 	}
 	
 	// Update title
-	auto* folderTitle = GetFolderTitle(f);
+	auto* folderTitle = GetBoardTitle(f);
 	if(folderTitle != Null) {
 		UpdateTitleText(folderTitle, Null);
 		Free(folderTitle);
@@ -606,9 +625,11 @@ program_external void OpenFolder(folder* f) {
 	}
 }
 
-program_external void CloseCurrentFolder() {
-	if(state.directories.size > 0) {
-		void* mem = GetEnd(state.directories);
+program_external void CloseCurrentBoard() {
+	// @WIP @TODO - Convert text_body container and text to board icon dimensions
+	
+	if(programState.directories.size > 0) {
+		void* mem = GetEnd(programState.directories);
 		
 		// Extract previous board title and update
 		MovePtr(mem, -1);
@@ -616,14 +637,14 @@ program_external void CloseCurrentFolder() {
 		MovePtr(mem, -length);
 		UpdateTitleText((char*)mem, length);
 		
-		MovePtr(mem, -sizeof(state.folders.memory));
-		Copy(mem, sizeof(state.folders.memory), &(state.folders.memory));
+		MovePtr(mem, -sizeof(programState.folders.memory));
+		Copy(mem, sizeof(programState.folders.memory), &(programState.folders.memory));
 		
-		MovePtr(mem, -sizeof(state.notes.memory));
-		Copy(mem, sizeof(state.notes.memory), &(state.notes.memory));
+		MovePtr(mem, -sizeof(programState.notes.memory));
+		Copy(mem, sizeof(programState.notes.memory), &(programState.notes.memory));
 		
-		ui32 popSize = (ui8*)GetEnd(state.directories) - (ui8*)mem;
-		Pop(popSize, state.directories);
+		ui32 popSize = (ui8*)GetEnd(programState.directories) - (ui8*)mem;
+		Pop(popSize, programState.directories);
 		
 		auto* bar = GetTitleBar();
 		Assert(IsValid(bar->backButton) == true);
@@ -632,7 +653,7 @@ program_external void CloseCurrentFolder() {
 	}
 }
 
-program_external char* GetFolderTitle(folder* f) {
+program_external char* GetBoardTitle(board* f) {
 	Assert(f != Null);
 	auto length = GetTextLength(f->text);
 	if(length > 0)
@@ -643,10 +664,14 @@ program_external char* GetFolderTitle(folder* f) {
 
 program_external void UpdateTitleText(string_args(text)) {
 	CheckStringArgs(UnpackStringArgs(text));
+	
 	auto& tb = GetTitleTextBody();
-	if(GetTextLength(tb) > 0)
-		ClearText(tb);
+	ClearText(tb);
 	Insert(text, stringArgsLength(text), tb, 0);
+	
+	auto* b = GetCurrentBoard();
+	ClearText(*b);
+	Insert(text, stringArgsLength(text), *b, 0);
 }
 
 program_external char* GetTitleText() {
@@ -659,5 +684,12 @@ program_external char* GetTitleText() {
 }
 
 program_external text_body& GetTitleTextBody() {
-	return state.titleBar.textBody;
+	return programState.titleBar.textBody;
+}
+
+program_external board* GetCurrentBoard() {
+	assert(programState.directories.size >= sizeof(board));
+	ui8* mem = (ui8*)GetEnd(programState.directories) - sizeof(board);
+	assert(mem >= GetMmeory(programState.directories));
+	return (board*)mem;
 }

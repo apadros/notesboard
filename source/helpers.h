@@ -10,6 +10,37 @@
 #include "apad_time.h"
 #include "apad_win32_gui.h"
 
+// ******************** Boards ******************** //
+
+const ui8 BoardIconSize = 100;
+
+struct board {
+	vector      pos;   // Within previous board canvas
+	text_body 	title; // Applicable only within previous canvas. Container pos & size need to be checked separately from board.pos
+	
+	memory_pool notes;  // Allocated during create of first note
+	memory_pool boards; // Allocated during create of first board
+	
+	struct {
+		colour colour;
+		vector translation; // In viewport space, applied post scaling, therefore must be scaled
+		f32    scale;
+	} 			 canvas; // Treated as the GL projection matrix, initially takes up entire viewport, including title and tool bars
+};
+
+#define BeginBoardsMemoryLoop(_allocatedBoolPtrID, _folderID) BeginMemoryPoolLoop(programState.folders.memory, _allocatedBoolPtrID, _memPtrID) \
+																														     board* _folderID = (board*)_memPtrID;
+#define BreakBoardsMemoryLoop()													     break
+#define EndBoardsMemoryLoop() 													       EndMemoryPoolLoop()
+
+board* CreateBoard(vector pos, char* title);
+char* 	// Needs to be freed with Free(char*) if not Null
+				GetBoardTitle(board* b);
+board* MouseOverlapsBoard(win32_state& osState); // Returns folder if mouse overlaps the folder itself or the text. Will return Null if none.
+
+void CloseCurrentBoard();
+void OpenBoard(board* b);
+
 // ******************** Notes ******************** //
 
 const ui16 NoteMinWidth = 200;
@@ -25,7 +56,7 @@ struct note {
 									 // Call GetTextLength(note->text) (APAD API) for the real length
 };
 
-#define   BeginNotesMemoryLoop(_allocatedBoolPtrID, _notePtrID) BeginMemoryPoolLoop(state.notes.memory, _allocatedBoolPtrID, _memPtrID) { \
+#define   BeginNotesMemoryLoop(_allocatedBoolPtrID, _notePtrID) BeginMemoryPoolLoop(programState.notes.memory, _allocatedBoolPtrID, _memPtrID) { \
 																														      note* _notePtrID = (note*)_memPtrID;
 #define   EndNotesMemoryLoop() 				                          } EndMemoryPoolLoop()
 
@@ -40,30 +71,6 @@ bool 		  NoteTextIsBeingUpdated();
 bool 			NoteTitleIsBeingUpdated();
 bool 		  NoteHasTitle(note* n);
 void 		  UpdateNoteContainers(note* n); // Call after any updates to either text_body
-
-// ******************** Folders ******************** //
-
-const ui8 FolderSize = 100;
-
-struct folder {
-	vector      pos;
-	text_body 	text; // Container pos & size need to be checked separately from the folder itself
-	memory_pool notes;
-	memory_pool folders;
-};
-
-#define BeginFoldersMemoryLoop(_allocatedBoolPtrID, _folderID) BeginMemoryPoolLoop(state.folders.memory, _allocatedBoolPtrID, _memPtrID) \
-																														     folder* _folderID = (folder*)_memPtrID;
-#define BreakFoldersMemoryLoop()													     break
-#define EndFoldersMemoryLoop() 													       EndMemoryPoolLoop()
-
-folder* CreateFolder(vector pos, char* text);
-char* 	// Needs to be freed with Free(char*) if not Null
-				GetFolderTitle(folder* f);
-folder* MouseOverlapsFolder(win32_state& osState); // Returns folder if mouse overlaps the folder itself or the text. Will return Null if none.
-
-void CloseCurrentFolder();
-void OpenFolder(folder* f);
 
 // ******************** Misc ******************** //
 
@@ -93,23 +100,19 @@ const f32  ColourPanelOKCancelTextOffset = NoteTextBorder;
 
 const ui8  UIBorderThickness = 2;
 
+enum struct program_state : ui8 { 
+	BoardCreated, BoardSelected, BoardMoving, 
+	NoteCreated, NoteSelected, NoteMoving 
+};
+
 program_unique struct {
 	struct {
-		colour colour;
-		vector translation; // In viewport space, applied post scaling, therefore must be scaled
-		f32    scale = 1.0f;
-	} 			 canvas; // Treated as the GL projeciton matrix, initially takes up entire viewport, including title and tool bars
-	
-	struct {
-		text_body textBody; // Coords in viewport space
-		button    backButton;
-	}           titleBar;
-	
-	struct {
-		rectangle background;
+		rectangle background; // In viewport space
 		button    save;
 		button    load;
 	} 					topMenu;
+	
+	struct backButton;
 	
 	struct {
 		rectangle background; // In viewport space
@@ -117,7 +120,7 @@ program_unique struct {
 		button    bulletPoint;
 		button    noteTitle;
 		button    colourPanel;
-		button    createFolder;
+		button    CreateBoard;
 	} 					toolBar;
 	
 	struct { // All cords in UI viewport space
@@ -157,42 +160,34 @@ program_unique struct {
 		button ok;
 		button cancel;
 	} colourPanel;
-
-	struct {
-		memory_pool   memory;
-		memory_offset selected;
-		bool          moving;
-		bool 				  justCreated;
-	} 						  notes;
 	
-	struct {
-		memory_pool   memory;
-		memory_offset selected;
-		bool          moving;
-		bool 				  justCreated;
-	} 						  folders;
+	program_state state;
 	
-	memory_stack directories; // Keep track of folders opened
-} state;
+	memory_offset currentSelection;
+	
+	memory_stack directories; // Keep track of boards opened. Will always have at least 1.
+} programState;
 
 // Misc
-#define GetToolBar() 	(&state.toolBar)
-#define GetTopMenu() 	(&state.topMenu)
+board* 	GetCurrentBoard();
+#define GetToolBar() 	(&programState.toolBar)
+#define GetTopMenu() 	(&programState.topMenu)
 bool 		MouseIsWithinCanvasSpace(win32_state& osState);
 bool    MouseIsWithinToolbar(win32_state& osState);
 bool    MouseOverlapsCanvas(win32_state& osState, rectangle& r);
 bool    MouseOverlapsGUI(win32_state& osState, rectangle& r);
 
 // Title bar
-#define    GetTitleBar() (&state.titleBar)
-char* 	   GetTitleText(); // Return needs to be freed
+#define    GetTitleBar() (&programState.titleBar)
+char* 	   // Needs to be freed with Free(char*)
+					 GetTitleText();
 text_body& GetTitleTextBody();
 bool       TitleIsBeingUpdated();
-void 		   UpdateTitleText(string_args(text));
+void 		   UpdateTitleText(string_args(text)); // Will update title bar and current board title
 
 // Colour panel
 colour 	  GetCurrentColourPanelColour();
-#define 	GetColourPanel() (&state.colourPanel)
+#define 	GetColourPanel() (&programState.colourPanel)
 colour 		GetColourPanelWheelColour(f32 angle);
 rectangle GetColourPanelWheelRectangle();
 rectangle GetColourPanelRectangleRectangle();
