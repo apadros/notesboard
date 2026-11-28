@@ -85,8 +85,8 @@ GUIAppEntryPoint(instance) {
 	
 	// @SECTION - Init starting board
 	{
-		auto* b = PushStruct(board, programState.directories);
-		Clear(board, sizeof(board));
+		auto* b = PushType(board, programState.directories);
+		Clear(b, sizeof(board));
 		
 		b->title = AllocateTextBody( // Init as current board title
 																 0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, (TitleBarHeight - TitleBarTextHeight) / 2, TitleBarTextHeight, Null, TextBodyFlagLetters);
@@ -211,28 +211,28 @@ GUIAppEntryPoint(instance) {
 					}
 				}
 			}
-			else if(osprogramState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->red.container) == true) // Interact with red field
+			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->red.container) == true) // Interact with red field
 				BeginTextUpdate(panel->red, NullVector);
-			else if(osprogramState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->green.container) == true) // Interact with green field
+			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->green.container) == true) // Interact with green field
 				BeginTextUpdate(panel->green, NullVector);
-			else if(osprogramState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->blue.container) == true) // Interact with blue field
+			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->blue.container) == true) // Interact with blue field
 				BeginTextUpdate(panel->blue, NullVector);
-			else if(osprogramState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->hex.container) == true) // Interact with hex field
+			else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, panel->hex.container) == true) // Interact with hex field
 				BeginTextUpdate(panel->hex, NullVector);
 			else if( // Begin outer colour wheel update
 							Win32MouseLeftDownThisFrame(osState) == true && 
-							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osprogramState.mousePos), GetColourPanelWheelRectangle().height / 2) == true && 
-							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osprogramState.mousePos), GetColourPanelWheelRectangle().height / 2 - ColourWheelThickness) == false) 
+							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().height / 2) == true && 
+							Overlap(UnpackVector(GetCenter(GetColourPanelWheelRectangle())), UnpackVector(osState.mousePos), GetColourPanelWheelRectangle().height / 2 - ColourWheelThickness) == false) 
 			{
 				panel->updatingMainColour = true;
 				if(TextIsBeingUpdated() == true && GetCurrentTextBody() == &panel->hex)
 					EndTextUpdate();
 			}
 			else if(panel->updatingMainColour == true) { // Update current colour
-				if(osprogramState.mouseLeftDown == true) {
+				if(osState.mouseLeftDown == true) {
 					// Angle of current selection
 					f32 angle = 0; // About the horizontal axis
-					vector vec = osprogramState.mousePos - GetCenter(GetColourPanelWheelRectangle());
+					vector vec = osState.mousePos - GetCenter(GetColourPanelWheelRectangle());
 					if(vec.x == 0)
 						angle = vec.y > 0 ? 90 : 270;
 					else if(vec.y == 0)
@@ -263,12 +263,12 @@ GUIAppEntryPoint(instance) {
 			}
 			else if( // Begin inner colour rectangle update
 							Win32MouseLeftDownThisFrame(osState) == true && 
-							Overlap(UnpackVector(osprogramState.mousePos), UnpackRectangle(GetColourPanelRectangleRectangle())) == true)
+							Overlap(UnpackVector(osState.mousePos), UnpackRectangle(GetColourPanelRectangleRectangle())) == true)
 				panel->updatingShade = true;
 			else if(panel->updatingShade == true) { // Update shade rectangle
-				if(osprogramState.mouseLeftDown == true) {
+				if(osState.mouseLeftDown == true) {
 					auto rec = GetColourPanelRectangleRectangle();
-					vector vec = osprogramState.mousePos - rec.pos;
+					vector vec = osState.mousePos - rec.pos;
 					Clamp(vec.x, 0, rec.width);
 					Clamp(vec.y, 0, rec.height);
 					vec.x /= rec.width;
@@ -282,7 +282,7 @@ GUIAppEntryPoint(instance) {
 			else if(Win32MouseLeftDownThisFrame(osState) == true) { // Check for selection of favourite colours
 				ForAll(GetArrayLength(panel->favourites)) {
 					auto* f = panel->favourites + it;
-					if(Overlap(UnpackVector(osprogramState.mousePos), UnpackVector(f->center), f->radius) == true) {
+					if(Overlap(UnpackVector(osState.mousePos), UnpackVector(f->center), f->radius) == true) {
 						panel->favouriteSelected = it + 1;
 						if(f->inited == true) {
 							SetColourPanelColour(UnpackColourUI8(f->colour));
@@ -299,14 +299,14 @@ GUIAppEntryPoint(instance) {
 							textUpdatePipelineData.bodyBeingUpdatedThisFrame == &panel->blue || textUpdatePipelineData.bodyBeingUpdatedThisFrame == &panel->hex) 
 			{ 
 				if( // EndTextUpdate() was called within RunTextUpdatePipeline(). If ESC was pressed, return to what was there before
-						textUpdatePipelineData.bodyBeingUpdatedThisFrame != Null && osprogramState.escapePressed == true) 
+						textUpdatePipelineData.bodyBeingUpdatedThisFrame != Null && osState.escapePressed == true) 
 				{
 					panel->mainColour = panel->savedMainColour;
 					panel->shade = panel->savedShade;
 					SetColourPanelRGBHexText();
 				}
-				else if(IsBeingUpdated(panel->hex) == true && (osprogramState.keyPressed != Null || osprogramState.enterPressed == true)) { // Special case for hex field
-					if((osprogramState.keyPressed >= 'a' && osprogramState.keyPressed <= 'f' || osprogramState.keyPressed <= 'A' && osprogramState.keyPressed >= 'F' || osprogramState.keyPressed >= '0' && osprogramState.keyPressed <= '9') == false) // Chars must be hex
+				else if(IsBeingUpdated(panel->hex) == true && (osState.keyPressed != Null || osState.enterPressed == true)) { // Special case for hex field
+					if((osState.keyPressed >= 'a' && osState.keyPressed <= 'f' || osState.keyPressed <= 'A' && osState.keyPressed >= 'F' || osState.keyPressed >= '0' && osState.keyPressed <= '9') == false) // Chars must be hex
 						RemoveChar(panel->hex, GetCursorCharOffset() - 1);
 				
 					char* text = GetText(panel->hex);
@@ -321,7 +321,7 @@ GUIAppEntryPoint(instance) {
 						SetColourPanelRGBText(b, panel->blue);
 					}
 				}
-				else if(osprogramState.keyPressed != Null || osprogramState.backspacePressed == true || osprogramState.enterPressed == true) { // Change of value
+				else if(osState.keyPressed != Null || osState.backspacePressed == true || osState.enterPressed == true) { // Change of value
 					// Check for new value and clamp between 0 and 255
 					if(IsBeingUpdated(panel->red) == true || IsBeingUpdated(panel->green) == true || IsBeingUpdated(panel->blue) == true) {
 						text_body* b = Null;
@@ -363,6 +363,7 @@ GUIAppEntryPoint(instance) {
 
 				char* path = SaveFileAsGUI(Null, Null, "Bola boards\0*.bb\0\0", Null); // Get save file path
 				if(path != Null) {
+					#if 0
 					auto memory = AllocateStack();
 
 					// Store board title
@@ -415,6 +416,7 @@ GUIAppEntryPoint(instance) {
 					Win32DisplayInfoBox("File saved!", Null, false);
 
 					Free(memory);
+					#endif
 				}
 			}
 			else if(ButtonClicked(m->load, osState) == true) {
@@ -432,6 +434,7 @@ GUIAppEntryPoint(instance) {
 
 				char* path = OpenFileGUI(".\\Boards", Null, "Bola boards\0*.bb\0\0", Null); // Get open file path
 				if(path != Null && FileExists(path, Null) == true) {
+					#if 0
 					auto file = LoadFile(path, Null);
 					void* data = GetMemory(file);
 
@@ -474,6 +477,7 @@ GUIAppEntryPoint(instance) {
 
 						auto* n = CreateNote(CreateVector(x, y), title[0] == '\0' ? Null : title, text[0] == '\0' ? Null : text);
 					}
+					#endif
 				}
 			}
 			
@@ -481,28 +485,23 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// @SECTION - Title bar
-		{
-			auto* bar = GetTitleBar();
-			
-			if(MouseOverlapsGUI(osState, GetTitleTextBody().container) == true && IsValid(bar->backButton) == true && ButtonClicked(bar->backButton, osState) == true) // Back button clicked
-				CloseCurrentBoard();
-			else if(osprogramState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, GetTitleTextBody().container) == true) { // Change title text
-				auto& tb = GetTitleTextBody();
-				BeginTextUpdate(tb, osprogramState.mousePos);
-				goto label_rendering;
-			}
-			else if( // Clicking out of the title bar while updating it
-							TitleIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, GetTitleTextBody().container) == false)
-				EndTextUpdate();
+		if(MouseOverlapsGUI(osState, GetTitleRectangle()) == true && IsValid(programState.backButton) == true && ButtonClicked(programState.backButton, osState) == true) // Back button clicked
+			CloseCurrentBoard();
+		else if(osState.mouseLeftDoubleClick == true && MouseOverlapsGUI(osState, GetTitleRectangle()) == true) { // Change title text
+			auto& tb = GetTitleTextBody();
+			BeginTextUpdate(tb, osState.mousePos);
+			goto label_rendering;
 		}
+		else if( // Clicking out of the title bar while updating it
+						TitleIsBeingUpdated() == true && Win32MouseLeftDownThisFrame(osState) == true && MouseOverlapsGUI(osState, GetTitleRectangle()) == false)
+			EndTextUpdate();
 		
 		// @SECTION - Toolbar
 		if(ButtonClicked(GetToolBar()->newNote, osState) == true) { // Create new note
-			auto pos = ConvertToCanvasSpace(0, osprogramState.mousePos.y - NoteMinHeight / 2);
+			auto pos = ConvertToCanvasSpace(0, osState.mousePos.y - NoteMinHeight / 2);
 			auto* n = CreateNote(pos, Null, Null);
 			SetCurrentNote(n);
-			programState.notes.justCreated = true;
-			programState.notes.moving = true;
+			programState.state = program_state::NoteCreated;
 			goto label_rendering;
 		}
 		else if(NoteTextIsBeingUpdated() == true && ButtonClicked(GetToolBar()->bulletPoint, osState) == true) // Add a bullet point
@@ -511,7 +510,7 @@ GUIAppEntryPoint(instance) {
 			auto* n = GetCurrentNote();
 			if(NoteHasTitle(n) == false) {
 				auto textRec = GetTextRectangle(n->text);
-				n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, NoteMinWidth, NoteTextBorder, NoteTitleTextHeight, Null, TextBodyFlagLetters);
+				n->title = AllocateTextBody(textRec.left, GetTopRight(textRec).y, NoteMinWidth, NoteTextBorderOffset, NoteTitleTextHeight, Null, TextBodyFlagLetters);
 				Insert("Title", Null, n->title, 0);
 				UpdateNoteContainers(n);
 			}
@@ -519,16 +518,15 @@ GUIAppEntryPoint(instance) {
 		else if(GetColourPanel()->display == false && ButtonClicked(GetToolBar()->colourPanel, osState) == true) // Open colour panel
 			OpenColourPanel();
 		else if(ButtonClicked(GetToolBar()->CreateBoard, osState) == true) {
-			auto pos = ConvertToCanvasSpace(0, osprogramState.mousePos.y - NoteMinHeight / 2);
+			auto pos = ConvertToCanvasSpace(0, osState.mousePos.y - NoteMinHeight / 2);
 			auto* f = CreateBoard(pos, Null);
-			programState.folders.selected = GetOffset(f, programState.folders.memory.memory);
-			programState.folders.justCreated = true;
-			programState.folders.moving = true;
+			programState.currentSelection = GetOffset(f, GetCurrentBoard()->boards.memory);
+			programState.state = program_state::BoardCreated;
 			goto label_rendering;
 		}
 
 		// @SECTION - Notes
-		if(osprogramState.mouseLeftDoubleClick == true) { // Begin writing regardless of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
+		if(osState.mouseLeftDoubleClick == true) { // Begin writing regardless of whether a note is selected @TODO - Technically a note would have already been selected be 1st mouse click, simplify?
 			auto* previouslySelected = GetCurrentNote();
 			SetCurrentNote(Null);
 
@@ -536,7 +534,6 @@ GUIAppEntryPoint(instance) {
 			BeginNotesMemoryLoop(allocated, n) {
 				if(*allocated == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(n)) == true) {
 					SetCurrentNote(n);
-					programState.notes.moving = false;
 					break;
 				}
 			}
@@ -546,7 +543,7 @@ GUIAppEntryPoint(instance) {
 			if(GetCurrentNote() != Null) {
 				auto* n = GetCurrentNote();
 
-				auto mousePosCanvas = ConvertToCanvasSpace(osprogramState.mousePos);
+				auto mousePosCanvas = ConvertToCanvasSpace(osState.mousePos);
 				if(NoteHasTitle(n) == true && MouseOverlapsCanvas(osState, n->title.container) == true) { // Update title
 					BeginTextUpdate(GetCurrentNote()->title, mousePosCanvas);
 					goto label_rendering;
@@ -561,12 +558,12 @@ GUIAppEntryPoint(instance) {
 		else if(Win32MouseLeftDownThisFrame(osState) == true && NoteIsBeingUpdated() == false) { // Select only when not updating text
 			auto* previouslySelected = GetCurrentNote();
 			SetCurrentNote(Null);
-
-			auto mousePosCanvas = ConvertToCanvasSpace(osprogramState.mousePos.x, osprogramState.mousePos.y);
+			
+			auto mousePosCanvas = ConvertToCanvasSpace(osState.mousePos.x, osState.mousePos.y);
 			BeginNotesMemoryLoop(allocated, n) {
 				if(*allocated == true && MouseOverlapsCanvas(osState, GetNoteOverallRectangle(n)) == true) {
 					SetCurrentNote(n);
-					programState.notes.moving = true;
+					programState.state = program_state::NoteMoving;
 					break;
 				}
 			}
@@ -576,18 +573,18 @@ GUIAppEntryPoint(instance) {
 			if(TextIsBeingUpdated() == true && (GetCurrentNote() == Null || previouslySelected != GetCurrentNote()))
 				EndTextUpdate();
 		}
-		else if(programState.notes.moving == true && osprogramState.mouseLeftDown == true) { // Move
+		else if((programState.state == program_state::NoteCreated || programState.state == program_state::NoteMoving) && osState.mouseLeftDown == true) { // Move
 			auto* n = GetCurrentNote();
 			Assert(n != Null);
 
 			// Mouse moves in viewport space
-			vector newPosCanvas = n->text.container.pos + ConvertToCanvasSpace(osprogramState.mouseTranslation);
+			vector newPosCanvas = n->text.container.pos + ConvertToCanvasSpace(osState.mouseTranslation);
 
 			// When moving a new note outside of the toolbar, ensure it can't be moved back in
-			if(programState.notes.justCreated == true) {
+			if(programState.state == program_state::NoteCreated) {
 				f32 toolbarEdgeCanvas = ConvertToCanvasSpace(programState.toolBar.background.left + programState.toolBar.background.width, Null).x;
 				if(newPosCanvas.x >= toolbarEdgeCanvas)
-					programState.notes.justCreated = false;
+					programState.state = program_state::NoteMoving;
 			}
 
 			// Move
@@ -597,21 +594,19 @@ GUIAppEntryPoint(instance) {
 				n->title.container.bottom = GetTopRight(n->text.container).y;
 			}
 		}
-		else if(programState.notes.moving == true && osprogramState.mouseLeftDown == false) { // Drop
+		else if((programState.state == program_state::NoteCreated || programState.state == program_state::NoteMoving) && osState.mouseLeftDown == false) { // Drop
 			auto* n = GetCurrentNote();
 			Assert(n != Null);
 			
-			programState.notes.moving = false;
-
+			programState.state = program_state::NoteSelected;
+			
 			// If the note was just created, drop it outside of the toolbar
 			Assert(GetCurrentNote() != Null);
 			f32 toolbarEdgeCanvas = ConvertToCanvasSpace(programState.toolBar.background.left + programState.toolBar.background.width, Null).x;
-			if(n->text.container.pos.x < toolbarEdgeCanvas && programState.notes.justCreated == true)
+			if(n->text.container.pos.x < toolbarEdgeCanvas && programState.state == program_state::NoteCreated)
 				n->text.container.pos.x = toolbarEdgeCanvas;
 
-			programState.notes.justCreated = false;
-			
-			// Check if dropped into a folder
+			// Check if dropped into another board
 			auto* f = MouseOverlapsBoard(osState);
 			if(f != Null) {
 				// Temporarily switch to target folder and create new note, then delete old one
@@ -622,9 +617,10 @@ GUIAppEntryPoint(instance) {
 									  GetTextLength(n->text) > 0 ? GetText(n->text) : Null);
 				CloseCurrentBoard();
 				DeleteNote(n);
+				SetCurrentNote(Null);
 			}
 		}
-		else if(GetCurrentNote() != Null && TextIsBeingUpdated() == false && (osprogramState.deletePressed == true || osprogramState.backspacePressed == true)) { // Delete note
+		else if(GetCurrentNote() != Null && TextIsBeingUpdated() == false && (osState.deletePressed == true || osState.backspacePressed == true)) { // Delete note
 			FreeText(GetCurrentNote()->text);
 			if(IsValid(GetCurrentNote()->title) == true)
 				FreeText(GetCurrentNote()->title);
@@ -662,51 +658,46 @@ GUIAppEntryPoint(instance) {
 			UpdateNoteContainers(GetCurrentNote());
 		
 		// @SECTION - Folders
-		if(osprogramState.mouseLeftDoubleClick == true && MouseOverlapsBoard(osState) != Null) { // Open or rename folder
-			auto* folder = MouseOverlapsBoard(osState);
-			if(Overlap(UnpackVector(osprogramState.mousePos), UnpackRectangle(GetTextRectangle(folder->text))) == true) // Rename
-				BeginTextUpdate(folder->text, osprogramState.mousePos);
+		if(osState.mouseLeftDoubleClick == true && MouseOverlapsBoard(osState) != Null) { // Open or rename folder
+			auto* b = MouseOverlapsBoard(osState);
+			if(Overlap(UnpackVector(osState.mousePos), UnpackRectangle(GetTextRectangle(b->title))) == true) // Rename
+				BeginTextUpdate(b->title, osState.mousePos);
 			else // Open
-				OpenBoard(folder);
+				OpenBoard(b);
 		}
 		else if(Win32MouseLeftDownThisFrame(osState) == true && MouseIsWithinCanvasSpace(osState) == true) { // Check for selection
-			vector mousePos = ConvertToCanvasSpace(osprogramState.mousePos);
-			bool selected = false;
+			vector mousePos = ConvertToCanvasSpace(osState.mousePos);
 			BeginBoardsMemoryLoop(allocated, f) {
 				if(*allocated == true) {
 					Assert(IsValid(f->text) == true);
 					if(Overlap(UnpackVector(mousePos), UnpackVector(f->pos), BoardIconSize, BoardIconSize) == true) { // Select folder itself
 						if(TextIsBeingUpdated() == true)
 							EndTextUpdate();
-						programState.folders.selected = GetOffset(f, programState.folders.memory.memory);
-						programState.folders.moving = true;
-						selected = true;
+						programState.currentSelection = GetOffset(f, GetCurrentBoard()->boards.memory);
+						programState.state = program_state::BoardMoving;
 						BreakBoardsMemoryLoop();
 					}
 				}
 			}
 			EndBoardsMemoryLoop()
-			
-			if(selected == false)
-				SetInvalid(programState.folders.selected);
 		}
-		else if(IsValid(programState.folders.selected) == true && textUpdatePipelineData.bodyBeingUpdatedThisFrame == &(((board*)GetMemory(programState.folders.selected))->text) == true) { // If EndTextUpdate() is called while editing a folder's text
-			auto* f = (board*)GetMemory(programState.folders.selected);
+		else if(programState.state == program_state::BoardSelected && textUpdatePipelineData.bodyBeingUpdatedThisFrame == &(((board*)GetMemory(programState.currentSelection))->title) == true) { // If EndTextUpdate() is called while editing a folder's text
+			auto* f = (board*)GetMemory(programState.currentSelection);
 			if(GetTextLength(f->text) == 0)
 				Insert("Folder", 6, f->text, 0);
 		}
-		else if(programState.folders.moving == true) { // Moving
-			auto* f = (board*)GetMemory(programState.folders.selected);
+		else if(programState.state == program_state::BoardMoving) { // Moving
+			auto* f = (board*)GetMemory(programState.currentSelection);
 			Assert(f != Null);
 			
-			if(osprogramState.mouseLeftDown == true) { // Moving
+			if(osState.mouseLeftDown == true) { // Moving
 				// When moving a new folder outside of the toolbar, ensure it can't be moved back in
-				vector newPosCanvas = f->pos + ConvertToCanvasSpace(osprogramState.mouseTranslation);
+				vector newPosCanvas = f->pos + ConvertToCanvasSpace(osState.mouseTranslation);
 				
-				if(programState.folders.justCreated == true) {
+				if(programState.state == program_state::BoardCreated) {
 					f32 toolbarEdgeCanvas = ConvertToCanvasSpace(programState.toolBar.background.left + programState.toolBar.background.width, Null).x;
 					if(newPosCanvas.x >= toolbarEdgeCanvas)
-						programState.folders.justCreated = false;
+						programState.state = program_state::Moving;
 				}
 				
 				vector delta = newPosCanvas - f->pos;
@@ -718,30 +709,30 @@ GUIAppEntryPoint(instance) {
 	
 				// If the folderwas just created, drop it outside of the toolbar
 				f32 toolbarEdgeCanvas = ConvertToCanvasSpace(programState.toolBar.background.left + programState.toolBar.background.width, Null).x;
-				if(f->pos.x < toolbarEdgeCanvas && programState.folders.justCreated == true) {
+				if(f->pos.x < toolbarEdgeCanvas && programState.state == program_state::BoardCreated) {
 					f->pos.x = toolbarEdgeCanvas;
 					f->text.container.left = toolbarEdgeCanvas;
 				}
 	
-				programState.folders.justCreated = false;
+				programState.state = program_state::BoardSelected;
 			}
 		}
 		
 		// @SECTION - Update scaling
-		if(osprogramState.mouseWheelRotation != 0.0f) {
-			auto mousePosPre = ConvertToCanvasSpace(osprogramState.mousePos);
-			programState.canvas.scale += osprogramState.mouseWheelRotation / 10;
+		if(osState.mouseWheelRotation != 0.0f) {
+			auto mousePosPre = ConvertToCanvasSpace(osState.mousePos);
+			programState.canvas.scale += osState.mouseWheelRotation / 10;
 			if(programState.canvas.scale <= 0.0f)
 				programState.canvas.scale = 0.1f;
-			auto   mousePosPost = ConvertToCanvasSpace(osprogramState.mousePos);
+			auto   mousePosPost = ConvertToCanvasSpace(osState.mousePos);
 			vector mouseTranslationCanvas = mousePosPost - mousePosPre;
 			programState.canvas.translation += mouseTranslationCanvas * programState.canvas.scale;
 		}
 
 		// @SECTION - Update translations
-		if(osprogramState.mouseRightDown == true && (osprogramState.mouseTranslation.x != 0 || osprogramState.mouseTranslation.y != 0)) {
-			programState.canvas.translation.x += osprogramState.mouseTranslation.x;
-			programState.canvas.translation.y += osprogramState.mouseTranslation.y;
+		if(osState.mouseRightDown == true && (osState.mouseTranslation.x != 0 || osState.mouseTranslation.y != 0)) {
+			programState.canvas.translation.x += osState.mouseTranslation.x;
+			programState.canvas.translation.y += osState.mouseTranslation.y;
 		}
 
 		// Use gotos to keep things tidy instead of if else everywhere
@@ -756,7 +747,7 @@ GUIAppEntryPoint(instance) {
 		// @SECTION - Render folders
 		BeginBoardsMemoryLoop(allocated, f) {
 			if(*allocated == true) {
-				if(programState.notes.moving == true && Overlap(UnpackVector(osprogramState.mousePos), UnpackVector(f->pos), BoardIconSize, BoardIconSize) == true) // If moving a note and overlaps with folder
+				if(programState.notes.moving == true && Overlap(UnpackVector(osState.mousePos), UnpackVector(f->pos), BoardIconSize, BoardIconSize) == true) // If moving a note and overlaps with folder
 					DrawRectangleFull(UnpackVector(f->pos), BoardIconSize, BoardIconSize, 255, 0, 0); // Render red
 				else
 					DrawRectangleFull(UnpackVector(f->pos), BoardIconSize, BoardIconSize, 0, 255, 0);
@@ -771,7 +762,7 @@ GUIAppEntryPoint(instance) {
 		BeginNotesMemoryLoop(allocated, n) {
 			if(*allocated == true) {
 				bool draw = true;
-				if(GetCurrentNote() == n && programState.notes.justCreated == true) // Recently created notes will be drawn in front of the UI, further down
+				if(GetCurrentNote() == n && programState.state == program_state::NoteCreated) // Recently created notes will be drawn in front of the UI, further down
 					draw = false;
 
 				if(draw == true) {
@@ -808,7 +799,7 @@ GUIAppEntryPoint(instance) {
 			button* buttons[] = { &tb->newNote, &tb->bulletPoint, &tb->noteTitle, &tb->colourPanel, &tb->CreateBoard };
 			ForAll(GetArrayLength(buttons)) { // Buttons
 				auto* b = buttons[it];
-				Render(*b, UIBorderThickness, osprogramState.mousePos, false);
+				Render(*b, UIBorderThickness, osState.mousePos, false);
 				f32 bottom = b->rectangle.bottom - b->textHeight * 2;
 				RenderText(b->text, GetLength(b->text), GetCenter(b->rectangle).x, bottom, b->textHeight, true);
 			}
@@ -834,7 +825,7 @@ GUIAppEntryPoint(instance) {
 			{
 				auto& b = GetTitleBar()->backButton;
 				if(IsValid(b) == true)
-					Render(b, UIBorderThickness, osprogramState.mousePos, true);
+					Render(b, UIBorderThickness, osState.mousePos, true);
 			}
 
 			// Draw separator
@@ -848,7 +839,7 @@ GUIAppEntryPoint(instance) {
 		}
 
 		// If a note was just created, draw in front of the tool bar
-		if(GetCurrentNote() != Null && programState.notes.justCreated == true) {
+		if(GetCurrentNote() != Null && programState.state == program_state::NoteCreated) {
 			SetCanvasProjetionMatrix();
 			auto rec = GetNoteOverallRectangle(GetCurrentNote());
 			DrawRectangleFull(UnpackRectangle(rec), 255, 255, 255, 1);
@@ -856,9 +847,9 @@ GUIAppEntryPoint(instance) {
 		}
 		
 		// If a folde was just created, draw in front of the tool bar
-		if(GetMemory(programState.folders.selected) != Null && programState.folders.justCreated == true) {
+		if(GetMemory(programState.currentSelection) != Null && programState.state == program_state::BoardCreated) {
 			SetCanvasProjetionMatrix();
-			auto* f = (board*)GetMemory(programState.folders.selected);
+			auto* f = (board*)GetMemory(programState.currentSelection);
 			DrawRectangleFull(UnpackVector(f->pos), BoardIconSize, BoardIconSize, 0, 255, 0);
 		}
 
@@ -870,8 +861,8 @@ GUIAppEntryPoint(instance) {
 			DrawRectangleFull(UnpackRectangle(m->background), 146, 139, 183, 1);
 
 			// Render text
-			Render(m->save, Null, osprogramState.mousePos, true);
-			Render(m->load, Null, osprogramState.mousePos, true);
+			Render(m->save, Null, osState.mousePos, true);
+			Render(m->load, Null, osState.mousePos, true);
 
 			// Draw separators
 			glColor3f(1, 1, 1);
@@ -984,22 +975,22 @@ GUIAppEntryPoint(instance) {
 				DrawRectangleBorder(UnpackRectangle(panel->red.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->red);
 				RenderText("Red", Null, GetTopRight(panel->redArrowUp.rectangle).x + ColourPanelEdgeOffset, GetTextRectangle(panel->red).bottom, panel->red.textHeight, false);
-				Render(panel->redArrowUp, UIBorderThickness, osprogramState.mousePos, false);
-				Render(panel->redArrowDown, UIBorderThickness, osprogramState.mousePos, false);
+				Render(panel->redArrowUp, UIBorderThickness, osState.mousePos, false);
+				Render(panel->redArrowDown, UIBorderThickness, osState.mousePos, false);
 
 				// Green
 				DrawRectangleBorder(UnpackRectangle(panel->green.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->green);
 				RenderText("Green", Null, GetTopRight(panel->greenArrowUp.rectangle).x + ColourPanelEdgeOffset, GetTextRectangle(panel->green).bottom, panel->green.textHeight, false);
-				Render(panel->greenArrowUp, UIBorderThickness, osprogramState.mousePos, false);
-				Render(panel->greenArrowDown, UIBorderThickness, osprogramState.mousePos, false);
+				Render(panel->greenArrowUp, UIBorderThickness, osState.mousePos, false);
+				Render(panel->greenArrowDown, UIBorderThickness, osState.mousePos, false);
 
 				// Blue
 				DrawRectangleBorder(UnpackRectangle(panel->blue.container), UIBorderThickness, 0, 0, 0);
 				Render(panel->blue);
 				RenderText("Blue", Null, GetTopRight(panel->blueArrowUp.rectangle).x + ColourPanelEdgeOffset, GetTextRectangle(panel->blue).bottom, panel->blue.textHeight, false);
-				Render(panel->blueArrowUp, UIBorderThickness, osprogramState.mousePos, false);
-				Render(panel->blueArrowDown, UIBorderThickness, osprogramState.mousePos, false);
+				Render(panel->blueArrowUp, UIBorderThickness, osState.mousePos, false);
+				Render(panel->blueArrowDown, UIBorderThickness, osState.mousePos, false);
 				
 				// if(panel->updatingCurrentColour == true || panel->updatingSlider == true)
 				// 	SetColourPanelRGBHexText(panel->currentColour);
@@ -1049,13 +1040,13 @@ GUIAppEntryPoint(instance) {
 					DrawCircleBorder(UnpackVector(f->center), f->radius * 1.25f, UIBorderThickness , 0, 0, 0);
 				}
 				
-				Render(panel->save, UIBorderThickness, osprogramState.mousePos, true);
+				Render(panel->save, UIBorderThickness, osState.mousePos, true);
 				DrawRectangleBorder(UnpackRectangle(panel->save.rectangle), UIBorderThickness, 0, 0, 0);
 			}
 
 			// OK & cancel buttons
-			Render(panel->ok, UIBorderThickness, osprogramState.mousePos, true);
-			Render(panel->cancel, UIBorderThickness, osprogramState.mousePos, true);
+			Render(panel->ok, UIBorderThickness, osState.mousePos, true);
+			Render(panel->cancel, UIBorderThickness, osState.mousePos, true);
 		}
 		
 		// Draw cursor if needed

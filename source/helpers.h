@@ -28,10 +28,10 @@ struct board {
 	} 			 canvas; // Treated as the GL projection matrix, initially takes up entire viewport, including title and tool bars
 };
 
-#define BeginBoardsMemoryLoop(_allocatedBoolPtrID, _folderID) BeginMemoryPoolLoop(programState.folders.memory, _allocatedBoolPtrID, _memPtrID) \
+#define BeginBoardsMemoryLoop(_allocatedBoolPtrID, _folderID) BeginMemoryPoolLoop(GetCurrentBoard()->folders, _allocatedBoolPtrID, _memPtrID) \
 																														     board* _folderID = (board*)_memPtrID;
-#define BreakBoardsMemoryLoop()													     break
-#define EndBoardsMemoryLoop() 													       EndMemoryPoolLoop()
+#define BreakBoardsMemoryLoop()													     	break
+#define EndBoardsMemoryLoop() 													      EndMemoryPoolLoop()
 
 board* CreateBoard(vector pos, char* title);
 char* 	// Needs to be freed with Free(char*) if not Null
@@ -45,8 +45,8 @@ void OpenBoard(board* b);
 
 const ui16 NoteMinWidth = 200;
 const ui16 NoteTextHeight = 15;
-const ui16 NoteTextBorder = NoteTextHeight;
-const ui16 NoteMinHeight = NoteTextHeight + NoteTextBorder * 2;
+const ui16 NoteTextBorderOffset = NoteTextHeight;
+const ui16 NoteMinHeight = NoteTextHeight + NoteTextBorderOffset * 2;
 
 const ui16 NoteTitleTextHeight = NoteTextHeight * 1.5f;
 
@@ -56,14 +56,15 @@ struct note {
 									 // Call GetTextLength(note->text) (APAD API) for the real length
 };
 
-#define   BeginNotesMemoryLoop(_allocatedBoolPtrID, _notePtrID) BeginMemoryPoolLoop(programState.notes.memory, _allocatedBoolPtrID, _memPtrID) { \
+#define   BeginNotesMemoryLoop(_allocatedBoolPtrID, _notePtrID) BeginMemoryPoolLoop(GetCurrentBoard()->notes, _allocatedBoolPtrID, _memPtrID) { \
 																														      note* _notePtrID = (note*)_memPtrID;
 #define   EndNotesMemoryLoop() 				                          } EndMemoryPoolLoop()
 
 note*     CreateNote(vector pos, char* title, char* text);
 void 			DeleteNote(note* n);
 note*     GetCurrentNote(); // Will return Null if none
-note* 	  SetCurrentNote(note* n); // Set n to Null to deselect current note
+note* 	  SetCurrentNote( // Will set programState.state to NoteSelected
+													note* n); // Set n to Null to deselect current note, will set programState.state to Idle
 
 rectangle GetNoteOverallRectangle(note* n);
 bool 			NoteIsBeingUpdated();
@@ -91,18 +92,21 @@ const ui8  ColourWheelVertices = 64;
 const f32  ColourWheelThickness = ColourPanelEdgeOffset;
 const ui8  ColourPanelSliderWidth = 25;
 const ui8  ColourPanelRGBBoxTextHeight = NoteTextHeight;
-const ui8  ColourPanelRGBBoxOffset = NoteTextBorder;
+const ui8  ColourPanelRGBBoxOffset = NoteTextBorderOffset;
 const f32  ColourPanelWheelHeight = (ColourPanelRGBBoxTextHeight + ColourPanelRGBBoxOffset * 2) * 4 + ColourPanelRGBBoxOffset * 3;
 const f32  ColourPanelFavouritesLayerHeight = ColourPanelWheelHeight / 3;
 const f32  ColourPanelOKCancelTextHeight = NoteTextHeight;
-const f32  ColourPanelOKCancelTextOffset = NoteTextBorder;
+const f32  ColourPanelOKCancelTextOffset = NoteTextBorderOffset;
 #define    ColourPanelButtonsHighlightRGBA 200, 200, 200, 0.5f
 
 const ui8  UIBorderThickness = 2;
 
 enum struct program_state : ui8 { 
-	BoardCreated, BoardSelected, BoardMoving, 
-	NoteCreated, NoteSelected, NoteMoving 
+	Idle, 
+	BoardCreated, // Implies also being moved until left mouse button up
+	BoardSelected, BoardMoving, 
+	NoteCreated, // Implies also being moved until left mouse button up 
+	NoteSelected, NoteMoving 
 };
 
 program_unique struct {
@@ -111,8 +115,6 @@ program_unique struct {
 		button    save;
 		button    load;
 	} 					topMenu;
-	
-	struct backButton;
 	
 	struct {
 		rectangle background; // In viewport space
@@ -162,10 +164,9 @@ program_unique struct {
 	} colourPanel;
 	
 	program_state state;
-	
+	button	      backButton;
 	memory_offset currentSelection;
-	
-	memory_stack directories; // Keep track of boards opened. Will always have at least 1.
+	memory_stack  directories; // Keep track of boards opened. Will always have at least 1.
 } programState;
 
 // Misc
@@ -178,7 +179,7 @@ bool    MouseOverlapsCanvas(win32_state& osState, rectangle& r);
 bool    MouseOverlapsGUI(win32_state& osState, rectangle& r);
 
 // Title bar
-#define    GetTitleBar() (&programState.titleBar)
+rectangle  GetTitleRectangle();
 char* 	   // Needs to be freed with Free(char*)
 					 GetTitleText();
 text_body& GetTitleTextBody();

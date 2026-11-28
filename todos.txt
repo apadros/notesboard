@@ -28,16 +28,13 @@ Functionality
 	- Setting a custom colour for the note background
 	- Boards / folders @WIP
 		- @WIP - Restructuring
-			- Changing title bar to be the board's text_body, to be repositioned and resized when opening / closing a board @WIP
-			- Separating core program structure from boards
-			- Current board will be starting point in directories stack, GetCurrentBoard() should return pointer to stack memory
-			- Updating board title should update current board's text_body contents
-		- 'Opening' one and going back to previous canvas
-			- Display within the board title
-			- Reset all matrix transformations
-			- Changing the board title when inside a folder should change the folder text when going back @WIP
-				- Leads to the problem storing the previous folder, need to store pointer, might as well create board as a struct and store just that
-					- Want to separate program state from board contents
+			- Changing title bar to be the board's text_body, to be repositioned and resized when opening / closing a board @TEST
+			- Separating core program structure from boards @UPDATE
+			- Current board will be starting point in directories stack, GetCurrentBoard() should return pointer to stack memory @TEST
+			- Updating board title should update current board's text_body contents @TEST
+			- Saving and loading need redoing - need to store board within boards etc
+			- Reset all matrix transformations when opening and closing boards @TEST
+			- Changing the board title when inside a folder should change the folder text when going back @TEST
 	- Text container colours
 	- Horizontal (main) menu under the program title bar
 		- Bug where option continues to be highlighted when moving the mouse to the window title

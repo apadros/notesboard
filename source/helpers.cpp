@@ -147,17 +147,22 @@ program_external bool TitleIsBeingUpdated() {
 }
 
 program_external note* GetCurrentNote() {
-	if(IsValid(programState.notes.selected) == false)
+	if(IsValid(programState.currentSelection) == false)
 		return Null;
 	
-	return (note*)GetMemory(programState.notes.selected);
+	return (note*)GetMemory(programState.currentSelection);
 }
 
 program_external note* SetCurrentNote(note* n) {
-	if(n == Null)
-		ClearInstance(programState.notes.selected);
-	else
-		programState.notes.selected = GetOffset(n, programState.notes.memory.memory);
+	if(n == Null) {
+		ClearInstance(programState.currentSelection);
+		programState.state = program_state::Idle;
+	}
+	else {
+		programState.currentSelection = GetOffset(n, GetCurrentBoard()->notes.memory);
+		programState.state = program_state::NoteSelected;
+	}
+	
 	return n;
 }
 
@@ -566,90 +571,59 @@ program_external board* MouseOverlapsBoard(win32_state& osState) {
 	return Null;
 }
 
-program_external void OpenBoard(board* f) {
-	Assert(f != Null);
+program_external void OpenBoard(board* b) {
+	Assert(b != Null);
 	
-	PushPtr(f);
+	PushPtr(b);
 	
 	// Update text_body container and text to title bar dimensions
-	f->textHeight = TitleBarTextHeight;
-	f->container = CreateRectangle(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, TitleBarHeight);
-	f->textBorderOffset = f->container.height - f->textHeight;
+	b->textHeight = TitleBarTextHeight;
+	b->container = CreateRectangle(0, GetTopMenu()->background.bottom - TitleBarHeight, Win32GetProgramWindowClientSize().width, TitleBarHeight);
+	b->textBorderOffset = (b->container.height - b->textHeight) / 2;
 	
-	// @WIP 
+	auto* state = &programState;
 	
-	PushInstance(programState.notes.memory, programState.directories);
-	PushInstance(programState.folders.memory, programState.directories);
+	// Reset program state stuff and board transformations
+	state->state = program_state::Idle;
+	SetInvalid(programState.currentSelection);
+	b->canvas.translation = NullVector;
+	b->canvas.scale = 1.0f;
 	
-	SetInvalid(programState.notes.selected);
-	ClearInstance(programState.notes);
-	SetInvalid(programState.folders.selected);
-	ClearInstance(programState.folders);
-	
-	programState.notes.memory = f->notes;
-	if(IsValid(programState.notes.memory) == false)
-		programState.notes.memory = AllocatePool(sizeof(note));
-	
-	programState.folders.memory = f->folders;
-	if(IsValid(programState.folders.memory) == false)
-		programState.folders.memory = AllocatePool(sizeof(folder));
-	
-	// Store the the current board title and its length
-	{
-		auto& tb = GetTitleTextBody();
-		ui8   length = GetTextLength(tb);
-		if(length > 0) {
-			Push(GetText(tb), length, false, programState.directories);
-			ClearText(tb);
-		}
-		PushInstance(length, programState.directories); // Push length regardless
-	}
-	
-	// Update title
-	auto* folderTitle = GetBoardTitle(f);
-	if(folderTitle != Null) {
-		UpdateTitleText(folderTitle, Null);
-		Free(folderTitle);
-	}
-	
-	// Add a go back button
-	{
+	// Add a go back button if not already present
+	if(IsValid(state->backButton) == false) {
 		auto& tb = GetTitleTextBody();
 		f32   left = (tb.container.height - tb.textHeight) / 2;
 		f32   bottom = tb.container.bottom + left; // Same offset from bottom as for left from screen edge
 		f32   height = tb.textHeight;
-		
-		auto* bar = GetTitleBar();
-		Assert(IsValid(bar->backButton) == false);
-		bar->backButton = AllocateButton(left, bottom, 200, height, "Back", Null, height / 2, ColourPanelButtonsHighlightRGBA);
+		state->backButton = AllocateButton(left, bottom, 200, height, "Back", Null, height / 2, ColourPanelButtonsHighlightRGBA);
 	}
 }
 
 program_external void CloseCurrentBoard() {
-	// @WIP @TODO - Convert text_body container and text to board icon dimensions
-	
-	if(programState.directories.size > 0) {
-		void* mem = GetEnd(programState.directories);
+	if(programState.directories.size > sizeof(board)) {
+		auto* b = GetCurrentBoard();
 		
-		// Extract previous board title and update
-		MovePtr(mem, -1);
-		ui8 length = *((ui8*)mem);
-		MovePtr(mem, -length);
-		UpdateTitleText((char*)mem, length);
+		// Update text_body container and text to icon dimensions
+		b->textHeight = NoteTextHeight;
+		b->container = CreateRectangle(b->pos.x, b->pos.y - NoteTextHeight - NoteTextBorder * 2, BoardIconSize, BoardIconSize);
+		b->textBorderOffset = (b->container.height - b->textHeight) / 2;
 		
-		MovePtr(mem, -sizeof(programState.folders.memory));
-		Copy(mem, sizeof(programState.folders.memory), &(programState.folders.memory));
+		Pop(sizeof(board), programState.directories);
 		
-		MovePtr(mem, -sizeof(programState.notes.memory));
-		Copy(mem, sizeof(programState.notes.memory), &(programState.notes.memory));
+		b = GetCurrentBoard();
+			
+		// Reset program state stuff and board transformations
+		programState.state = program_state::Idle;
+		SetInvalid(programState.currentSelection);
+		b->canvas.translation = NullVector;
+		b->canvas.scale = 1.0f;
 		
-		ui32 popSize = (ui8*)GetEnd(programState.directories) - (ui8*)mem;
-		Pop(popSize, programState.directories);
-		
-		auto* bar = GetTitleBar();
-		Assert(IsValid(bar->backButton) == true);
-		FreeButtonText(bar->backButton);
-		SetInvalid(bar->backButton);
+		// If we're back to the very first board, remove back button
+		if(GetCurrentBoard() == GetMemory(programState.directories)) {
+			Assert(IsValid(programState.backButton) == true);
+			FreeButtonText(programState.backButton);
+			SetInvalid(bar->backButton);
+		}
 	}
 }
 
@@ -668,28 +642,27 @@ program_external void UpdateTitleText(string_args(text)) {
 	auto& tb = GetTitleTextBody();
 	ClearText(tb);
 	Insert(text, stringArgsLength(text), tb, 0);
-	
-	auto* b = GetCurrentBoard();
-	ClearText(*b);
-	Insert(text, stringArgsLength(text), *b, 0);
 }
 
 program_external char* GetTitleText() {
-	auto& tb = GetTitleTextBody();
-	if(GetTextLength(tb) > 0) {
+	auto& tb = GetCurrentBoard()->title;
+	if(GetTextLength(tb) > 0)
 		return AllocateString(GetText(tb), GetTextLength(tb));
-	}
 	else
 		return Null;
 }
 
 program_external text_body& GetTitleTextBody() {
-	return programState.titleBar.textBody;
+	return GetCurrentBoard()->title;
 }
 
 program_external board* GetCurrentBoard() {
-	assert(programState.directories.size >= sizeof(board));
+	Assert(programState.directories.size >= sizeof(board));
 	ui8* mem = (ui8*)GetEnd(programState.directories) - sizeof(board);
-	assert(mem >= GetMmeory(programState.directories));
+	Assert(mem >= GetMmeory(programState.directories));
 	return (board*)mem;
+}
+
+program_external rectangle GetTitleRectangle() {
+	return GetTitleTextBody().container;
 }
